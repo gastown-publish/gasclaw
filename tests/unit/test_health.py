@@ -272,6 +272,22 @@ class TestCheckServiceErrorHandling:
         assert activity["compliant"] is False
         assert activity["last_commit_age"] is None
 
+    def test_permission_error_returns_non_compliant(self, monkeypatch, tmp_path):
+        """PermissionError returns non-compliant."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        def raise_permission_error(*a, **kw):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", raise_permission_error)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+        assert activity["error"] is not None
+
 
 class TestListAgentsErrorHandling:
     """Tests for _list_agents() exception handling."""

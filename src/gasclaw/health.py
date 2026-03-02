@@ -157,7 +157,7 @@ def check_agent_activity(
                 "compliant": age <= deadline_seconds,
                 "error": None,
             }
-    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+    except (OSError, subprocess.TimeoutExpired, ValueError):
         pass
 
     return {
