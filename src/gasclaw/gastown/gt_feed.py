@@ -60,9 +60,9 @@ class GastownFeed:
             )
             if result.returncode == 0:
                 return result.stdout
-            logger.warning(f"gt command failed: {' '.join(args)} - {result.stderr}")
+            logger.warning("gt command failed: %s - %s", " ".join(args), result.stderr)
         except (OSError, subprocess.TimeoutExpired) as e:
-            logger.warning(f"Failed to run gt command: {e}")
+            logger.warning("Failed to run gt command: %s", e)
         return None
 
     def get_agent_status(self) -> list[dict[str, Any]]:
@@ -110,7 +110,7 @@ class GastownFeed:
                             )
                 return events
         except (OSError, subprocess.TimeoutExpired) as e:
-            logger.warning(f"Failed to get git log: {e}")
+            logger.warning("Failed to get git log: %s", e)
         return []
 
     def get_recent_prs(self, limit: int = 5) -> list[ActivityEvent]:
@@ -149,7 +149,7 @@ class GastownFeed:
                             )
                 return events
         except (OSError, subprocess.TimeoutExpired) as e:
-            logger.warning(f"Failed to get merge commits: {e}")
+            logger.warning("Failed to get merge commits: %s", e)
         return []
 
     def get_feed(self, limit: int = 10) -> list[ActivityEvent]:
