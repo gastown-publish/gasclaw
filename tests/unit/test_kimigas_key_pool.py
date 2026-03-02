@@ -265,12 +265,40 @@ class TestKeyPoolEdgeCases:
         assert pool1._key_hash("k1") == pool2._key_hash("k1")
 
     def test_mark_nonexistent_key_rate_limited(self, tmp_path):
-        """Marking a key not in pool as rate-limited is handled gracefully."""
+        """Marking a key not in pool raises ValueError."""
         pool = KeyPool(["k1"], state_dir=tmp_path)
-        # This should not raise an error
-        pool.mark_rate_limited("nonexistent-key")
-        # k1 should still be available
+        with pytest.raises(ValueError, match="Key does not belong"):
+            pool.mark_rate_limited("nonexistent-key")
+
+    def test_clear_cooldown_removes_rate_limit(self, tmp_path):
+        """clear_cooldown removes rate-limited status and returns True."""
+        pool = KeyPool(["k1", "k2"], state_dir=tmp_path)
+        pool.mark_rate_limited("k1")
+
+        # k1 is rate-limited, so k2 is selected
+        assert pool.get_key() == "k2"
+
+        # Clear cooldown for k1
+        result = pool.clear_cooldown("k1")
+        assert result is True
+
+        # k1 is now available again (it's LRU)
         assert pool.get_key() == "k1"
+
+    def test_clear_cooldown_returns_false_if_not_rate_limited(self, tmp_path):
+        """clear_cooldown returns False if key was not rate-limited."""
+        pool = KeyPool(["k1", "k2"], state_dir=tmp_path)
+
+        # k1 was never rate-limited
+        result = pool.clear_cooldown("k1")
+        assert result is False
+
+    def test_clear_cooldown_raises_for_invalid_key(self, tmp_path):
+        """clear_cooldown raises ValueError for key not in pool."""
+        pool = KeyPool(["k1"], state_dir=tmp_path)
+
+        with pytest.raises(ValueError, match="Key does not belong"):
+            pool.clear_cooldown("nonexistent-key")
 
     def test_state_file_is_json(self, tmp_path):
         """State file contains valid JSON with expected structure."""
