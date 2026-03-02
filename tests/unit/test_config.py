@@ -588,7 +588,9 @@ class TestConfigValidationNew:
         ("100000", 3307),
         ("-1", 3307),
     ])
-    def test_dolt_port_out_of_range_defaults(self, monkeypatch, caplog, invalid_port, expected_default):
+    def test_dolt_port_out_of_range_defaults(
+        self, monkeypatch, caplog, invalid_port, expected_default
+    ):
         """DOLT_PORT outside 1-65535 range logs warning and uses default."""
         monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
         monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
