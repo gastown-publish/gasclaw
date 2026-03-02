@@ -81,6 +81,6 @@ def stop_all() -> None:
         subprocess.run(["gt", "mayor", "stop"], check=False)
         subprocess.run(["gt", "daemon", "stop"], check=False)
         subprocess.run(["dolt", "sql-server", "--stop"], check=False)
-    except FileNotFoundError:
-        # Binaries not installed - services likely not running
+    except OSError:
+        # Binaries not installed or permission denied - services likely not running
         pass

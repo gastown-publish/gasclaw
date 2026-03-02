@@ -184,6 +184,17 @@ class TestCheckServiceErrorHandling:
         result = _check_service(["gt", "daemon", "status"], "daemon")
         assert result == "unhealthy"
 
+    def test_check_service_oserror(self, monkeypatch):
+        """Test _check_service returns 'unhealthy' on OSError (e.g., permission denied)."""
+        from gasclaw.health import _check_service
+
+        def _raise_oserror(*a, **kw):
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", _raise_oserror)
+        result = _check_service(["gt", "daemon", "status"], "daemon")
+        assert result == "unhealthy"
+
     def test_git_error_returns_non_compliant(self, monkeypatch, tmp_path):
         """Git command failure returns non-compliant activity."""
         git_dir = tmp_path / "git_repo"
@@ -269,6 +280,17 @@ class TestListAgentsErrorHandling:
             raise subprocess.TimeoutExpired(cmd=a[0] if a else "cmd", timeout=10)
 
         monkeypatch.setattr(subprocess, "run", _raise_timeout)
+        result = _list_agents()
+        assert result == []
+
+    def test_list_agents_oserror(self, monkeypatch):
+        """Test _list_agents returns empty list on OSError (e.g., permission denied)."""
+        from gasclaw.health import _list_agents
+
+        def _raise_oserror(*a, **kw):
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", _raise_oserror)
         result = _list_agents()
         assert result == []
 

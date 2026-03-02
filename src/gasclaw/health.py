@@ -56,7 +56,7 @@ def _check_service(cmd: list[str], service_name: str) -> str:
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=10)
         return "healthy" if result.returncode == 0 else "unhealthy"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired):
         return "unhealthy"
 
 
@@ -86,7 +86,7 @@ def _list_agents() -> list[str]:
         )
         if result.returncode == 0:
             return [line.strip() for line in result.stdout.decode().splitlines() if line.strip()]
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired):
         pass
     return []
 
