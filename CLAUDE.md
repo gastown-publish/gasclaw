@@ -98,7 +98,7 @@ All 582 unit tests must pass. Never modify a test to make it pass — fix the co
 ## PR Checklist
 
 Before creating a PR, verify:
-- [ ] `make test` passes (all 582 tests)
+- [ ] `make test` passes (all 585 tests)
 - [ ] `make lint` passes
 - [ ] New code has corresponding tests
 - [ ] Commit message follows `<type>: <description>` format
