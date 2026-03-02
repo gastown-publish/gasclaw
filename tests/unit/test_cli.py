@@ -211,6 +211,7 @@ class TestStatusCommand:
             "gasclaw.cli.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
+
         def mock_status():
             return {"total": 2, "available": 2, "rate_limited": 0}
 
@@ -375,6 +376,7 @@ class TestCLIEdgeCases:
             "gasclaw.cli.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
+
         def mock_status_rl():
             return {"total": 5, "available": 3, "rate_limited": 2}
 

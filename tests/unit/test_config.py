@@ -625,12 +625,15 @@ class TestConfigValidationNew:
         with pytest.raises(ValueError, match="must start with 'sk-'"):
             load_config()
 
-    @pytest.mark.parametrize("invalid_port,expected_default", [
-        ("0", 3307),
-        ("65536", 3307),
-        ("100000", 3307),
-        ("-1", 3307),
-    ])
+    @pytest.mark.parametrize(
+        "invalid_port,expected_default",
+        [
+            ("0", 3307),
+            ("65536", 3307),
+            ("100000", 3307),
+            ("-1", 3307),
+        ],
+    )
     def test_dolt_port_out_of_range_defaults(
         self, monkeypatch, caplog, invalid_port, expected_default
     ):
