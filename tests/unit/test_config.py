@@ -234,3 +234,102 @@ class TestParsePositiveIntWarnings:
         assert cfg.gt_agent_count == 8
         # Should not have any warnings about GT_AGENT_COUNT
         assert "GT_AGENT_COUNT" not in caplog.text
+
+
+class TestConfigEdgeCases:
+    """Additional edge case tests for config parsing."""
+
+    def test_float_value_defaults_to_int(self, monkeypatch, env_vars, caplog):
+        """Float value for integer config uses default."""
+        import logging
+        for k, v in env_vars(GT_AGENT_COUNT="3.14").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gt_agent_count == 6  # Default used
+        assert "GT_AGENT_COUNT" in caplog.text
+        assert "not a valid integer" in caplog.text.lower()
+
+    def test_leading_zeros_parsed_correctly(self, monkeypatch, env_vars):
+        """Values with leading zeros are parsed as integers."""
+        for k, v in env_vars(GT_AGENT_COUNT="007").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_agent_count == 7
+
+    def test_plus_sign_prefix(self, monkeypatch, env_vars):
+        """Positive numbers with + prefix are accepted."""
+        for k, v in env_vars(GT_AGENT_COUNT="+10").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_agent_count == 10
+
+    def test_whitespace_in_integer_value(self, monkeypatch, env_vars, caplog):
+        """Whitespace around integer values is handled."""
+        import logging
+        for k, v in env_vars(GT_AGENT_COUNT="  42  ").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int() handles whitespace, so this should parse correctly
+        assert cfg.gt_agent_count == 42
+        assert "GT_AGENT_COUNT" not in caplog.text
+
+    def test_scientific_notation_defaults(self, monkeypatch, env_vars, caplog):
+        """Scientific notation for integer config uses default."""
+        import logging
+        for k, v in env_vars(MONITOR_INTERVAL="1e3").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int("1e3") raises ValueError
+        assert cfg.monitor_interval == 300  # Default used
+        assert "MONITOR_INTERVAL" in caplog.text
+
+    def test_hexadecimal_notation_defaults(self, monkeypatch, env_vars, caplog):
+        """Hexadecimal notation for integer config uses default."""
+        import logging
+        for k, v in env_vars(ACTIVITY_DEADLINE="0x100").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int("0x100") with base 10 raises ValueError
+        assert cfg.activity_deadline == 3600  # Default used
+        assert "ACTIVITY_DEADLINE" in caplog.text
+
+    def test_large_integer_accepted(self, monkeypatch, env_vars):
+        """Very large integers are accepted."""
+        for k, v in env_vars(ACTIVITY_DEADLINE="999999").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.activity_deadline == 999999
+
+    def test_keys_with_internal_whitespace(self, monkeypatch, env_vars):
+        """Keys with internal whitespace have it preserved."""
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="key with spaces:another key").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gastown_kimi_keys == ["key with spaces", "another key"]
+
+    def test_keys_with_leading_trailing_whitespace(self, monkeypatch, env_vars):
+        """Keys have leading/trailing whitespace stripped."""
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="  key1  :  key2  ").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gastown_kimi_keys == ["key1", "key2"]
+
+    def test_empty_optional_strings_default(self, monkeypatch, env_vars):
+        """Empty optional string values use defaults."""
+        for k, v in env_vars(GT_RIG_URL="", PROJECT_DIR="").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_rig_url == "/project"
+        assert cfg.project_dir == "/project"
