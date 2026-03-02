@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import subprocess
 
+import httpx
+import respx
+
 from gasclaw.health import HealthReport, check_agent_activity, check_health
 
 
 class TestCheckHealth:
-    def test_report_structure(self, monkeypatch):
+    def test_report_structure(self, monkeypatch, respx_mock: respx.MockRouter):
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
@@ -22,7 +26,8 @@ class TestCheckHealth:
         assert hasattr(report, "agents")
         assert hasattr(report, "key_pool")
 
-    def test_all_healthy(self, monkeypatch):
+    def test_all_healthy(self, monkeypatch, respx_mock: respx.MockRouter):
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"running"),
@@ -31,8 +36,11 @@ class TestCheckHealth:
         assert report.dolt == "healthy"
         assert report.daemon == "healthy"
         assert report.mayor == "healthy"
+        assert report.openclaw == "healthy"
 
-    def test_dolt_down(self, monkeypatch):
+    def test_dolt_down(self, monkeypatch, respx_mock: respx.MockRouter):
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
         def _mock_run(cmd, **kw):
             if "dolt" in str(cmd):
                 return subprocess.CompletedProcess(cmd, 1, stderr=b"refused")
@@ -41,7 +49,8 @@ class TestCheckHealth:
         report = check_health(gateway_port=18789)
         assert report.dolt == "unhealthy"
 
-    def test_agents_listed(self, monkeypatch):
+    def test_agents_listed(self, monkeypatch, respx_mock: respx.MockRouter):
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(
@@ -103,6 +112,42 @@ class TestCheckAgentActivityValidation:
         assert activity["compliant"] is True
         assert activity["last_commit_age"] is not None
         assert activity["error"] is None
+
+
+class TestCheckOpenclawGateway:
+    """Tests for _check_openclaw_gateway() function."""
+
+    def test_returns_healthy_on_200(self, respx_mock: respx.MockRouter):
+        """Returns healthy when gateway returns 200."""
+        from gasclaw.health import _check_openclaw_gateway
+
+        respx_mock.get("http://localhost:8080/health").mock(return_value=httpx.Response(200))
+        result = _check_openclaw_gateway(8080)
+        assert result == "healthy"
+
+    def test_returns_unhealthy_on_503(self, respx_mock: respx.MockRouter):
+        """Returns unhealthy when gateway returns 503."""
+        from gasclaw.health import _check_openclaw_gateway
+
+        respx_mock.get("http://localhost:8080/health").mock(return_value=httpx.Response(503))
+        result = _check_openclaw_gateway(8080)
+        assert result == "unhealthy"
+
+    def test_returns_unhealthy_on_connect_error(self, respx_mock: respx.MockRouter):
+        """Returns unhealthy when connection fails."""
+        from gasclaw.health import _check_openclaw_gateway
+
+        respx_mock.get("http://localhost:8080/health").mock(side_effect=httpx.ConnectError("refused"))
+        result = _check_openclaw_gateway(8080)
+        assert result == "unhealthy"
+
+    def test_returns_unhealthy_on_timeout(self, respx_mock: respx.MockRouter):
+        """Returns unhealthy when request times out."""
+        from gasclaw.health import _check_openclaw_gateway
+
+        respx_mock.get("http://localhost:8080/health").mock(side_effect=httpx.TimeoutException("timeout"))
+        result = _check_openclaw_gateway(8080)
+        assert result == "unhealthy"
 
 
 class TestCheckServiceErrorHandling:
@@ -308,8 +353,10 @@ class TestHealthReportSummary:
 
 
 class TestHealthCheckEdgeCases:
-    def test_check_health_with_timeout_expired(self, monkeypatch):
+    def test_check_health_with_timeout_expired(self, monkeypatch, respx_mock: respx.MockRouter):
         """check_health handles TimeoutExpired gracefully."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
         def raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
         monkeypatch.setattr(subprocess, "run", raise_timeout)
@@ -318,8 +365,12 @@ class TestHealthCheckEdgeCases:
         assert report.dolt == "unhealthy"
         assert report.daemon == "unhealthy"
 
-    def test_check_health_agents_with_file_not_found(self, monkeypatch):
+    def test_check_health_agents_with_file_not_found(
+        self, monkeypatch, respx_mock: respx.MockRouter
+    ):
         """_list_agents handles FileNotFoundError when gt not installed."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
         def mock_run(cmd, **kw):
             if "status" in str(cmd) and "--agents" in str(cmd):
                 raise FileNotFoundError("gt not found")
@@ -328,8 +379,10 @@ class TestHealthCheckEdgeCases:
         report = check_health(gateway_port=18789)
         assert report.agents == []
 
-    def test_check_health_agents_with_timeout(self, monkeypatch):
+    def test_check_health_agents_with_timeout(self, monkeypatch, respx_mock: respx.MockRouter):
         """_list_agents handles TimeoutExpired gracefully."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
         def mock_run(cmd, **kw):
             if "status" in str(cmd) and "--agents" in str(cmd):
                 raise subprocess.TimeoutExpired(cmd=["gt"], timeout=10)
@@ -379,13 +432,50 @@ class TestHealthCheckEdgeCases:
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=100000)
         assert activity["compliant"] is True
 
-    def test_check_health_custom_gateway_port(self, monkeypatch):
+    def test_check_health_custom_gateway_port(self, monkeypatch, respx_mock: respx.MockRouter):
         """check_health uses custom gateway port for openclaw check."""
-        calls = []
-        def mock_run(cmd, **kw):
-            calls.append(str(cmd))
-            return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
-        monkeypatch.setattr(subprocess, "run", mock_run)
-        check_health(gateway_port=99999)
-        # Check that custom port appears in curl command
-        assert any("99999" in c for c in calls)
+        respx_mock.get("http://localhost:99999/health").mock(return_value=httpx.Response(200))
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        report = check_health(gateway_port=99999)
+        assert report.openclaw == "healthy"
+
+    def test_openclaw_gateway_connection_error(
+        self, monkeypatch, respx_mock: respx.MockRouter
+    ):
+        """check_health returns unhealthy when openclaw gateway connection fails."""
+        respx_mock.get("http://localhost:18789/health").mock(
+            side_effect=httpx.ConnectError("Connection refused")
+        )
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        report = check_health(gateway_port=18789)
+        assert report.openclaw == "unhealthy"
+
+    def test_openclaw_gateway_timeout(
+        self, monkeypatch, respx_mock: respx.MockRouter
+    ):
+        """check_health returns unhealthy when openclaw gateway times out."""
+        respx_mock.get("http://localhost:18789/health").mock(
+            side_effect=httpx.TimeoutException("Request timed out")
+        )
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        report = check_health(gateway_port=18789)
+        assert report.openclaw == "unhealthy"
+
+    def test_openclaw_gateway_non_200_status(self, monkeypatch, respx_mock: respx.MockRouter):
+        """check_health returns unhealthy when openclaw gateway returns non-200."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(503))
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        report = check_health(gateway_port=18789)
+        assert report.openclaw == "unhealthy"
