@@ -33,6 +33,24 @@ class TestSetupKimiAccounts:
         doc = tomlkit.loads((tmp_path / "1" / "config.toml").read_text())
         assert doc["providers"]["kimi-api"]["api_key"] == "sk-key1"
 
+    def test_empty_keys_list_creates_no_accounts(self, tmp_path):
+        """Empty keys list should not create any account directories."""
+        from pathlib import Path
+        setup_kimi_accounts([], accounts_dir=tmp_path)
+        # No subdirectories should be created
+        assert list(tmp_path.iterdir()) == []
+
+    def test_uses_default_accounts_dir_when_none_provided(self, monkeypatch, tmp_path):
+        """setup_kimi_accounts uses ~/.kimi-accounts when accounts_dir is None."""
+        from pathlib import Path
+        # Mock Path.home() to return tmp_path
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        setup_kimi_accounts(["sk-test"], accounts_dir=None)
+
+        # Should create account in ~/.kimi-accounts/1/
+        assert (tmp_path / ".kimi-accounts" / "1" / "config.toml").exists()
+
 
 class TestGastownInstall:
     def test_runs_gt_install(self, monkeypatch, tmp_path):
