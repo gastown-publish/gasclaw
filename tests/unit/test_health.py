@@ -247,6 +247,41 @@ class TestCheckServiceErrorHandling:
         result = _check_service(["gt", "daemon", "status"], "daemon")
         assert result == "unhealthy"
 
+    def test_check_service_logs_debug_on_failure(self, monkeypatch, caplog):
+        """Test _check_service logs debug message when service returns non-zero exit code."""
+        from gasclaw.health import _check_service
+        import logging
+
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"error"),
+        )
+
+        with caplog.at_level(logging.DEBUG):
+            result = _check_service(["gt", "daemon", "status"], "daemon")
+
+        assert result == "unhealthy"
+        assert "daemon" in caplog.text
+        assert "exit code 1" in caplog.text
+
+    def test_check_service_logs_debug_on_exception(self, monkeypatch, caplog):
+        """Test _check_service logs debug message when command fails or times out."""
+        from gasclaw.health import _check_service
+        import logging
+
+        def _raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0] if a else "cmd", timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", _raise_timeout)
+
+        with caplog.at_level(logging.DEBUG):
+            result = _check_service(["gt", "daemon", "status"], "daemon")
+
+        assert result == "unhealthy"
+        assert "daemon" in caplog.text
+        assert "timed out" in caplog.text.lower()
+
     def test_git_error_returns_non_compliant(self, monkeypatch, tmp_path):
         """Git command failure returns non-compliant activity."""
         git_dir = tmp_path / "git_repo"
