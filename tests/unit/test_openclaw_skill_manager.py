@@ -46,3 +46,45 @@ class TestInstallSkills:
         self._make_source_skills(src)
         install_skills(skills_src=src, skills_dst=dst)
         assert dst.is_dir()
+
+class TestInstallSkillsErrorHandling:
+    """Tests for error handling in install_skills."""
+
+    def test_handles_permission_error_on_destination(self, tmp_path, monkeypatch):
+        """PermissionError when creating destination is raised."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+
+        # Create source skill
+        skill_dir = src / "test-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Test")
+
+        # Mock mkdir to raise PermissionError
+        def mock_mkdir(*args, **kwargs):
+            raise PermissionError("Permission denied")
+
+        monkeypatch.setattr(Path, "mkdir", mock_mkdir)
+
+        with pytest.raises(PermissionError):
+            install_skills(skills_src=src, skills_dst=dst)
+
+    def test_handles_os_error_on_copy(self, tmp_path, monkeypatch):
+        """OSError when copying skill is raised."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+
+        # Create source skill
+        skill_dir = src / "test-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Test")
+
+        # Mock copytree to raise OSError
+        import shutil
+        def mock_copytree(*args, **kwargs):
+            raise OSError("Disk full")
+
+        monkeypatch.setattr(shutil, "copytree", mock_copytree)
+
+        with pytest.raises(OSError):
+            install_skills(skills_src=src, skills_dst=dst)
