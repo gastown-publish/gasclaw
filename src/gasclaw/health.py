@@ -12,6 +12,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
 from gasclaw.openclaw.doctor import run_doctor
 
 
@@ -58,6 +60,22 @@ def _check_service(cmd: list[str], service_name: str) -> str:
         return "unhealthy"
 
 
+def _check_openclaw_gateway(gateway_port: int) -> str:
+    """Check OpenClaw gateway health via HTTP request.
+
+    Args:
+        gateway_port: Port where the OpenClaw gateway is listening.
+
+    Returns:
+        "healthy" if the gateway responds with 200, "unhealthy" otherwise.
+    """
+    try:
+        response = httpx.get(f"http://localhost:{gateway_port}/health", timeout=10)
+        return "healthy" if response.status_code == 200 else "unhealthy"
+    except (httpx.ConnectError, httpx.TimeoutException):
+        return "unhealthy"
+
+
 def _list_agents() -> list[str]:
     """Get list of running Gastown agents from gt status."""
     try:
@@ -87,10 +105,7 @@ def check_health(*, gateway_port: int = 18789) -> HealthReport:
         dolt=_check_service(["dolt", "sql", "--port", "3307", "-q", "SELECT 1"], "dolt"),
         daemon=_check_service(["gt", "daemon", "status"], "daemon"),
         mayor=_check_service(["gt", "mayor", "status"], "mayor"),
-        openclaw=_check_service(
-            ["curl", "-sf", f"http://localhost:{gateway_port}/health"],
-            "openclaw",
-        ),
+        openclaw=_check_openclaw_gateway(gateway_port),
         openclaw_doctor="healthy" if doctor.healthy else "unhealthy",
         agents=_list_agents(),
     )
