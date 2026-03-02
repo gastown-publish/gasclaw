@@ -70,6 +70,41 @@ class TestKeyPoolRateLimit:
         result = pool.get_key()
         assert result == "k2"
 
+    def test_expired_cooldown_unused_key_still_lru(self, tmp_path):
+        """When cooldown expires, unused key still has priority over recently used key.
+
+        This tests the LRU principle: k3 has never been used (timestamp=0),
+        so even when k1 and k2 come off cooldown, k3 should be selected first.
+        """
+        pool = KeyPool(["k1", "k2", "k3"], state_dir=tmp_path)
+
+        # Use k1 and k2, leaving k3 unused
+        pool.get_key()  # k1 (now has recent timestamp)
+        pool.get_key()  # k2 (now has recent timestamp)
+
+        # Rate-limit both k1 and k2
+        pool.mark_rate_limited("k1")
+        pool.mark_rate_limited("k2")
+
+        # Manually expire both cooldowns
+        state = pool._load_state()
+        h1 = pool._key_hash("k1")
+        h2 = pool._key_hash("k2")
+        expired_time = time.time() - RATE_LIMIT_COOLDOWN - 1
+        state["rate_limited"][h1] = expired_time
+        state["rate_limited"][h2] = expired_time
+        pool._save_state(state)
+
+        # All keys are now available, but k3 was never used
+        # LRU should pick k3 (timestamp=0) over k1 and k2 (recent timestamps)
+        result = pool.get_key()
+        assert result == "k3"
+
+        # After using k3, the next call should pick between k1 and k2
+        # (k3 now has a timestamp, so k1 or k2 might be LRU depending on exact timing)
+        second_result = pool.get_key()
+        assert second_result in ("k1", "k2")
+
 
 class TestKeyPoolStatePersistence:
     def test_state_persists_across_instances(self, tmp_path):
