@@ -500,6 +500,28 @@ class TestParsePositiveIntEdgeCases:
         result = _parse_positive_int("invalid", default=99, name="")
         assert result == 99
 
+    def test_parse_port_non_integer_defaults(self, monkeypatch, caplog):
+        """Non-integer string for DOLT_PORT triggers exception handler and uses default."""
+        from gasclaw.config import _parse_port
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port("not_a_number", default=3307, name="DOLT_PORT")
+
+        assert result == 3307
+        assert "DOLT_PORT" in caplog.text
+        assert "not a valid integer" in caplog.text.lower()
+
+    def test_parse_port_float_string_defaults(self, monkeypatch, caplog):
+        """Float string for DOLT_PORT triggers exception handler and uses default."""
+        from gasclaw.config import _parse_port
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port("3.14", default=3307, name="DOLT_PORT")
+
+        assert result == 3307
+        assert "DOLT_PORT" in caplog.text
+        assert "not a valid integer" in caplog.text.lower()
+
     def test_valid_value_with_name(self):
         """Valid value returns correctly even with name provided."""
         from gasclaw.config import _parse_positive_int
