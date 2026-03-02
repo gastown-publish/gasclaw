@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import typer
+
+logger = logging.getLogger(__name__)
 from rich.console import Console
 from rich.table import Table
 
@@ -61,7 +64,7 @@ def status() -> None:
         report.key_pool = pool.status()
     except ValueError:
         # Config not loaded, skip optional fields
-        pass
+        logger.debug("Config not loaded, skipping optional status fields")
 
     table = Table(title="Gasclaw Status")
     table.add_column("Service", style="bold")
@@ -97,5 +100,4 @@ def update() -> None:
     console.print("\n[bold]Applying updates...[/bold]")
     results = apply_updates()
     for name, result in results.items():
-        style = "green" if result == "updated" else "yellow"
-        console.print(f"  {name}: [{style}]{result}[/{style}]")
+        st
