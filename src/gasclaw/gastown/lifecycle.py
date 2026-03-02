@@ -31,21 +31,31 @@ def start_dolt(
         stderr=subprocess.DEVNULL,
     )
 
-    # Wait for port to be ready
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        # Check if process died early
-        if proc.poll() is not None:
-            raise RuntimeError(f"Dolt process exited early with code {proc.returncode}")
+    try:
+        # Wait for port to be ready
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            # Check if process died early
+            if proc.poll() is not None:
+                raise RuntimeError(f"Dolt process exited early with code {proc.returncode}")
 
-        result = subprocess.run(
-            ["dolt", "sql", "--port", str(port), "-q", "SELECT 1"],
-            capture_output=True,
-        )
-        if result.returncode == 0:
-            return
-        time.sleep(1)
-    raise TimeoutError(f"Dolt not ready after {timeout}s on port {port}")
+            result = subprocess.run(
+                ["dolt", "sql", "--port", str(port), "-q", "SELECT 1"],
+                capture_output=True,
+            )
+            if result.returncode == 0:
+                return
+            time.sleep(1)
+        raise TimeoutError(f"Dolt not ready after {timeout}s on port {port}")
+    except Exception:
+        # Clean up subprocess on any failure
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+        raise
 
 
 def start_daemon() -> None:

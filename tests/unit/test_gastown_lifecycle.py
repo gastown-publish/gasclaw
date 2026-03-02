@@ -34,6 +34,10 @@ class TestStartDolt:
             returncode = 1
             def poll(self):
                 return self.returncode  # Process already exited
+            def terminate(self):
+                pass
+            def wait(self, timeout=None):
+                return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: DeadProcess())
         try:
@@ -49,6 +53,10 @@ class TestStartDolt:
             pid = 1
             def poll(self):
                 return None  # Still running
+            def terminate(self):
+                pass
+            def wait(self, timeout=None):
+                return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
         # Always return non-zero (not ready)
@@ -118,6 +126,89 @@ class TestStartDolt:
         run_str = " ".join(str(x) for x in run_calls[0])
         assert "9999" in popen_str
         assert "9999" in run_str
+
+    def test_terminates_on_early_exit(self, monkeypatch):
+        """Subprocess is terminated when dolt exits early."""
+        terminate_called = []
+        wait_called = []
+
+        class DeadProcess:
+            pid = 1
+            returncode = 1
+            def poll(self):
+                return self.returncode
+            def terminate(self):
+                terminate_called.append(True)
+            def wait(self, timeout=None):
+                wait_called.append(timeout)
+                return 0
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: DeadProcess())
+        try:
+            start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
+        except RuntimeError:
+            pass
+
+        assert len(terminate_called) == 1
+        assert len(wait_called) == 1
+
+    def test_terminates_on_timeout(self, monkeypatch):
+        """Subprocess is terminated when timeout occurs."""
+        terminate_called = []
+
+        class SlowProc:
+            pid = 1
+            def poll(self):
+                return None  # Never exits
+            def terminate(self):
+                terminate_called.append(True)
+            def wait(self, timeout=None):
+                return 0
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: SlowProc())
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
+        )
+
+        try:
+            start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
+        except TimeoutError:
+            pass
+
+        assert len(terminate_called) == 1
+
+    def test_force_kill_on_terminate_timeout(self, monkeypatch):
+        """Process is killed if graceful terminate doesn't work."""
+        terminate_called = []
+        kill_called = []
+
+        class StubbornProc:
+            pid = 1
+            def poll(self):
+                return None
+            def terminate(self):
+                terminate_called.append(True)
+            def kill(self):
+                kill_called.append(True)
+            def wait(self, timeout=None):
+                if timeout == 5:
+                    raise subprocess.TimeoutExpired(cmd=["dolt"], timeout=5)
+                return 0
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: StubbornProc())
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
+        )
+
+        try:
+            start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
+        except TimeoutError:
+            pass
+
+        assert len(terminate_called) == 1
+        assert len(kill_called) == 1
 
 
 class TestStartDaemon:
