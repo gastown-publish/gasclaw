@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from typing import Any
 
 # Default log format includes timestamp, level, and message
 DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
@@ -45,11 +44,12 @@ def setup_logging(level: str | None = None, log_file: str | None = None) -> None
         file_handler.setFormatter(formatter)
         handlers.append(file_handler)
 
-    # Configure root logger
+    # Configure root logger (allow override in tests via force parameter)
+    force_config = os.environ.get("GASCLAW_LOGGING_FORCE", "true").lower() == "true"
     logging.basicConfig(
         level=getattr(logging, log_level, logging.INFO),
         handlers=handlers,
-        force=True,  # Override any existing configuration
+        force=force_config,
     )
 
     # Reduce noise from third-party libraries

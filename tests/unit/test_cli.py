@@ -79,6 +79,20 @@ class TestStartCommand:
         assert monitor_calls[0].project_dir == str(project_override)
         # KeyboardInterrupt causes exit code 130, which is expected
 
+    def test_start_exits_on_bootstrap_failure(self, config, monkeypatch, tmp_path):
+        """start command exits with code 1 if bootstrap raises an exception."""
+        def mock_bootstrap_fail(cfg, gt_root):
+            raise RuntimeError("dolt connection failed")
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_fail)
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "Bootstrap failed" in result.output
+        assert "dolt connection failed" in result.output
+
 
 class TestStopCommand:
     def test_calls_stop_all(self, monkeypatch):
