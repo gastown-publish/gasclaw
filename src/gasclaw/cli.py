@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
@@ -283,8 +284,6 @@ def keys(
         pool.mark_rate_limited(current_key)
         status = pool.status()
         if json_output:
-            import json
-
             console.print(json.dumps({"rotated": True, **status}))
         else:
             console.print("[green]Key rotated successfully[/green]")
@@ -297,8 +296,6 @@ def keys(
     # Show status
     status = pool.status()
     if json_output:
-        import json
-
         console.print(json.dumps(status))
     else:
         table = Table(title="Key Pool Status")
