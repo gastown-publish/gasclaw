@@ -42,6 +42,7 @@ class TestSetupKimiAccounts:
     def test_uses_default_accounts_dir_when_none_provided(self, monkeypatch, tmp_path):
         """setup_kimi_accounts uses ~/.kimi-accounts when accounts_dir is None."""
         from pathlib import Path
+
         # Mock Path.home() to return tmp_path
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
@@ -55,7 +56,8 @@ class TestGastownInstall:
     def test_runs_gt_install(self, monkeypatch, tmp_path):
         calls = []
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: calls.append((a, kw)) or subprocess.CompletedProcess(a[0], 0),
         )
         gastown_install(gt_root=tmp_path, rig_url="/project")
@@ -65,7 +67,8 @@ class TestGastownInstall:
     def test_runs_gt_rig_add(self, monkeypatch, tmp_path):
         calls = []
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: calls.append((a, kw)) or subprocess.CompletedProcess(a[0], 0),
         )
         gastown_install(gt_root=tmp_path, rig_url="/project")
@@ -74,6 +77,7 @@ class TestGastownInstall:
 
     def test_gt_install_failure_raises(self, monkeypatch, tmp_path):
         """gt install failure raises CalledProcessError."""
+
         def mock_run(*a, **kw):
             cmd = a[0] if a else []
             if "install" in str(cmd):
@@ -90,6 +94,7 @@ class TestGastownInstall:
 
     def test_gt_rig_add_failure_raises(self, monkeypatch, tmp_path):
         """gt rig add failure raises CalledProcessError."""
+
         def mock_run(*a, **kw):
             cmd = a[0] if a else []
             if "rig" in str(cmd) and "add" in str(cmd):
@@ -106,6 +111,7 @@ class TestGastownInstall:
 
     def test_missing_gt_binary_raises(self, monkeypatch, tmp_path):
         """Missing gt binary raises FileNotFoundError."""
+
         def raise_not_found(*a, **kw):
             raise FileNotFoundError("gt not found")
 
@@ -118,6 +124,7 @@ class TestGastownInstall:
 
     def test_gt_install_timeout_raises(self, monkeypatch, tmp_path):
         """gt install timeout raises TimeoutExpired."""
+
         def raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0] if a else ["gt"], timeout=60)
 

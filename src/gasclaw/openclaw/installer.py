@@ -12,6 +12,7 @@ def _generate_auth_token() -> str:
     """Generate a random 64-char hex token."""
     return hashlib.sha256(os.urandom(32)).hexdigest()
 
+
 __all__ = ["write_openclaw_config"]
 
 

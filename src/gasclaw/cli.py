@@ -32,7 +32,8 @@ console = Console()
 @app.callback()
 def main(
     version: bool | None = typer.Option(
-        None, "--version",
+        None,
+        "--version",
         callback=version_callback,
         is_eager=True,
         help="Show version and exit.",

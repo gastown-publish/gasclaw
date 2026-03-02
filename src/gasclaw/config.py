@@ -58,16 +58,14 @@ def _parse_positive_int(value: str, default: int, name: str = "") -> int:
         if result <= 0:
             if name:
                 logger.warning(
-                    "Invalid %s: %r must be positive, using default %d",
-                    name, value, default
+                    "Invalid %s: %r must be positive, using default %d", name, value, default
                 )
             return default
         return result
     except (ValueError, TypeError):
         if name:
             logger.warning(
-                "Invalid %s: %r is not a valid integer, using default %d",
-                name, value, default
+                "Invalid %s: %r is not a valid integer, using default %d", name, value, default
             )
         return default
 

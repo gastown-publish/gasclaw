@@ -14,7 +14,8 @@ class TestCheckHealth:
     def test_report_structure(self, monkeypatch, respx_mock: respx.MockRouter):
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
         report = check_health(gateway_port=18789)
@@ -29,7 +30,8 @@ class TestCheckHealth:
     def test_all_healthy(self, monkeypatch, respx_mock: respx.MockRouter):
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"running"),
         )
         report = check_health(gateway_port=18789)
@@ -45,6 +47,7 @@ class TestCheckHealth:
             if "dolt" in str(cmd):
                 return subprocess.CompletedProcess(cmd, 1, stderr=b"refused")
             return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+
         monkeypatch.setattr(subprocess, "run", _mock_run)
         report = check_health(gateway_port=18789)
         assert report.dolt == "unhealthy"
@@ -52,7 +55,8 @@ class TestCheckHealth:
     def test_agents_listed(self, monkeypatch, respx_mock: respx.MockRouter):
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(
                 a[0], 0, stdout=b"mayor\ndeacon\nwitness\ncrew-1\ncrew-2\n"
             ),
@@ -105,7 +109,8 @@ class TestCheckAgentActivityValidation:
         # Mock git log to return current timestamp
         now_ts = int(time.time())
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{now_ts}\n".encode()),
         )
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
@@ -137,7 +142,9 @@ class TestCheckOpenclawGateway:
         """Returns unhealthy when connection fails."""
         from gasclaw.health import _check_openclaw_gateway
 
-        respx_mock.get("http://localhost:8080/health").mock(side_effect=httpx.ConnectError("refused"))
+        respx_mock.get("http://localhost:8080/health").mock(
+            side_effect=httpx.ConnectError("refused")
+        )
         result = _check_openclaw_gateway(8080)
         assert result == "unhealthy"
 
@@ -145,7 +152,9 @@ class TestCheckOpenclawGateway:
         """Returns unhealthy when request times out."""
         from gasclaw.health import _check_openclaw_gateway
 
-        respx_mock.get("http://localhost:8080/health").mock(side_effect=httpx.TimeoutException("timeout"))
+        respx_mock.get("http://localhost:8080/health").mock(
+            side_effect=httpx.TimeoutException("timeout")
+        )
         result = _check_openclaw_gateway(8080)
         assert result == "unhealthy"
 
@@ -183,7 +192,8 @@ class TestCheckServiceErrorHandling:
         git_dot_git.mkdir()
 
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"git error"),
         )
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
@@ -199,7 +209,8 @@ class TestCheckServiceErrorHandling:
         git_dot_git.mkdir()
 
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"not-a-number\n"),
         )
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
@@ -214,6 +225,7 @@ class TestCheckServiceErrorHandling:
 
         def raise_not_found(*a, **kw):
             raise FileNotFoundError("git not found")
+
         monkeypatch.setattr(subprocess, "run", raise_not_found)
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
         assert activity["compliant"] is False
@@ -228,6 +240,7 @@ class TestCheckServiceErrorHandling:
 
         def raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
+
         monkeypatch.setattr(subprocess, "run", raise_timeout)
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
         assert activity["compliant"] is False
@@ -372,6 +385,7 @@ class TestHealthCheckEdgeCases:
 
         def raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
+
         monkeypatch.setattr(subprocess, "run", raise_timeout)
         report = check_health(gateway_port=18789)
         # Should return report with unhealthy status, not raise
@@ -388,6 +402,7 @@ class TestHealthCheckEdgeCases:
             if "status" in str(cmd) and "--agents" in str(cmd):
                 raise FileNotFoundError("gt not found")
             return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+
         monkeypatch.setattr(subprocess, "run", mock_run)
         report = check_health(gateway_port=18789)
         assert report.agents == []
@@ -400,6 +415,7 @@ class TestHealthCheckEdgeCases:
             if "status" in str(cmd) and "--agents" in str(cmd):
                 raise subprocess.TimeoutExpired(cmd=["gt"], timeout=10)
             return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+
         monkeypatch.setattr(subprocess, "run", mock_run)
         report = check_health(gateway_port=18789)
         assert report.agents == []
@@ -416,10 +432,9 @@ class TestHealthCheckEdgeCases:
         # Use current timestamp so age is approximately 0
         now_ts = int(time.time())
         monkeypatch.setattr(
-            subprocess, "run",
-            lambda *a, **kw: subprocess.CompletedProcess(
-                a[0], 0, stdout=f"{now_ts}\n".encode()
-            ),
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{now_ts}\n".encode()),
         )
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=0)
         # Age should be 0 (or close to it), so 0 <= 0 is True
@@ -437,7 +452,8 @@ class TestHealthCheckEdgeCases:
 
         old_timestamp = int(time.time()) - 86400  # 1 day ago
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(
                 a[0], 0, stdout=f"{old_timestamp}\n".encode()
             ),
@@ -449,35 +465,34 @@ class TestHealthCheckEdgeCases:
         """check_health uses custom gateway port for openclaw check."""
         respx_mock.get("http://localhost:99999/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
         report = check_health(gateway_port=99999)
         assert report.openclaw == "healthy"
 
-    def test_openclaw_gateway_connection_error(
-        self, monkeypatch, respx_mock: respx.MockRouter
-    ):
+    def test_openclaw_gateway_connection_error(self, monkeypatch, respx_mock: respx.MockRouter):
         """check_health returns unhealthy when openclaw gateway connection fails."""
         respx_mock.get("http://localhost:18789/health").mock(
             side_effect=httpx.ConnectError("Connection refused")
         )
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
         report = check_health(gateway_port=18789)
         assert report.openclaw == "unhealthy"
 
-    def test_openclaw_gateway_timeout(
-        self, monkeypatch, respx_mock: respx.MockRouter
-    ):
+    def test_openclaw_gateway_timeout(self, monkeypatch, respx_mock: respx.MockRouter):
         """check_health returns unhealthy when openclaw gateway times out."""
         respx_mock.get("http://localhost:18789/health").mock(
             side_effect=httpx.TimeoutException("Request timed out")
         )
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
         report = check_health(gateway_port=18789)
@@ -487,7 +502,8 @@ class TestHealthCheckEdgeCases:
         """check_health returns unhealthy when openclaw gateway returns non-200."""
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(503))
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
         report = check_health(gateway_port=18789)

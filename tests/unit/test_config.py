@@ -106,7 +106,6 @@ class TestLoadConfig:
         cfg = load_config()
         assert cfg.openclaw_kimi_key not in cfg.gastown_kimi_keys
 
-
     def test_whitespace_only_env_vars_treated_as_missing(self, monkeypatch, env_vars):
         """Whitespace-only env vars should be treated as missing."""
         for k, v in env_vars().items():
@@ -185,6 +184,7 @@ class TestParsePositiveIntWarnings:
     def test_invalid_value_logs_warning(self, monkeypatch, env_vars, caplog):
         """Invalid integer value logs a warning."""
         import logging
+
         for k, v in env_vars(GT_AGENT_COUNT="abc").items():
             monkeypatch.setenv(k, v)
 
@@ -199,6 +199,7 @@ class TestParsePositiveIntWarnings:
     def test_zero_value_logs_warning(self, monkeypatch, env_vars, caplog):
         """Zero value logs a warning about positive requirement."""
         import logging
+
         for k, v in env_vars(MONITOR_INTERVAL="0").items():
             monkeypatch.setenv(k, v)
 
@@ -212,6 +213,7 @@ class TestParsePositiveIntWarnings:
     def test_negative_value_logs_warning(self, monkeypatch, env_vars, caplog):
         """Negative value logs a warning about positive requirement."""
         import logging
+
         for k, v in env_vars(ACTIVITY_DEADLINE="-100").items():
             monkeypatch.setenv(k, v)
 
@@ -225,6 +227,7 @@ class TestParsePositiveIntWarnings:
     def test_valid_value_no_warning(self, monkeypatch, env_vars, caplog):
         """Valid value does not log a warning."""
         import logging
+
         for k, v in env_vars(GT_AGENT_COUNT="8").items():
             monkeypatch.setenv(k, v)
 
@@ -242,6 +245,7 @@ class TestConfigEdgeCases:
     def test_float_value_defaults_to_int(self, monkeypatch, env_vars, caplog):
         """Float value for integer config uses default."""
         import logging
+
         for k, v in env_vars(GT_AGENT_COUNT="3.14").items():
             monkeypatch.setenv(k, v)
 
@@ -269,6 +273,7 @@ class TestConfigEdgeCases:
     def test_whitespace_in_integer_value(self, monkeypatch, env_vars, caplog):
         """Whitespace around integer values is handled."""
         import logging
+
         for k, v in env_vars(GT_AGENT_COUNT="  42  ").items():
             monkeypatch.setenv(k, v)
 
@@ -282,6 +287,7 @@ class TestConfigEdgeCases:
     def test_scientific_notation_defaults(self, monkeypatch, env_vars, caplog):
         """Scientific notation for integer config uses default."""
         import logging
+
         for k, v in env_vars(MONITOR_INTERVAL="1e3").items():
             monkeypatch.setenv(k, v)
 
@@ -295,6 +301,7 @@ class TestConfigEdgeCases:
     def test_hexadecimal_notation_defaults(self, monkeypatch, env_vars, caplog):
         """Hexadecimal notation for integer config uses default."""
         import logging
+
         for k, v in env_vars(ACTIVITY_DEADLINE="0x100").items():
             monkeypatch.setenv(k, v)
 

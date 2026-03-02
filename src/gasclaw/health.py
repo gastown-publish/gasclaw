@@ -85,10 +85,7 @@ def _list_agents() -> list[str]:
             timeout=10,
         )
         if result.returncode == 0:
-            return [
-                line.strip() for line in result.stdout.decode().splitlines()
-                if line.strip()
-            ]
+            return [line.strip() for line in result.stdout.decode().splitlines() if line.strip()]
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     return []

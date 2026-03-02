@@ -84,6 +84,7 @@ class TestStatusCommand:
 
         def raise_valueerror():
             raise ValueError("no config")
+
         monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
         monkeypatch.setattr("gasclaw.cli.load_config", raise_valueerror)
 
@@ -110,11 +111,11 @@ class TestStatusCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr(
             "gasclaw.cli.check_agent_activity",
-            lambda **kw: {"compliant": True, "last_commit_age": 300}
+            lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
         monkeypatch.setattr(
             "gasclaw.cli.KeyPool",
-            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 2}))
+            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 2})),
         )
 
         result = runner.invoke(app, ["status"])
@@ -127,12 +128,10 @@ class TestUpdateCommand:
     def test_shows_versions_and_updates(self, monkeypatch):
         """update command checks versions and applies updates."""
         monkeypatch.setattr(
-            "gasclaw.cli.check_versions",
-            lambda: {"gt": "1.0.0", "claude": "2.0.0"}
+            "gasclaw.cli.check_versions", lambda: {"gt": "1.0.0", "claude": "2.0.0"}
         )
         monkeypatch.setattr(
-            "gasclaw.cli.apply_updates",
-            lambda: {"gt": "updated", "claude": "up-to-date"}
+            "gasclaw.cli.apply_updates", lambda: {"gt": "updated", "claude": "up-to-date"}
         )
 
         result = runner.invoke(app, ["update"])
@@ -147,6 +146,7 @@ class TestVersionCommand:
     def test_version_flag_shows_version(self):
         """--version flag displays version and exits."""
         from gasclaw import __version__
+
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert __version__ in result.output
@@ -154,6 +154,7 @@ class TestVersionCommand:
     def test_version_command_shows_version(self):
         """version subcommand displays version."""
         from gasclaw import __version__
+
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert __version__ in result.output
@@ -199,8 +200,7 @@ class TestCLIEdgeCases:
 
         monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
         monkeypatch.setattr(
-            "gasclaw.cli.load_config",
-            lambda: (_ for _ in ()).throw(ValueError("no config"))
+            "gasclaw.cli.load_config", lambda: (_ for _ in ()).throw(ValueError("no config"))
         )
 
         result = runner.invoke(app, ["status"])
@@ -227,11 +227,11 @@ class TestCLIEdgeCases:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr(
             "gasclaw.cli.check_agent_activity",
-            lambda **kw: {"compliant": False, "last_commit_age": 5000}
+            lambda **kw: {"compliant": False, "last_commit_age": 5000},
         )
         monkeypatch.setattr(
             "gasclaw.cli.KeyPool",
-            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 1}))
+            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 1})),
         )
 
         result = runner.invoke(app, ["status"])

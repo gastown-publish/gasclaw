@@ -56,12 +56,10 @@ class KeyPool:
 
         # Write to temp file in same directory, then rename atomically
         fd, temp_path = tempfile.mkstemp(
-            dir=self._state_dir,
-            prefix=".key-rotation-",
-            suffix=".tmp"
+            dir=self._state_dir, prefix=".key-rotation-", suffix=".tmp"
         )
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 json.dump(state, f, indent=2)
             os.replace(temp_path, state_file)
         except Exception:
@@ -83,7 +81,8 @@ class KeyPool:
 
         rate_limited: dict[str, float] = state.get("rate_limited", {})
         available = [
-            k for k in self._keys
+            k
+            for k in self._keys
             if now - rate_limited.get(self._key_hash(k), 0) > RATE_LIMIT_COOLDOWN
         ]
 
@@ -121,7 +120,8 @@ class KeyPool:
         rate_limited: dict[str, float] = state.get("rate_limited", {})
 
         rl_count = sum(
-            1 for k in self._keys
+            1
+            for k in self._keys
             if now - rate_limited.get(self._key_hash(k), 0) <= RATE_LIMIT_COOLDOWN
         )
 

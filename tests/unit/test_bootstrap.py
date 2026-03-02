@@ -24,28 +24,32 @@ def config():
 class TestBootstrap:
     def test_calls_all_subsystems(self, config, monkeypatch, tmp_path):
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
         monkeypatch.setattr(
-            subprocess, "Popen",
+            subprocess,
+            "Popen",
             lambda *a, **kw: type("P", (), {"pid": 1, "poll": lambda s: None})(),
         )
 
         from gasclaw.openclaw.doctor import DoctorResult
+
         mock_doctor = DoctorResult(healthy=True, returncode=0, output="OK")
 
-        with patch("gasclaw.bootstrap.setup_kimi_accounts") as m_kimi, \
-             patch("gasclaw.bootstrap.write_agent_config") as m_agent, \
-             patch("gasclaw.bootstrap.gastown_install") as m_install, \
-             patch("gasclaw.bootstrap.start_dolt") as m_dolt, \
-             patch("gasclaw.bootstrap.write_openclaw_config") as m_oc, \
-             patch("gasclaw.bootstrap.install_skills") as m_skills, \
-             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor) as m_doctor, \
-             patch("gasclaw.bootstrap.start_daemon") as m_daemon, \
-             patch("gasclaw.bootstrap.start_mayor") as m_mayor, \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
-
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts") as m_kimi,
+            patch("gasclaw.bootstrap.write_agent_config") as m_agent,
+            patch("gasclaw.bootstrap.gastown_install") as m_install,
+            patch("gasclaw.bootstrap.start_dolt") as m_dolt,
+            patch("gasclaw.bootstrap.write_openclaw_config") as m_oc,
+            patch("gasclaw.bootstrap.install_skills") as m_skills,
+            patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor) as m_doctor,
+            patch("gasclaw.bootstrap.start_daemon") as m_daemon,
+            patch("gasclaw.bootstrap.start_mayor") as m_mayor,
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+        ):
             bootstrap(config, gt_root=tmp_path)
 
             m_kimi.assert_called_once()
@@ -63,6 +67,7 @@ class TestBootstrap:
         order = []
 
         from gasclaw.openclaw.doctor import DoctorResult
+
         mock_doctor = DoctorResult(healthy=True, returncode=0, output="OK")
 
         def doctor_side_effect(**kw):
@@ -72,17 +77,18 @@ class TestBootstrap:
         def se(name):
             return lambda *a, **kw: order.append(name)
 
-        with patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=se("kimi")), \
-             patch("gasclaw.bootstrap.write_agent_config", side_effect=se("agent_config")), \
-             patch("gasclaw.bootstrap.gastown_install", side_effect=se("install")), \
-             patch("gasclaw.bootstrap.start_dolt", side_effect=se("dolt")), \
-             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=se("openclaw")), \
-             patch("gasclaw.bootstrap.install_skills", side_effect=se("skills")), \
-             patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect), \
-             patch("gasclaw.bootstrap.start_daemon", side_effect=se("daemon")), \
-             patch("gasclaw.bootstrap.start_mayor", side_effect=se("mayor")), \
-             patch("gasclaw.bootstrap.notify_telegram", side_effect=se("notify")):
-
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=se("kimi")),
+            patch("gasclaw.bootstrap.write_agent_config", side_effect=se("agent_config")),
+            patch("gasclaw.bootstrap.gastown_install", side_effect=se("install")),
+            patch("gasclaw.bootstrap.start_dolt", side_effect=se("dolt")),
+            patch("gasclaw.bootstrap.write_openclaw_config", side_effect=se("openclaw")),
+            patch("gasclaw.bootstrap.install_skills", side_effect=se("skills")),
+            patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect),
+            patch("gasclaw.bootstrap.start_daemon", side_effect=se("daemon")),
+            patch("gasclaw.bootstrap.start_mayor", side_effect=se("mayor")),
+            patch("gasclaw.bootstrap.notify_telegram", side_effect=se("notify")),
+        ):
             bootstrap(config, gt_root=tmp_path)
 
         # Verify critical ordering
@@ -101,13 +107,14 @@ class TestBootstrap:
 
     def test_rollback_on_dolt_failure(self, config, tmp_path):
         """Rollback stops dolt if it was started before failure."""
-        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
-             patch("gasclaw.bootstrap.write_agent_config"), \
-             patch("gasclaw.bootstrap.gastown_install"), \
-             patch("gasclaw.bootstrap.start_dolt") as m_dolt, \
-             patch("gasclaw.bootstrap.stop_all") as m_stop, \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
-
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts"),
+            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.start_dolt") as m_dolt,
+            patch("gasclaw.bootstrap.stop_all") as m_stop,
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+        ):
             m_dolt.side_effect = RuntimeError("dolt failed")
 
             with pytest.raises(RuntimeError, match="dolt failed"):
@@ -120,18 +127,20 @@ class TestBootstrap:
 
     def test_rollback_on_daemon_failure(self, config, tmp_path):
         """Rollback stops all services if daemon fails to start."""
-        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
-             patch("gasclaw.bootstrap.write_agent_config"), \
-             patch("gasclaw.bootstrap.gastown_install"), \
-             patch("gasclaw.bootstrap.start_dolt"), \
-             patch("gasclaw.bootstrap.write_openclaw_config"), \
-             patch("gasclaw.bootstrap.install_skills"), \
-             patch("gasclaw.bootstrap.run_doctor") as m_doctor, \
-             patch("gasclaw.bootstrap.start_daemon") as m_daemon, \
-             patch("gasclaw.bootstrap.stop_all") as m_stop, \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
-
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts"),
+            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap.write_openclaw_config"),
+            patch("gasclaw.bootstrap.install_skills"),
+            patch("gasclaw.bootstrap.run_doctor") as m_doctor,
+            patch("gasclaw.bootstrap.start_daemon") as m_daemon,
+            patch("gasclaw.bootstrap.stop_all") as m_stop,
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+        ):
             from gasclaw.openclaw.doctor import DoctorResult
+
             m_doctor.return_value = DoctorResult(healthy=True, returncode=0, output="OK")
             m_daemon.side_effect = RuntimeError("daemon failed")
 
@@ -147,19 +156,21 @@ class TestBootstrap:
 
     def test_rollback_on_mayor_failure(self, config, tmp_path):
         """Rollback stops all services if mayor fails to start."""
-        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
-             patch("gasclaw.bootstrap.write_agent_config"), \
-             patch("gasclaw.bootstrap.gastown_install"), \
-             patch("gasclaw.bootstrap.start_dolt"), \
-             patch("gasclaw.bootstrap.write_openclaw_config"), \
-             patch("gasclaw.bootstrap.install_skills"), \
-             patch("gasclaw.bootstrap.run_doctor") as m_doctor, \
-             patch("gasclaw.bootstrap.start_daemon"), \
-             patch("gasclaw.bootstrap.start_mayor") as m_mayor, \
-             patch("gasclaw.bootstrap.stop_all") as m_stop, \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
-
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts"),
+            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap.write_openclaw_config"),
+            patch("gasclaw.bootstrap.install_skills"),
+            patch("gasclaw.bootstrap.run_doctor") as m_doctor,
+            patch("gasclaw.bootstrap.start_daemon"),
+            patch("gasclaw.bootstrap.start_mayor") as m_mayor,
+            patch("gasclaw.bootstrap.stop_all") as m_stop,
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+        ):
             from gasclaw.openclaw.doctor import DoctorResult
+
             m_doctor.return_value = DoctorResult(healthy=True, returncode=0, output="OK")
             m_mayor.side_effect = RuntimeError("mayor failed")
 
@@ -174,19 +185,21 @@ class TestBootstrap:
 
     def test_rollback_error_handled(self, config, tmp_path):
         """Rollback errors are caught and notified but original exception is raised."""
-        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
-             patch("gasclaw.bootstrap.write_agent_config"), \
-             patch("gasclaw.bootstrap.gastown_install"), \
-             patch("gasclaw.bootstrap.start_dolt"), \
-             patch("gasclaw.bootstrap.write_openclaw_config"), \
-             patch("gasclaw.bootstrap.install_skills"), \
-             patch("gasclaw.bootstrap.run_doctor") as m_doctor, \
-             patch("gasclaw.bootstrap.start_daemon"), \
-             patch("gasclaw.bootstrap.start_mayor") as m_mayor, \
-             patch("gasclaw.bootstrap.stop_all") as m_stop, \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
-
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts"),
+            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap.write_openclaw_config"),
+            patch("gasclaw.bootstrap.install_skills"),
+            patch("gasclaw.bootstrap.run_doctor") as m_doctor,
+            patch("gasclaw.bootstrap.start_daemon"),
+            patch("gasclaw.bootstrap.start_mayor") as m_mayor,
+            patch("gasclaw.bootstrap.stop_all") as m_stop,
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+        ):
             from gasclaw.openclaw.doctor import DoctorResult
+
             m_doctor.return_value = DoctorResult(healthy=True, returncode=0, output="OK")
             m_mayor.side_effect = RuntimeError("mayor failed")
             m_stop.side_effect = RuntimeError("rollback also failed")
@@ -211,17 +224,23 @@ class TestMonitorLoop:
             if check_count >= 2:
                 raise KeyboardInterrupt
             from gasclaw.health import HealthReport
+
             return HealthReport(
-                dolt="healthy", daemon="healthy", mayor="healthy",
-                openclaw="healthy", agents=["mayor"],
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
                 activity={"compliant": True, "last_commit_age": 100},
             )
 
         activity_return = {"compliant": True, "last_commit_age": 100}
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram"), \
-             patch("time.sleep"):
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram"),
+            patch("time.sleep"),
+        ):
             monitor_loop(config, interval=1)
 
         assert check_count >= 1
@@ -237,16 +256,22 @@ class TestMonitorLoop:
             if call_count >= 2:
                 raise KeyboardInterrupt
             from gasclaw.health import HealthReport
+
             return HealthReport(
-                dolt="healthy", daemon="healthy", mayor="healthy",
-                openclaw="healthy", agents=["mayor"],
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
                 activity={"compliant": True, "last_commit_age": 100},
             )
 
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check_health), \
-             patch("gasclaw.bootstrap.check_agent_activity") as m_activity, \
-             patch("gasclaw.bootstrap.notify_telegram"), \
-             patch("time.sleep"):
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check_health),
+            patch("gasclaw.bootstrap.check_agent_activity") as m_activity,
+            patch("gasclaw.bootstrap.notify_telegram"),
+            patch("time.sleep"),
+        ):
             m_activity.return_value = {"compliant": True, "last_commit_age": 100}
             monitor_loop(config, interval=1)
 
@@ -266,16 +291,22 @@ class TestMonitorLoop:
             if check_count >= 2:
                 raise KeyboardInterrupt
             from gasclaw.health import HealthReport
+
             return HealthReport(
-                dolt="healthy", daemon="healthy", mayor="healthy",
-                openclaw="healthy", agents=["mayor"],
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
             )
 
         activity_return = {"compliant": False, "last_commit_age": 7200}
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
-             patch("time.sleep"):
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+            patch("time.sleep"),
+        ):
             m_notify.side_effect = lambda msg: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
@@ -293,16 +324,22 @@ class TestMonitorLoop:
             if check_count >= 2:
                 raise KeyboardInterrupt
             from gasclaw.health import HealthReport
+
             return HealthReport(
-                dolt="unhealthy", daemon="healthy", mayor="healthy",
-                openclaw="healthy", agents=["mayor"],
+                dolt="unhealthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
             )
 
         activity_return = {"compliant": True, "last_commit_age": 100}
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
-             patch("time.sleep"):
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+            patch("time.sleep"),
+        ):
             m_notify.side_effect = lambda msg: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
@@ -314,20 +351,23 @@ class TestMonitorLoop:
         notify_calls = []
 
         from gasclaw.openclaw.doctor import DoctorResult
+
         mock_doctor = DoctorResult(
             healthy=False, returncode=1, output="Config error: missing token"
         )
 
-        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
-             patch("gasclaw.bootstrap.write_agent_config"), \
-             patch("gasclaw.bootstrap.gastown_install"), \
-             patch("gasclaw.bootstrap.start_dolt"), \
-             patch("gasclaw.bootstrap.write_openclaw_config"), \
-             patch("gasclaw.bootstrap.install_skills"), \
-             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor), \
-             patch("gasclaw.bootstrap.start_daemon"), \
-             patch("gasclaw.bootstrap.start_mayor"), \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts"),
+            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap.write_openclaw_config"),
+            patch("gasclaw.bootstrap.install_skills"),
+            patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor),
+            patch("gasclaw.bootstrap.start_daemon"),
+            patch("gasclaw.bootstrap.start_mayor"),
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+        ):
             m_notify.side_effect = lambda msg: notify_calls.append(msg)
             bootstrap(config, gt_root=tmp_path)
 
@@ -347,16 +387,22 @@ class TestMonitorLoop:
             if check_count >= 2:
                 raise KeyboardInterrupt
             from gasclaw.health import HealthReport
+
             return HealthReport(
-                dolt="unhealthy", daemon="unhealthy", mayor="unhealthy",
-                openclaw="healthy", agents=[],
+                dolt="unhealthy",
+                daemon="unhealthy",
+                mayor="unhealthy",
+                openclaw="healthy",
+                agents=[],
             )
 
         activity_return = {"compliant": True, "last_commit_age": 100}
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
-             patch("time.sleep"):
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+            patch("time.sleep"),
+        ):
             m_notify.side_effect = lambda msg: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
@@ -377,19 +423,25 @@ class TestMonitorLoop:
             if check_count >= 2:
                 raise KeyboardInterrupt
             from gasclaw.health import HealthReport
+
             return HealthReport(
-                dolt="healthy", daemon="healthy", mayor="healthy",
-                openclaw="healthy", agents=["mayor"],
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
                 activity={"compliant": True, "last_commit_age": 100},
             )
 
         activity_return = {"compliant": True, "last_commit_age": 100}
         config.monitor_interval = 42  # Custom interval
 
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram"), \
-             patch("time.sleep") as m_sleep:
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram"),
+            patch("time.sleep") as m_sleep,
+        ):
             monitor_loop(config, interval=None)  # interval=None triggers line 131
 
         # Verify sleep was called with the config interval

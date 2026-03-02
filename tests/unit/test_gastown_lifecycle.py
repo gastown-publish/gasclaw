@@ -13,15 +13,18 @@ class TestStartDolt:
 
         class MockProc:
             pid = 1
+
             def poll(self):
                 return None  # Still running
 
         monkeypatch.setattr(
-            subprocess, "Popen",
+            subprocess,
+            "Popen",
             lambda *a, **kw: (calls.append((a, kw)), MockProc())[-1],
         )
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b""),
         )
         start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
@@ -29,13 +32,17 @@ class TestStartDolt:
 
     def test_raises_if_process_exits_early(self, monkeypatch):
         """If dolt process dies immediately, we should get RuntimeError not TimeoutError."""
+
         class DeadProcess:
             pid = 1
             returncode = 1
+
             def poll(self):
                 return self.returncode  # Process already exited
+
             def terminate(self):
                 pass
+
             def wait(self, timeout=None):
                 return 0
 
@@ -49,19 +56,24 @@ class TestStartDolt:
 
     def test_raises_timeout_if_never_ready(self, monkeypatch):
         """If dolt never becomes ready, raise TimeoutError."""
+
         class MockProc:
             pid = 1
+
             def poll(self):
                 return None  # Still running
+
             def terminate(self):
                 pass
+
             def wait(self, timeout=None):
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
         # Always return non-zero (not ready)
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
         )
         try:
@@ -77,6 +89,7 @@ class TestStartDolt:
 
         class MockProc:
             pid = 1
+
             def poll(self):
                 return None
 
@@ -105,6 +118,7 @@ class TestStartDolt:
 
         class MockProc:
             pid = 1
+
             def poll(self):
                 return None
 
@@ -135,10 +149,13 @@ class TestStartDolt:
         class DeadProcess:
             pid = 1
             returncode = 1
+
             def poll(self):
                 return self.returncode
+
             def terminate(self):
                 terminate_called.append(True)
+
             def wait(self, timeout=None):
                 wait_called.append(timeout)
                 return 0
@@ -158,16 +175,20 @@ class TestStartDolt:
 
         class SlowProc:
             pid = 1
+
             def poll(self):
                 return None  # Never exits
+
             def terminate(self):
                 terminate_called.append(True)
+
             def wait(self, timeout=None):
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: SlowProc())
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
         )
 
@@ -185,12 +206,16 @@ class TestStartDolt:
 
         class StubbornProc:
             pid = 1
+
             def poll(self):
                 return None
+
             def terminate(self):
                 terminate_called.append(True)
+
             def kill(self):
                 kill_called.append(True)
+
             def wait(self, timeout=None):
                 if timeout == 5:
                     raise subprocess.TimeoutExpired(cmd=["dolt"], timeout=5)
@@ -198,7 +223,8 @@ class TestStartDolt:
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: StubbornProc())
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
         )
 
@@ -215,7 +241,8 @@ class TestStartDaemon:
     def test_runs_gt_daemon(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
         )
         start_daemon()
@@ -224,7 +251,8 @@ class TestStartDaemon:
     def test_handles_failure(self, monkeypatch):
         """start_daemon raises RuntimeError if daemon fails to start."""
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("daemon failed")),
         )
         try:
@@ -235,8 +263,10 @@ class TestStartDaemon:
 
     def test_handles_missing_binary(self, monkeypatch):
         """start_daemon raises FileNotFoundError if gt not installed."""
+
         def raise_not_found(*a, **kw):
             raise FileNotFoundError("gt not found")
+
         monkeypatch.setattr(subprocess, "run", raise_not_found)
         try:
             start_daemon()
@@ -249,7 +279,8 @@ class TestStartMayor:
     def test_runs_gt_mayor_start(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
         )
         start_mayor(agent="kimi-claude")
@@ -260,7 +291,8 @@ class TestStartMayor:
     def test_handles_failure(self, monkeypatch):
         """start_mayor raises RuntimeError if mayor fails to start."""
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("mayor failed")),
         )
         try:
@@ -271,8 +303,10 @@ class TestStartMayor:
 
     def test_handles_missing_binary(self, monkeypatch):
         """start_mayor raises FileNotFoundError if gt not installed."""
+
         def raise_not_found(*a, **kw):
             raise FileNotFoundError("gt not found")
+
         monkeypatch.setattr(subprocess, "run", raise_not_found)
         try:
             start_mayor(agent="kimi-claude")
@@ -285,7 +319,8 @@ class TestStopAll:
     def test_stops_mayor_daemon_dolt(self, monkeypatch):
         calls = []
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
         )
         stop_all()
@@ -295,6 +330,7 @@ class TestStopAll:
 
     def test_handles_stop_failures_gracefully(self, monkeypatch):
         """stop_all uses check=False so failures don't raise."""
+
         def mock_run(*a, **kw):
             # Simulate failure for all commands
             return subprocess.CompletedProcess(a[0], 1, stderr=b"not running")
@@ -305,6 +341,7 @@ class TestStopAll:
 
     def test_handles_missing_binaries_gracefully(self, monkeypatch):
         """stop_all handles FileNotFoundError when binaries are missing."""
+
         def mock_run(*a, **kw):
             raise FileNotFoundError("gt not found")
 
@@ -357,7 +394,8 @@ class TestStopAll:
         calls = []
 
         monkeypatch.setattr(
-            subprocess, "run",
+            subprocess,
+            "run",
             lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
         )
         stop_all()

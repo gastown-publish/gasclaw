@@ -38,9 +38,7 @@ class TestNotifyTelegram:
     @respx.mock
     def test_returns_true_on_success(self):
         """Function returns True when notification succeeds."""
-        respx.post("http://localhost:18789/api/message").mock(
-            return_value=httpx.Response(200)
-        )
+        respx.post("http://localhost:18789/api/message").mock(return_value=httpx.Response(200))
         result = notify_telegram("Test", gateway_port=18789, auth_token="tok")
         assert result is True
 

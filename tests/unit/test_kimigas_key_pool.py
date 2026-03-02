@@ -162,7 +162,7 @@ class TestKeyPoolAtomicWrite:
         original_fdopen = __builtins__["open"] if "open" in __builtins__ else open
 
         def fail_on_fdopen(*args, **kwargs):
-            if args and hasattr(args[0], '__class__') and 'int' in str(type(args[0])):
+            if args and hasattr(args[0], "__class__") and "int" in str(type(args[0])):
                 raise OSError("Write failed")
             return original_fdopen(*args, **kwargs)
 
@@ -193,6 +193,7 @@ class TestKeyPoolAtomicWrite:
         # Make os.fdopen fail to trigger cleanup path
         def fail_fdopen(*a, **kw):
             raise OSError("Write failed")
+
         monkeypatch.setattr("os.fdopen", fail_fdopen)
 
         # Should raise the original OSError, not the unlink error
