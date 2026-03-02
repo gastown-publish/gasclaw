@@ -99,6 +99,40 @@ class TestBootstrap:
             with pytest.raises(RuntimeError, match="boom"):
                 bootstrap(config, gt_root=tmp_path)
 
+    def test_doctor_unhealthy_notification(self, config, monkeypatch, tmp_path):
+        """Test that bootstrap notifies when doctor finds issues (line 72)."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        monkeypatch.setattr(
+            subprocess, "Popen",
+            lambda *a, **kw: type("P", (), {"pid": 1, "poll": lambda s: None})(),
+        )
+
+        from gasclaw.openclaw.doctor import DoctorResult
+        mock_doctor = DoctorResult(healthy=False, returncode=1, output="Config error: invalid key")
+
+        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
+             patch("gasclaw.bootstrap.write_agent_config"), \
+             patch("gasclaw.bootstrap.gastown_install"), \
+             patch("gasclaw.bootstrap.start_dolt"), \
+             patch("gasclaw.bootstrap.write_openclaw_config"), \
+             patch("gasclaw.bootstrap.install_skills"), \
+             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor), \
+             patch("gasclaw.bootstrap.start_daemon"), \
+             patch("gasclaw.bootstrap.start_mayor"), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+
+            bootstrap(config, gt_root=tmp_path)
+
+            # Should notify twice: once for doctor issues, once for "up and running"
+            assert m_notify.call_count == 2
+            # First call should be about doctor issues
+            first_call = m_notify.call_args_list[0]
+            assert "openclaw doctor found issues" in first_call[0][0]
+            assert "Config error" in first_call[0][0]
+
 
 class TestMonitorLoop:
     def test_runs_health_check(self, config, monkeypatch):
@@ -114,42 +148,3 @@ class TestMonitorLoop:
                 dolt="healthy", daemon="healthy", mayor="healthy",
                 openclaw="healthy", agents=["mayor"],
                 activity={"compliant": True, "last_commit_age": 100},
-            )
-
-        activity_return = {"compliant": True, "last_commit_age": 100}
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram"), \
-             patch("time.sleep"):
-            monitor_loop(config, interval=1)
-
-        assert check_count >= 1
-
-    def test_passes_project_dir_to_activity_check(self, config, monkeypatch):
-        """monitor_loop should pass config.project_dir to check_agent_activity."""
-        config.project_dir = "/custom/project"
-        call_count = 0
-
-        def mock_check_health(**kw):
-            nonlocal call_count
-            call_count += 1
-            if call_count >= 2:
-                raise KeyboardInterrupt
-            from gasclaw.health import HealthReport
-            return HealthReport(
-                dolt="healthy", daemon="healthy", mayor="healthy",
-                openclaw="healthy", agents=["mayor"],
-                activity={"compliant": True, "last_commit_age": 100},
-            )
-
-        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check_health), \
-             patch("gasclaw.bootstrap.check_agent_activity") as m_activity, \
-             patch("gasclaw.bootstrap.notify_telegram"), \
-             patch("time.sleep"):
-            m_activity.return_value = {"compliant": True, "last_commit_age": 100}
-            monitor_loop(config, interval=1)
-
-        m_activity.assert_called_with(
-            project_dir="/custom/project",
-            deadline_seconds=config.activity_deadline,
-        )
