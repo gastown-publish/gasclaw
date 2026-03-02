@@ -33,7 +33,6 @@ from gasclaw.health import check_agent_activity, check_health
 from gasclaw.logging_config import get_logger
 from gasclaw.openclaw.doctor import run_doctor
 from gasclaw.openclaw.installer import write_openclaw_config
-from gasclaw.openclaw.lifecycle import start_openclaw, stop_openclaw
 from gasclaw.openclaw.skill_manager import install_skills
 from gasclaw.updater.notifier import notify_telegram
 
