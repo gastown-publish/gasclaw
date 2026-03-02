@@ -88,7 +88,14 @@ def _list_agents() -> list[str]:
             timeout=10,
         )
         if result.returncode == 0:
-            return [line.strip() for line in result.stdout.decode().splitlines() if line.strip()]
+            # Filter out empty lines and whitespace-only lines
+            agents = []
+            for line in result.stdout.decode().splitlines():
+                stripped = line.strip()
+                # Only include non-empty lines (strip() removes all whitespace)
+                if stripped:
+                    agents.append(stripped)
+            return agents
     except (OSError, subprocess.TimeoutExpired):
         pass
     return []

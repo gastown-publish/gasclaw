@@ -322,6 +322,84 @@ class TestListAgentsErrorHandling:
         result = _list_agents()
         assert result == []
 
+    def test_list_agents_whitespace_only_lines_filtered(self, monkeypatch):
+        """Test _list_agents filters out whitespace-only lines - Issue #66."""
+        from gasclaw.health import _list_agents
+
+        def mock_run(*a, **kw):
+            # Return output with various whitespace-only lines
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"],
+                returncode=0,
+                stdout=b"mayor\n   \n  \t  \n\n\ndeacon\n \n witness\n",
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        result = _list_agents()
+        # Only the actual agent names should be included, not whitespace lines
+        assert result == ["mayor", "deacon", "witness"]
+
+    def test_list_agents_empty_lines_filtered(self, monkeypatch):
+        """Test _list_agents filters out empty lines."""
+        from gasclaw.health import _list_agents
+
+        def mock_run(*a, **kw):
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"],
+                returncode=0,
+                stdout=b"agent1\n\nagent2\n\n\nagent3\n",
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        result = _list_agents()
+        assert result == ["agent1", "agent2", "agent3"]
+
+    def test_list_agents_leading_trailing_whitespace_stripped(self, monkeypatch):
+        """Test _list_agents strips leading/trailing whitespace from agent names."""
+        from gasclaw.health import _list_agents
+
+        def mock_run(*a, **kw):
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"],
+                returncode=0,
+                stdout=b"  mayor  \n\t deacon \t\n witness  \n",
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        result = _list_agents()
+        assert result == ["mayor", "deacon", "witness"]
+
+    def test_list_agents_all_whitespace_returns_empty(self, monkeypatch):
+        """Test _list_agents returns empty list when all lines are whitespace - Issue #66."""
+        from gasclaw.health import _list_agents
+
+        def mock_run(*a, **kw):
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"],
+                returncode=0,
+                stdout=b"   \n  \t  \n \n\n",
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        result = _list_agents()
+        assert result == []
+
+    def test_list_agents_internal_whitespace_preserved(self, monkeypatch):
+        """Test _list_agents preserves internal whitespace in agent names."""
+        from gasclaw.health import _list_agents
+
+        def mock_run(*a, **kw):
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"],
+                returncode=0,
+                stdout=b"crew worker 1\ncrew-worker-2\n",
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        result = _list_agents()
+        # Internal whitespace should be preserved
+        assert result == ["crew worker 1", "crew-worker-2"]
+
 
 class TestHealthReportSummary:
     def test_summary_string(self):
