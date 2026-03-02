@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 _VERSION_COMMANDS = {
     "gt": ["gt", "--version"],
@@ -27,8 +30,14 @@ def check_versions() -> dict[str, str]:
             result = subprocess.run(cmd, capture_output=True, timeout=10)
             if result.returncode == 0:
                 versions[name] = result.stdout.decode().strip()
+                logger.debug(f"{name} version: {versions[name]}")
             else:
                 versions[name] = "not installed"
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+                logger.warning(f"{name} returned non-zero exit code: {result.returncode}")
+        except FileNotFoundError:
             versions[name] = "not installed"
+            logger.debug(f"{name} not found in PATH")
+        except subprocess.TimeoutExpired:
+            versions[name] = "not installed"
+            logger.warning(f"{name} version check timed out")
     return versions

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 
 from gasclaw.updater.checker import check_versions
@@ -72,3 +73,45 @@ class TestCheckVersions:
         versions = check_versions()
         assert "kimigas" in versions
         assert versions["kimigas"] == "0.5.0"
+
+
+class TestCheckerLogging:
+    """Tests for logging in version checker."""
+
+    def test_logs_debug_on_success(self, monkeypatch, caplog):
+        """Successful version check logs debug message."""
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"1.0.0\n"),
+        )
+
+        with caplog.at_level(logging.DEBUG):
+            check_versions()
+
+        assert "version:" in caplog.text.lower()
+
+    def test_logs_warning_on_nonzero_exit(self, monkeypatch, caplog):
+        """Non-zero exit code logs warning."""
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stdout=b"", stderr=b"error"),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            check_versions()
+
+        assert "non-zero exit code" in caplog.text.lower()
+
+    def test_logs_warning_on_timeout(self, monkeypatch, caplog):
+        """Timeout logs warning."""
+        def raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+
+        with caplog.at_level(logging.WARNING):
+            check_versions()
+
+        assert "timed out" in caplog.text.lower()
