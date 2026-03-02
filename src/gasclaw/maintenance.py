@@ -284,7 +284,15 @@ def maintenance_loop(interval: int = 300) -> None:
         notify_telegram("🛑 Maintenance loop stopped")
 
 
-if __name__ == "__main__":
+def _parse_args(args: list[str] | None = None):
+    """Parse command line arguments.
+
+    Args:
+        args: Command line arguments. Defaults to sys.argv[1:].
+
+    Returns:
+        Parsed arguments namespace.
+    """
     import argparse
 
     parser = argparse.ArgumentParser(description="Gasclaw maintenance loop")
@@ -292,10 +300,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--interval", type=int, default=300, help="Seconds between cycles (default: 300)"
     )
-    args = parser.parse_args()
+    return parser.parse_args(args)
 
-    if args.once:
+
+def main(args: list[str] | None = None) -> None:
+    """Main entry point for the maintenance script.
+
+    Args:
+        args: Command line arguments. Defaults to sys.argv[1:].
+    """
+    parsed = _parse_args(args)
+
+    if parsed.once:
         results = run_maintenance_cycle()
         print(f"Results: {results}")
     else:
-        maintenance_loop(interval=args.interval)
+        maintenance_loop(interval=parsed.interval)
+
+
+if __name__ == "__main__":
+    main()

@@ -408,3 +408,68 @@ class TestMainBlock:
         sig = inspect.signature(maintenance_loop)
         params = list(sig.parameters.keys())
         assert "interval" in params
+
+
+class TestMainExecution:
+    """Tests for the main() entry point (lines 287-301 coverage)."""
+
+    def test_parse_args_returns_namespace(self):
+        """Test _parse_args returns parsed arguments."""
+        from gasclaw.maintenance import _parse_args
+
+        args = _parse_args([])
+        assert args.once is False
+        assert args.interval == 300
+
+        args = _parse_args(["--once"])
+        assert args.once is True
+
+        args = _parse_args(["--interval", "60"])
+        assert args.interval == 60
+
+    @patch("builtins.print")
+    @patch("gasclaw.maintenance.run_maintenance_cycle")
+    def test_main_with_once_flag(self, mock_cycle, mock_print):
+        """Test main() with --once flag runs cycle once (lines 297-299)."""
+        from gasclaw.maintenance import main
+
+        mock_cycle.return_value = {"prs": {"total": 1}, "issues": {"total": 0}}
+
+        main(["--once"])
+
+        mock_cycle.assert_called_once()
+        mock_print.assert_called_once()
+        assert "Results:" in mock_print.call_args[0][0]
+
+    @patch("gasclaw.maintenance.maintenance_loop")
+    def test_main_runs_loop_by_default(self, mock_loop):
+        """Test main() runs maintenance_loop by default (line 301)."""
+        from gasclaw.maintenance import main
+
+        main([])
+
+        mock_loop.assert_called_once_with(interval=300)
+
+    @patch("gasclaw.maintenance.maintenance_loop")
+    def test_main_with_custom_interval(self, mock_loop):
+        """Test main() passes custom interval to loop (line 301)."""
+        from gasclaw.maintenance import main
+
+        main(["--interval", "60"])
+
+        mock_loop.assert_called_once_with(interval=60)
+
+    def test_main_entry_point_calls_main(self):
+        """Test __main__ block calls main() function."""
+        import subprocess
+        import sys
+
+        # Verify the module can be run with --help
+        result = subprocess.run(
+            [sys.executable, "-m", "gasclaw.maintenance", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 0
+        assert "--once" in result.stdout
