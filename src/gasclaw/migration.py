@@ -199,9 +199,7 @@ def _prompt_for_missing_config(interactive: bool = True) -> dict[str, str]:
 
     # OPENCLAW_KIMI_KEY
     if "OPENCLAW_KIMI_KEY" not in config:
-        openclaw_key = input(
-            "Enter OPENCLAW_KIMI_KEY (Kimi key for OpenClaw overseer): "
-        ).strip()
+        openclaw_key = input("Enter OPENCLAW_KIMI_KEY (Kimi key for OpenClaw overseer): ").strip()
         if openclaw_key:
             config["OPENCLAW_KIMI_KEY"] = openclaw_key
 
@@ -255,9 +253,7 @@ def migrate_config(
     elif detection.get("source") == "config_file":
         config = detection.get("config", {})
         if "kimi_api_key" in config:
-            migrated_config["GASTOWN_KIMI_KEYS"] = _parse_gastown_keys(
-                config["kimi_api_key"]
-            )
+            migrated_config["GASTOWN_KIMI_KEYS"] = _parse_gastown_keys(config["kimi_api_key"])
             result["migrated_keys"].append("kimi_api_key")
 
     # Get additional required config

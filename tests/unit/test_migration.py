@@ -146,9 +146,13 @@ class TestMigrateConfig:
         gt_dir = tmp_path / ".gt"
         gt_dir.mkdir()
         config_file = gt_dir / "config.json"
-        config_file.write_text(json.dumps({
-            "kimi_api_key": "sk-from-config",
-        }))
+        config_file.write_text(
+            json.dumps(
+                {
+                    "kimi_api_key": "sk-from-config",
+                }
+            )
+        )
 
         result = migrate_config(gastown_dir=gt_dir, interactive=False)
 
