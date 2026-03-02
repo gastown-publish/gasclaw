@@ -6,6 +6,7 @@ Queries Kimi API billing endpoints to check credit balance and usage per API key
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -176,7 +177,7 @@ def _parse_amount(amount: Any) -> float | None:
     try:
         result = float(amount)
         # Reject inf and nan as they're not valid amounts
-        if result == float("inf") or result == float("-inf") or result != result:  # nan != nan
+        if math.isinf(result) or math.isnan(result):
             return None
         return round(result, 2)
     except (ValueError, TypeError):
