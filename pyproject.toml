@@ -51,3 +51,14 @@ check_untyped_defs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 show_error_codes = true
+
+[tool.coverage.run]
+source = ["src", "scripts"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "pragma: no cover",
+]
