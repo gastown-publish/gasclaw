@@ -11,6 +11,8 @@ _UPDATE_COMMANDS = {
     "kimigas": ["pip", "install", "--upgrade", "kimi-cli"],
 }
 
+__all__ = ["apply_updates"]
+
 
 def apply_updates() -> dict[str, str]:
     """Run update commands for all dependencies.

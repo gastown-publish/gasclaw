@@ -6,6 +6,8 @@ import json
 
 import httpx
 
+__all__ = ["notify_telegram"]
+
 
 def notify_telegram(
     message: str,

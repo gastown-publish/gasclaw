@@ -14,6 +14,8 @@ from typing import Any
 
 RATE_LIMIT_COOLDOWN = 300  # 5 minutes
 
+__all__ = ["KeyPool", "RATE_LIMIT_COOLDOWN"]
+
 
 class KeyPool:
     """LRU-based API key rotation pool."""

@@ -12,6 +12,8 @@ _VERSION_COMMANDS = {
     "kimigas": ["kimigas", "--version"],
 }
 
+__all__ = ["check_versions"]
+
 
 def check_versions() -> dict[str, str]:
     """Get version strings for all dependencies.

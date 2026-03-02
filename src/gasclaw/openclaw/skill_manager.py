@@ -7,6 +7,8 @@ import shutil
 import stat
 from pathlib import Path
 
+__all__ = ["install_skills"]
+
 
 def install_skills(
     *,

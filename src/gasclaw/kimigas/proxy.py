@@ -7,6 +7,8 @@ from pathlib import Path
 KIMI_ANTHROPIC_BASE_URL = "https://api.kimi.com/coding/"
 _DEFAULT_CONFIG_DIR = str(Path.home() / ".claude-kimigas")
 
+__all__ = ["KIMI_ANTHROPIC_BASE_URL", "build_claude_env"]
+
 
 def build_claude_env(api_key: str, *, config_dir: str | None = None) -> dict[str, str]:
     """Build env dict that makes Claude Code use Kimi K2.5 backend.
