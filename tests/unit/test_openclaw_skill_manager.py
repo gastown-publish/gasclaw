@@ -182,3 +182,44 @@ class TestInstallSkillsErrorHandling:
 
         with pytest.raises(OSError):
             install_skills(skills_src=src, skills_dst=dst)
+
+    def test_handles_permission_error_on_copytree(self, tmp_path, monkeypatch):
+        """PermissionError on copytree during skill copy is raised (lines 50-51)."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+
+        # Create source skill
+        skill_dir = src / "test-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Test")
+
+        # Mock copytree to raise PermissionError
+        import shutil
+        def mock_copytree(*args, **kwargs):
+            raise PermissionError("Permission denied copying")
+
+        monkeypatch.setattr(shutil, "copytree", mock_copytree)
+
+        with pytest.raises(PermissionError):
+            install_skills(skills_src=src, skills_dst=dst)
+
+    def test_handles_permission_error_on_chmod(self, tmp_path, monkeypatch):
+        """PermissionError when making script executable is raised (lines 63-65)."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+
+        # Create source skill with script
+        skill_dir = src / "test-skill"
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Test")
+        (scripts_dir / "test.sh").write_text("#!/bin/bash\necho test")
+
+        # Mock chmod to raise PermissionError
+        def mock_chmod(*args, **kwargs):
+            raise PermissionError("Permission denied on chmod")
+
+        monkeypatch.setattr(Path, "chmod", mock_chmod)
+
+        with pytest.raises(PermissionError):
+            install_skills(skills_src=src, skills_dst=dst)
