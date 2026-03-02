@@ -14,8 +14,13 @@ from gasclaw.config import load_config
 from gasclaw.gastown.lifecycle import stop_all
 from gasclaw.health import check_agent_activity, check_health
 from gasclaw.kimigas.key_pool import KeyPool
+from gasclaw.logging_config import get_logger, setup_logging
 from gasclaw.updater.applier import apply_updates
 from gasclaw.updater.checker import check_versions
+
+# Initialize logging on module import
+setup_logging()
+logger = get_logger(__name__)
 
 
 def version_callback(value: bool) -> None:
@@ -53,20 +58,31 @@ def start(
     """Start gasclaw: bootstrap all services and enter monitor loop."""
     try:
         config = load_config()
+        logger.info("Configuration loaded successfully")
     except ValueError as e:
+        logger.error(f"Configuration error: {e}")
         console.print(f"[red]Config error:[/red] {e}")
         raise typer.Exit(code=1) from None
 
     # Override project_dir if provided via CLI
     if project_dir is not None:
         config.project_dir = str(project_dir)
+        logger.debug(f"Project directory overridden to: {project_dir}")
 
     console.print("[bold]Starting gasclaw...[/bold]")
-    bootstrap(config, gt_root=gt_root)
+    logger.info("Starting gasclaw bootstrap sequence")
+    try:
+        bootstrap(config, gt_root=gt_root)
+        logger.info("Bootstrap completed successfully")
+    except Exception as e:
+        logger.exception("Bootstrap failed")
+        console.print(f"[red]Bootstrap failed:[/red] {e}")
+        raise typer.Exit(code=1) from None
     console.print("[green]All services started. Entering monitor loop.[/green]")
     try:
         monitor_loop(config)
     except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt, shutting down")
         console.print("\n[yellow]Shutting down...[/yellow]")
 
 
