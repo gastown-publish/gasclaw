@@ -130,6 +130,7 @@ class TestMigrateConfig:
         assert result["gastown_kimi_keys"] == "sk-migrate-key"
         assert "KIMI_API_KEY" in result["migrated_keys"]
 
+
     def test_migrates_multiple_keys(self, tmp_path, monkeypatch):
         """Handles multiple keys in KIMI_API_KEY."""
         monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
@@ -560,6 +561,23 @@ class TestPromptForMissingConfig:
 
         assert result["TELEGRAM_OWNER_ID"] == "789"
 
+    def test_interactive_empty_input_skips_value(self, monkeypatch):
+        """Empty user input skips adding value (covers lines 205->209, 211->215, 217->220)."""
+        monkeypatch.delenv("OPENCLAW_KIMI_KEY", raising=False)
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.delenv("TELEGRAM_OWNER_ID", raising=False)
+
+        from gasclaw.migration import _prompt_for_missing_config
+
+        # All empty inputs - should not add any keys
+        with patch("builtins.input", return_value=""):
+            result = _prompt_for_missing_config(interactive=True)
+
+        # Should not have any keys since all inputs were empty
+        assert "OPENCLAW_KIMI_KEY" not in result
+        assert "TELEGRAM_BOT_TOKEN" not in result
+        assert "TELEGRAM_OWNER_ID" not in result
+
 
 class TestMigrationResult:
     """Tests for MigrationResult dataclass."""
@@ -622,3 +640,18 @@ class TestMigrationResult:
 
         assert "DRY RUN" in summary
         assert "will be determined during actual migration" in summary
+
+    def test_summary_failure_without_error_message(self):
+        """Summary handles failure without error_message (covers line 58->61)."""
+        result = MigrationResult(
+            success=False,
+            dry_run=False,
+            gastown_detected=True,
+            error_message="",
+        )
+
+        summary = result.summary()
+
+        assert "Migration failed" in summary
+        # Should not include "Error:" line since error_message is empty
+        assert "Error:" not in summary

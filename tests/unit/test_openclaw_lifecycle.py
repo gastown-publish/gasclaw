@@ -146,6 +146,25 @@ class TestStartOpenclaw:
 
             assert m_get.call_count == 2
 
+    def test_non_200_status_triggers_retry(self):
+        """Non-200 status on first attempt, success on second (covers line 48->54 branch)."""
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+
+        with (
+            patch("subprocess.Popen", return_value=mock_proc),
+            patch("httpx.get") as m_get,
+            patch("time.sleep"),
+        ):
+            # First call returns 503 (not 200, so else branch), second succeeds with 200
+            m_get.side_effect = [
+                MagicMock(status_code=503),  # Not ready yet
+                MagicMock(status_code=200),  # Now ready
+            ]
+            start_openclaw(port=18789)
+
+            assert m_get.call_count == 2
+
 
 class TestStopOpenclaw:
     """Tests for stop_openclaw function."""
