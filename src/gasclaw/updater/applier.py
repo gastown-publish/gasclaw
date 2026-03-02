@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 _UPDATE_COMMANDS = {
     "gt": ["gt", "self-update"],
@@ -23,12 +26,16 @@ def apply_updates() -> dict[str, str]:
     results: dict[str, str] = {}
     for name, cmd in _UPDATE_COMMANDS.items():
         try:
+            logger.info(f"Updating {name}...")
             result = subprocess.run(cmd, capture_output=True, timeout=120)
             if result.returncode == 0:
                 results[name] = "updated"
+                logger.info(f"{name} updated successfully")
             else:
                 stderr = result.stderr.decode().strip()[:200]
                 results[name] = f"failed: {stderr}"
+                logger.error(f"{name} update failed: {stderr}")
         except (FileNotFoundError, subprocess.TimeoutExpired) as e:
             results[name] = f"error: {e}"
+            logger.error(f"{name} update error: {e}")
     return results

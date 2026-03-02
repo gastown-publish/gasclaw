@@ -1,8 +1,20 @@
 ---
 name: gastown-health
-description: "Check Gastown system health: Dolt, daemon, mayor, agents, key pool, and activity compliance. Use when: checking system status, diagnosing issues, verifying all services are running."
+description: Check Gastown system health - Dolt, daemon, mayor, agents, key pool, and activity compliance
 metadata:
-  { "openclaw": { "emoji": "🏥", "os": ["linux"], "requires": { "bins": ["gt", "dolt"] } } }
+  openclaw:
+    emoji: 🏥
+    os:
+      - linux
+    requires:
+      bins:
+        - gt
+        - dolt
+parameters:
+  depth:
+    type: string
+    description: Depth of health check (quick or deep)
+    required: false
 ---
 
 # Gastown Health Monitor

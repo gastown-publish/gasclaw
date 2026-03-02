@@ -23,7 +23,8 @@ class TestRunDoctor:
         monkeypatch.setattr(
             "gasclaw.openclaw.doctor.subprocess.run",
             lambda *a, **kw: subprocess.CompletedProcess(
-                args=a[0], returncode=1,
+                args=a[0],
+                returncode=1,
                 stdout=b"Config issues found\nMissing gateway auth\n",
                 stderr=b"",
             ),

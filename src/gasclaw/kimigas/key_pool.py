@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -44,9 +46,29 @@ class KeyPool:
         return {}
 
     def _save_state(self, state: dict[str, Any]) -> None:
+        """Save the key rotation state to disk atomically.
+
+        Uses atomic write (write to temp file, then rename) to avoid
+        race conditions where the file could be corrupted during read.
+        """
         self._state_dir.mkdir(parents=True, exist_ok=True)
         state_file = self._state_dir / "key-rotation.json"
-        state_file.write_text(json.dumps(state, indent=2))
+
+        # Write to temp file in same directory, then rename atomically
+        fd, temp_path = tempfile.mkstemp(
+            dir=self._state_dir, prefix=".key-rotation-", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(state, f, indent=2)
+            os.replace(temp_path, state_file)
+        except Exception:
+            # Clean up temp file on failure
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
 
     def get_key(self) -> str:
         """Select the best available key using LRU rotation."""
@@ -59,7 +81,8 @@ class KeyPool:
 
         rate_limited: dict[str, float] = state.get("rate_limited", {})
         available = [
-            k for k in self._keys
+            k
+            for k in self._keys
             if now - rate_limited.get(self._key_hash(k), 0) > RATE_LIMIT_COOLDOWN
         ]
 
@@ -97,7 +120,8 @@ class KeyPool:
         rate_limited: dict[str, float] = state.get("rate_limited", {})
 
         rl_count = sum(
-            1 for k in self._keys
+            1
+            for k in self._keys
             if now - rate_limited.get(self._key_hash(k), 0) <= RATE_LIMIT_COOLDOWN
         )
 
