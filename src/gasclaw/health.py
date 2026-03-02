@@ -6,6 +6,7 @@ it needs to assess system health, agent activity, and compliance.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -110,8 +111,32 @@ def check_agent_activity(
         deadline_seconds: Max allowed time since last activity.
 
     Returns:
-        Dict with last_commit_age (seconds) and compliant (bool).
+        Dict with last_commit_age (seconds), compliant (bool), and error (str|None).
     """
+    # Validate project_dir exists
+    if not os.path.exists(project_dir):
+        return {
+            "last_commit_age": None,
+            "compliant": False,
+            "error": f"project_dir does not exist: {project_dir}",
+        }
+
+    if not os.path.isdir(project_dir):
+        return {
+            "last_commit_age": None,
+            "compliant": False,
+            "error": f"project_dir is not a directory: {project_dir}",
+        }
+
+    # Validate project_dir is a git repository
+    git_dir = os.path.join(project_dir, ".git")
+    if not os.path.exists(git_dir):
+        return {
+            "last_commit_age": None,
+            "compliant": False,
+            "error": f"project_dir is not a git repository: {project_dir}",
+        }
+
     try:
         result = subprocess.run(
             ["git", "log", "-1", "--format=%ct"],
@@ -125,6 +150,7 @@ def check_agent_activity(
             return {
                 "last_commit_age": age,
                 "compliant": age <= deadline_seconds,
+                "error": None,
             }
     except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
         pass
@@ -132,4 +158,5 @@ def check_agent_activity(
     return {
         "last_commit_age": None,
         "compliant": False,
+        "error": "failed to get git log",
     }
