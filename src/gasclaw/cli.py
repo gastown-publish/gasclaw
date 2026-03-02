@@ -52,11 +52,15 @@ def status() -> None:
 
     try:
         config = load_config()
-        activity = check_agent_activity(deadline_seconds=config.activity_deadline)
+        activity = check_agent_activity(
+            project_dir=config.project_dir,
+            deadline_seconds=config.activity_deadline,
+        )
         report.activity = activity
         pool = KeyPool(config.gastown_kimi_keys)
         report.key_pool = pool.status()
-    except (ValueError, Exception):
+    except ValueError:
+        # Config not loaded, skip optional fields
         pass
 
     table = Table(title="Gasclaw Status")

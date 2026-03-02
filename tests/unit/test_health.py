@@ -60,10 +60,10 @@ class TestCheckAgentActivity:
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(
-                a[0], 0, stdout=b"abc1234 2h ago commit msg\n"
+                a[0], 0, stdout=b"1234567890\n"
             ),
         )
-        activity = check_agent_activity(deadline_seconds=3600)
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
         assert "last_commit_age" in activity
         assert "compliant" in activity
 
@@ -73,8 +73,17 @@ class TestCheckAgentActivity:
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b""),
         )
-        activity = check_agent_activity(deadline_seconds=3600)
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
         assert activity["compliant"] is False
+
+    def test_uses_project_dir(self, monkeypatch):
+        calls = []
+        def _capture(cmd, **kw):
+            calls.append(kw.get("cwd"))
+            return subprocess.CompletedProcess(cmd, 0, stdout=b"1234567890\n")
+        monkeypatch.setattr(subprocess, "run", _capture)
+        check_agent_activity(project_dir="/custom/path", deadline_seconds=3600)
+        assert calls == ["/custom/path"]
 
 
 class TestHealthReportSummary:

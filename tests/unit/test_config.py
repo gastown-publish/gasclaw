@@ -77,6 +77,7 @@ class TestLoadConfig:
             monkeypatch.setenv(k, v)
         cfg = load_config()
         assert cfg.gt_rig_url == "/project"
+        assert cfg.project_dir == "/project"
         assert cfg.gt_agent_count == 6
         assert cfg.monitor_interval == 300
         assert cfg.activity_deadline == 3600
@@ -85,6 +86,7 @@ class TestLoadConfig:
         """Optional fields can be overridden."""
         for k, v in env_vars(
             GT_RIG_URL="git@github.com:org/repo.git",
+            PROJECT_DIR="/workspace/repo",
             GT_AGENT_COUNT="8",
             MONITOR_INTERVAL="120",
             ACTIVITY_DEADLINE="1800",
@@ -92,6 +94,7 @@ class TestLoadConfig:
             monkeypatch.setenv(k, v)
         cfg = load_config()
         assert cfg.gt_rig_url == "git@github.com:org/repo.git"
+        assert cfg.project_dir == "/workspace/repo"
         assert cfg.gt_agent_count == 8
         assert cfg.monitor_interval == 120
         assert cfg.activity_deadline == 1800

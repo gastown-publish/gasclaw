@@ -86,13 +86,18 @@ def check_health(*, gateway_port: int = 18789) -> HealthReport:
     )
 
 
-def check_agent_activity(*, deadline_seconds: int = 3600) -> dict[str, Any]:
+def check_agent_activity(
+    *,
+    project_dir: str = "/project",
+    deadline_seconds: int = 3600,
+) -> dict[str, Any]:
     """Check if there has been recent git activity (push/PR/commit).
 
     The overseer (OpenClaw) uses this to enforce the activity benchmark:
     code must be pushed or a PR merged within the deadline window.
 
     Args:
+        project_dir: Directory containing the git repository.
         deadline_seconds: Max allowed time since last activity.
 
     Returns:
@@ -100,10 +105,10 @@ def check_agent_activity(*, deadline_seconds: int = 3600) -> dict[str, Any]:
     """
     try:
         result = subprocess.run(
-            ["git", "log", "--oneline", "-1", "--format=%ct", "/project"],
+            ["git", "log", "-1", "--format=%ct"],
             capture_output=True,
             timeout=10,
-            cwd="/project",
+            cwd=project_dir,
         )
         if result.returncode == 0 and result.stdout.strip():
             last_ts = int(result.stdout.decode().strip())

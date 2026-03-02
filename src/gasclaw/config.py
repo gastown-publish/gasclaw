@@ -18,6 +18,7 @@ class GasclawConfig:
 
     # Optional with defaults
     gt_rig_url: str = "/project"
+    project_dir: str = "/project"  # Directory for git activity checks
     gt_agent_count: int = 6
     monitor_interval: int = 300  # seconds between health checks
     activity_deadline: int = 3600  # seconds — must see a push/PR within this window
@@ -49,6 +50,7 @@ def load_config() -> GasclawConfig:
         telegram_bot_token=_require_env("TELEGRAM_BOT_TOKEN"),
         telegram_owner_id=_require_env("TELEGRAM_OWNER_ID"),
         gt_rig_url=os.environ.get("GT_RIG_URL", "/project").strip() or "/project",
+        project_dir=os.environ.get("PROJECT_DIR", "/project").strip() or "/project",
         gt_agent_count=int(os.environ.get("GT_AGENT_COUNT", "6")),
         monitor_interval=int(os.environ.get("MONITOR_INTERVAL", "300")),
         activity_deadline=int(os.environ.get("ACTIVITY_DEADLINE", "3600")),

@@ -18,8 +18,12 @@ def start_dolt(
         data_dir: Directory for Dolt data files.
         port: SQL server port.
         timeout: Max seconds to wait for readiness.
+
+    Raises:
+        RuntimeError: If the dolt process exits early.
+        TimeoutError: If dolt is not ready within the timeout.
     """
-    subprocess.Popen(
+    proc = subprocess.Popen(
         ["dolt", "sql-server", "--port", str(port), "--data-dir", data_dir],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -28,6 +32,10 @@ def start_dolt(
     # Wait for port to be ready
     deadline = time.time() + timeout
     while time.time() < deadline:
+        # Check if process died early
+        if proc.poll() is not None:
+            raise RuntimeError(f"Dolt process exited early with code {proc.returncode}")
+
         result = subprocess.run(
             ["dolt", "sql", "--port", str(port), "-q", "SELECT 1"],
             capture_output=True,
