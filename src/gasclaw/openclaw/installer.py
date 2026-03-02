@@ -38,6 +38,17 @@ def write_openclaw_config(
     """
     openclaw_dir.mkdir(parents=True, exist_ok=True)
 
+    config_path = openclaw_dir / "openclaw.json"
+
+    # Preserve existing auth token to avoid breaking client integrations
+    auth_token = _generate_auth_token()
+    if config_path.exists():
+        try:
+            existing = json.loads(config_path.read_text())
+            auth_token = existing.get("gateway", {}).get("auth", {}).get("token", auth_token)
+        except (json.JSONDecodeError, OSError):
+            pass
+
     config = {
         "agents": {
             "defaults": {
@@ -80,7 +91,7 @@ def write_openclaw_config(
             "bind": "lan",
             "auth": {
                 "mode": "token",
-                "token": _generate_auth_token(),
+                "token": auth_token,
             },
         },
         "tools": {
@@ -93,6 +104,5 @@ def write_openclaw_config(
         },
     }
 
-    config_path = openclaw_dir / "openclaw.json"
     config_path.write_text(json.dumps(config, indent=2))
     return config_path

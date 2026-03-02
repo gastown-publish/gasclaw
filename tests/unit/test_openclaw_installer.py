@@ -109,8 +109,9 @@ class TestWriteOpenclawConfig:
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         assert cfg["gateway"]["port"] == 9999
 
-    def test_auth_token_is_unique_per_call(self, tmp_path):
-        """Each call generates a different auth token."""
+    def test_auth_token_preserved_on_restart(self, tmp_path):
+        """Auth token is preserved when config file already exists."""
+        # First call creates config with a token
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
@@ -120,6 +121,7 @@ class TestWriteOpenclawConfig:
         cfg1 = json.loads((tmp_path / "openclaw.json").read_text())
         token1 = cfg1["gateway"]["auth"]["token"]
 
+        # Second call should preserve the same token
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
@@ -129,9 +131,21 @@ class TestWriteOpenclawConfig:
         cfg2 = json.loads((tmp_path / "openclaw.json").read_text())
         token2 = cfg2["gateway"]["auth"]["token"]
 
-        assert token1 != token2
+        assert token1 == token2  # Token preserved
         assert len(token1) == 64
         assert len(token2) == 64
+
+    def test_auth_token_new_when_no_config(self, tmp_path):
+        """New token generated when no config exists."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        token = cfg["gateway"]["auth"]["token"]
+        assert len(token) == 64  # Valid hex token
 
     def test_creates_nested_directory(self, tmp_path):
         """Creates nested directories if needed."""
@@ -165,3 +179,18 @@ class TestWriteOpenclawConfig:
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         assert "555666777" in cfg["channels"]["telegram"]["allowFrom"]
+
+    def test_new_token_when_config_corrupted(self, tmp_path):
+        """New token generated when existing config is corrupted."""
+        config_path = tmp_path / "openclaw.json"
+        config_path.write_text("not valid json!")
+
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+        )
+        cfg = json.loads(config_path.read_text())
+        token = cfg["gateway"]["auth"]["token"]
+        assert len(token) == 64  # New valid token generated
