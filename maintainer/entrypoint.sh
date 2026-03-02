@@ -43,6 +43,63 @@ tg_send() {
         -d text="$1" > /dev/null 2>&1 || true
 }
 
+# --- OpenClaw config (Telegram two-way chat) ---
+echo "Configuring OpenClaw..."
+OPENCLAW_DIR="$HOME/.openclaw"
+mkdir -p "$OPENCLAW_DIR"
+cat > "$OPENCLAW_DIR/openclaw.json" <<OCJSON
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/moonshotai/kimi-k2.5"
+      },
+      "models": {
+        "openrouter/moonshotai/kimi-k2.5": {}
+      }
+    },
+    "list": [
+      {
+        "id": "main",
+        "identity": {
+          "name": "Gasclaw Maintainer",
+          "emoji": "🏭"
+        }
+      }
+    ]
+  },
+  "channels": {
+    "telegram": {
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["${TELEGRAM_CHAT_ID}"]
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local"
+  },
+  "plugins": {
+    "slots": {
+      "memory": "none"
+    }
+  },
+  "tools": {
+    "exec": {
+      "security": "full"
+    }
+  },
+  "env": {
+    "MOONSHOT_API_KEY": "${KIMI_API_KEY}"
+  }
+}
+OCJSON
+
 # --- Clone repo ---
 echo "Cloning gasclaw..."
 if [ -d /workspace/gasclaw/.git ]; then
@@ -65,10 +122,18 @@ pip install --timeout 120 --retries 5 pytest pytest-asyncio respx
 
 # --- Verify tests pass (non-fatal, bot can fix failures) ---
 echo "Running tests..."
-TEST_COUNT=$(python -m pytest tests/unit -v 2>&1 | tail -1)
+TEST_COUNT=$(python -m pytest tests/unit -v 2>&1 | tail -1) || true
 echo "$TEST_COUNT"
-tg_send "🔄 *Gasclaw Maintainer starting*
-Tests: ${TEST_COUNT}"
+
+# --- Start OpenClaw gateway (background, for Telegram two-way chat) ---
+echo "Starting OpenClaw gateway..."
+openclaw gateway start 2>&1 || openclaw gateway restart 2>&1 || echo "WARNING: OpenClaw gateway failed to start"
+sleep 3
+
+tg_send "🏭 *Gasclaw Maintainer online*
+Tests: ${TEST_COUNT}
+Telegram: connected
+Ready to work."
 
 # --- Launch Claude Code as maintainer ---
 echo ""

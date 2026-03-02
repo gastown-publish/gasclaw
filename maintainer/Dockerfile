@@ -15,8 +15,8 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && apt-get update && apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
+# Claude Code + OpenClaw
+RUN npm install -g @anthropic-ai/claude-code openclaw
 
 # Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
 RUN useradd -m -s /bin/bash maintainer \
