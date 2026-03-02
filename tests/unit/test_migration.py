@@ -379,7 +379,7 @@ class TestMigrate:
         assert "Missing required configuration" in result.error_message
 
     def test_creates_backup_via_config_file_detection(self, tmp_path, monkeypatch):
-        """Creates backup when gastown detected via config_file source without explicit gastown_dir (lines 372-374)."""
+        """Creates backup when gastown detected via config_file source."""
         monkeypatch.delenv("KIMI_API_KEY", raising=False)
         monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
         monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
