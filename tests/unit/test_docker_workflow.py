@@ -36,9 +36,7 @@ class TestDockerWorkflow:
             workflow = yaml.safe_load(f)
 
         build_steps = workflow["jobs"]["build"]["steps"]
-        build_push_step = next(
-            s for s in build_steps if s.get("id") == "push"
-        )
+        build_push_step = next(s for s in build_steps if s.get("id") == "push")
 
         assert "linux/amd64" in build_push_step["with"]["platforms"]
         assert "linux/arm64" in build_push_step["with"]["platforms"]
@@ -67,10 +65,7 @@ class TestDockerWorkflow:
             workflow = yaml.safe_load(f)
 
         build_steps = workflow["jobs"]["build"]["steps"]
-        dockerhub_login = next(
-            (s for s in build_steps if "Docker Hub" in s.get("name", "")),
-            None
-        )
+        dockerhub_login = next((s for s in build_steps if "Docker Hub" in s.get("name", "")), None)
         assert dockerhub_login is not None
         assert dockerhub_login["uses"] == "docker/login-action@v3"
         assert "DOCKERHUB_USERNAME" in dockerhub_login["with"].get("username", "")

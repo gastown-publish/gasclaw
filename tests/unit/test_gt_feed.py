@@ -55,11 +55,13 @@ class TestGastownFeed:
 
     def test_get_agent_status_success(self, monkeypatch):
         """get_agent_status parses gt status output."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = json.dumps({"agents": [{"name": "agent1"}, {"name": "agent2"}]})
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -72,11 +74,13 @@ class TestGastownFeed:
 
     def test_get_agent_status_failure(self, monkeypatch):
         """get_agent_status returns empty list on failure."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 1
                 stdout = ""
                 stderr = "error"
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -88,11 +92,13 @@ class TestGastownFeed:
 
     def test_get_agent_status_json_error(self, monkeypatch):
         """get_agent_status handles invalid JSON."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = "invalid json"
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -104,6 +110,7 @@ class TestGastownFeed:
 
     def test_get_agent_status_oserror(self, monkeypatch):
         """get_agent_status handles OSError from gt command (covers lines 64-65)."""
+
         def raise_oserror(*args, **kwargs):
             raise OSError(2, "No such file or directory")
 
@@ -116,6 +123,7 @@ class TestGastownFeed:
 
     def test_get_agent_status_timeout(self, monkeypatch):
         """get_agent_status handles subprocess timeout (covers lines 64-65)."""
+
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired("gt", 30)
 
@@ -128,11 +136,13 @@ class TestGastownFeed:
 
     def test_get_recent_commits_success(self, monkeypatch):
         """get_recent_commits parses git log output."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = "abc123|2026-03-02 10:00:00 +0000|Test User|Test commit message"
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -155,6 +165,7 @@ class TestGastownFeed:
                 returncode = 0
                 stdout = f"abc123|2026-03-02 10:00:00 +0000|User|{long_message}"
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -166,11 +177,13 @@ class TestGastownFeed:
 
     def test_get_recent_commits_empty(self, monkeypatch):
         """get_recent_commits handles empty git log."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = ""
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -182,11 +195,13 @@ class TestGastownFeed:
 
     def test_get_recent_commits_failure(self, monkeypatch):
         """get_recent_commits handles git failure."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 1
                 stdout = ""
                 stderr = "error"
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -198,6 +213,7 @@ class TestGastownFeed:
 
     def test_get_recent_commits_oserror(self, monkeypatch):
         """get_recent_commits handles OSError (covers lines 112-113)."""
+
         def raise_oserror(*args, **kwargs):
             raise OSError(13, "Permission denied")
 
@@ -210,6 +226,7 @@ class TestGastownFeed:
 
     def test_get_recent_commits_timeout(self, monkeypatch):
         """get_recent_commits handles subprocess timeout (covers lines 112-113)."""
+
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired("git", 10)
 
@@ -222,11 +239,13 @@ class TestGastownFeed:
 
     def test_get_recent_prs_success(self, monkeypatch):
         """get_recent_prs parses merge commits."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = "abc123|2026-03-02 10:00:00 +0000|Test User|Merge pull request #123"
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -240,6 +259,7 @@ class TestGastownFeed:
 
     def test_get_recent_prs_oserror(self, monkeypatch):
         """get_recent_prs handles OSError (covers lines 151-153)."""
+
         def raise_oserror(*args, **kwargs):
             raise OSError(13, "Permission denied")
 
@@ -252,6 +272,7 @@ class TestGastownFeed:
 
     def test_get_recent_prs_timeout(self, monkeypatch):
         """get_recent_prs handles subprocess timeout (covers lines 151-153)."""
+
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired("git", 10)
 
@@ -268,13 +289,16 @@ class TestGastownFeed:
         pr_output = "abc2|2026-03-02 11:00:00 +0000|User|Merge PR"
 
         call_count = 0
+
         def mock_run(*args, **kwargs):
             nonlocal call_count
             call_count += 1
+
             class Result:
                 returncode = 0
                 stdout = commit_output if call_count == 1 else pr_output
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -288,11 +312,13 @@ class TestGastownFeed:
 
     def test_get_summary(self, monkeypatch):
         """get_summary returns activity summary."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = json.dumps({"agents": [{"name": "agent1"}, {"name": "agent2"}]})
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -310,11 +336,13 @@ class TestGetRecentActivity:
 
     def test_get_recent_activity(self, monkeypatch):
         """Convenience function returns activity events."""
+
         def mock_run(*args, **kwargs):
             class Result:
                 returncode = 0
                 stdout = "abc|2026-03-02 10:00:00 +0000|User|Message"
                 stderr = ""
+
             return Result()
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -392,7 +420,7 @@ class TestFormatFeedForTelegram:
 
         assert "..." in message
         # The truncated description line itself is < 60 chars
-        activity_line = [line for line in message.split('\n') if '📝 a' in line][0]
+        activity_line = [line for line in message.split("\n") if "📝 a" in line][0]
         assert len(activity_line) < 70
 
     def test_format_truncates_actor_names(self):
