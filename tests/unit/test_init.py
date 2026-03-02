@@ -31,6 +31,8 @@ class TestPackageMetadata:
         """__all__ is defined and contains expected exports."""
         assert hasattr(gasclaw, "__all__")
         assert "__version__" in gasclaw.__all__
+        assert "bootstrap" in gasclaw.__all__
+        assert "load_config" in gasclaw.__all__
 
     def test_all_is_list_of_strings(self):
         """__all__ is a list of strings."""
@@ -47,3 +49,13 @@ class TestPackageMetadata:
         assert "Example:" in gasclaw.__doc__
         assert "load_config" in gasclaw.__doc__
         assert "bootstrap" in gasclaw.__doc__
+
+    def test_bootstrap_exported(self):
+        """bootstrap function is exported from package."""
+        assert hasattr(gasclaw, "bootstrap")
+        assert callable(gasclaw.bootstrap)
+
+    def test_load_config_exported(self):
+        """load_config function is exported from package."""
+        assert hasattr(gasclaw, "load_config")
+        assert callable(gasclaw.load_config)
