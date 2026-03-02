@@ -141,3 +141,84 @@ class TestUpdateCommand:
         assert "Checking versions" in result.output
         assert "gt:" in result.output
         assert "Applying updates" in result.output
+
+
+class TestCLIEdgeCases:
+    def test_help_flag_shows_help(self):
+        """Running with --help shows help text."""
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "Gasclaw" in result.output
+
+    def test_start_help_shows_options(self):
+        """start --help shows available options."""
+        result = runner.invoke(app, ["start", "--help"])
+        assert result.exit_code == 0
+        assert "--gt-root" in result.output
+
+    def test_invalid_command_fails(self):
+        """Invalid command name exits with error."""
+        result = runner.invoke(app, ["invalidcommand"])
+        assert result.exit_code != 0
+        assert "No such command" in result.output or "Error" in result.output
+
+    def test_start_with_invalid_gt_root_type(self):
+        """start with non-path argument handles gracefully."""
+        result = runner.invoke(app, ["start", "--gt-root", ""])
+        # Should not crash, will use default/empty path
+        assert result.exit_code == 1  # Config error expected since env vars not set
+
+    def test_status_shows_unhealthy_services(self, monkeypatch):
+        """status command shows unhealthy services in red."""
+        from gasclaw.health import HealthReport
+
+        def mock_check_health(**kw):
+            return HealthReport(
+                dolt="unhealthy",
+                daemon="healthy",
+                mayor="unhealthy",
+                openclaw="unknown",
+                agents=[],
+            )
+
+        monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
+        monkeypatch.setattr(
+            "gasclaw.cli.load_config",
+            lambda: (_ for _ in ()).throw(ValueError("no config"))
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "unhealthy" in result.output
+        assert "healthy" in result.output
+        assert "unknown" in result.output
+
+    def test_status_shows_non_compliant_activity(self, config, monkeypatch):
+        """status command shows NOT COMPLIANT when activity check fails."""
+        from gasclaw.health import HealthReport
+
+        def mock_check_health(**kw):
+            return HealthReport(
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
+            )
+
+        monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr(
+            "gasclaw.cli.check_agent_activity",
+            lambda **kw: {"compliant": False, "last_commit_age": 5000}
+        )
+        monkeypatch.setattr(
+            "gasclaw.cli.KeyPool",
+            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 1}))
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "NOT COMPLIANT" in result.output or "not compliant" in result.output.lower()

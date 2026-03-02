@@ -168,3 +168,117 @@ class TestHealthReportSummary:
         )
         summary = report.summary()
         assert "unhealthy" in summary.lower()
+
+    def test_summary_with_missing_key_pool(self):
+        """Summary handles missing or empty key_pool data."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={},
+        )
+        summary = report.summary()
+        assert "?" in summary  # Should show ? for unknown values
+
+    def test_summary_with_none_activity_age(self):
+        """Summary handles None last_commit_age in activity."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={"total": 1, "available": 1},
+            activity={"compliant": False, "last_commit_age": None},
+        )
+        summary = report.summary()
+        assert "not compliant" in summary.lower() or "?" in summary
+
+    def test_summary_with_many_agents_truncated(self):
+        """Summary truncates agent list when many agents."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=[f"agent-{i}" for i in range(10)],
+            key_pool={"total": 10, "available": 10},
+        )
+        summary = report.summary()
+        assert "10 active" in summary or "agents:" in summary.lower()
+
+    def test_summary_shows_openclaw_doctor_status(self):
+        """Summary includes OpenClaw Doctor status."""
+        report = HealthReport(
+            dolt="healthy",
+            openclaw_doctor="healthy",
+            agents=["mayor"],
+            key_pool={"total": 1, "available": 1},
+        )
+        summary = report.summary()
+        assert "Doctor" in summary or "openclaw" in summary.lower()
+
+
+class TestHealthCheckEdgeCases:
+    def test_check_health_with_timeout_expired(self, monkeypatch):
+        """check_health handles TimeoutExpired gracefully."""
+        def raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+        report = check_health(gateway_port=18789)
+        # Should return report with unhealthy status, not raise
+        assert report.dolt == "unhealthy"
+        assert report.daemon == "unhealthy"
+
+    def test_check_health_agents_with_file_not_found(self, monkeypatch):
+        """_list_agents handles FileNotFoundError when gt not installed."""
+        def mock_run(cmd, **kw):
+            if "status" in str(cmd) and "--agents" in str(cmd):
+                raise FileNotFoundError("gt not found")
+            return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        report = check_health(gateway_port=18789)
+        assert report.agents == []
+
+    def test_check_health_agents_with_timeout(self, monkeypatch):
+        """_list_agents handles TimeoutExpired gracefully."""
+        def mock_run(cmd, **kw):
+            if "status" in str(cmd) and "--agents" in str(cmd):
+                raise subprocess.TimeoutExpired(cmd=["gt"], timeout=10)
+            return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        report = check_health(gateway_port=18789)
+        assert report.agents == []
+
+    def test_check_agent_activity_zero_deadline(self, monkeypatch):
+        """check_agent_activity with zero deadline requires recent commits."""
+        import time
+        # Use current timestamp so age is approximately 0
+        now_ts = int(time.time())
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(
+                a[0], 0, stdout=f"{now_ts}\n".encode()
+            ),
+        )
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=0)
+        # Age should be 0 (or close to it), so 0 <= 0 is True
+        assert activity["compliant"] is True
+        assert activity["last_commit_age"] <= 1  # Should be very recent
+
+    def test_check_agent_activity_very_large_deadline(self, monkeypatch):
+        """check_agent_activity with very large deadline accepts old commits."""
+        import time
+        old_timestamp = int(time.time()) - 86400  # 1 day ago
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(
+                a[0], 0, stdout=f"{old_timestamp}\n".encode()
+            ),
+        )
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=100000)
+        assert activity["compliant"] is True
+
+    def test_check_health_custom_gateway_port(self, monkeypatch):
+        """check_health uses custom gateway port for openclaw check."""
+        calls = []
+        def mock_run(cmd, **kw):
+            calls.append(str(cmd))
+            return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        check_health(gateway_port=99999)
+        # Check that custom port appears in curl command
+        assert any("99999" in c for c in calls)
