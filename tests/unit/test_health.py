@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 
 import httpx
@@ -324,6 +325,46 @@ class TestCheckServiceErrorHandling:
         assert activity["last_commit_age"] is None
         assert activity["error"] is not None
 
+    def test_git_error_logs_debug(self, monkeypatch, tmp_path, caplog):
+        """Debug logging on git error for troubleshooting."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        def raise_not_found(*a, **kw):
+            raise FileNotFoundError("git not found")
+
+        monkeypatch.setattr(subprocess, "run", raise_not_found)
+
+        with caplog.at_level(logging.DEBUG):
+            activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+
+        assert activity["compliant"] is False
+        assert "Git log command failed" in caplog.text
+        assert "git not found" in caplog.text
+
+    def test_invalid_timestamp_logs_debug(self, monkeypatch, tmp_path, caplog):
+        """Debug logging on invalid timestamp for troubleshooting."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        def mock_run(*a, **kw):
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"], returncode=0, stdout=b"not_a_number"
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        with caplog.at_level(logging.DEBUG):
+            activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+
+        assert activity["compliant"] is False
+        assert "Failed to parse commit timestamp" in caplog.text
+        assert "not_a_number" in caplog.text
+
 
 class TestListAgentsErrorHandling:
     """Tests for _list_agents() exception handling."""
@@ -360,6 +401,22 @@ class TestListAgentsErrorHandling:
         monkeypatch.setattr(subprocess, "run", _raise_oserror)
         result = _list_agents()
         assert result == []
+
+    def test_list_agents_logs_debug_on_error(self, monkeypatch, caplog):
+        """Test _list_agents logs debug message on exception."""
+        from gasclaw.health import _list_agents
+
+        def _raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd="gt", timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", _raise_timeout)
+
+        with caplog.at_level(logging.DEBUG):
+            result = _list_agents()
+
+        assert result == []
+        assert "Failed to list agents" in caplog.text
+        assert "timed out" in caplog.text
 
     def test_list_agents_nonzero_exit(self, monkeypatch):
         """Test _list_agents returns empty list when gt status returns non-zero."""
