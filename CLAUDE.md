@@ -53,7 +53,7 @@ make test-all      # Includes integration tests
 make lint          # Ruff linting
 ```
 
-All 600 unit tests must pass. Never modify a test to make it pass — fix the code.
+All 606 unit tests must pass. Never modify a test to make it pass — fix the code.
 
 ## Architecture Decisions
 
