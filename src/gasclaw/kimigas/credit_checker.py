@@ -174,7 +174,11 @@ def _parse_amount(amount: Any) -> float | None:
     if amount is None:
         return None
     try:
-        return round(float(amount), 2)
+        result = float(amount)
+        # Reject inf and nan as they're not valid amounts
+        if result == float("inf") or result == float("-inf") or result != result:  # nan != nan
+            return None
+        return round(result, 2)
     except (ValueError, TypeError):
         return None
 
