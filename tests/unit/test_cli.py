@@ -72,8 +72,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
 
         runner.invoke(
-            app,
-            ["start", "--gt-root", str(tmp_path), "--project-dir", str(project_override)]
+            app, ["start", "--gt-root", str(tmp_path), "--project-dir", str(project_override)]
         )
 
         assert len(monitor_calls) == 1
