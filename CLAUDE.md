@@ -33,7 +33,7 @@ src/gasclaw/
     ├── applier.py      # Run update commands
     └── notifier.py     # POST to OpenClaw gateway
 skills/                 # OpenClaw skills (4: health, keys, update, agents)
-tests/unit/             # 467+ unit tests — all mocked, no API keys needed
+tests/unit/             # 468 unit tests — all mocked, no API keys needed
 tests/integration/      # Integration tests (optional, needs services)
 ```
 
