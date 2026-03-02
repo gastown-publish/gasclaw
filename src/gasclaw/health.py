@@ -1,0 +1,121 @@
+"""Health checks for all gasclaw subsystems.
+
+OpenClaw acts as the overseer — this module provides the monitoring data
+it needs to assess system health, agent activity, and compliance.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import time
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class HealthReport:
+    """Complete health report for the gasclaw system."""
+
+    dolt: str = "unknown"
+    daemon: str = "unknown"
+    mayor: str = "unknown"
+    openclaw: str = "unknown"
+    agents: list[str] = field(default_factory=list)
+    key_pool: dict[str, Any] = field(default_factory=dict)
+    activity: dict[str, Any] = field(default_factory=dict)
+
+    def summary(self) -> str:
+        """Human-readable summary string."""
+        lines = [
+            f"Dolt: {self.dolt}",
+            f"Daemon: {self.daemon}",
+            f"Mayor: {self.mayor}",
+            f"OpenClaw: {self.openclaw}",
+            f"Agents: {len(self.agents)} active ({', '.join(self.agents[:5])})",
+            f"Keys: {self.key_pool.get('available', '?')}/{self.key_pool.get('total', '?')} available",
+        ]
+        if self.activity:
+            compliant = self.activity.get("compliant", False)
+            age = self.activity.get("last_commit_age", "?")
+            lines.append(f"Activity: {'compliant' if compliant else 'NOT COMPLIANT'} (last commit {age}s ago)")
+        return "\n".join(lines)
+
+
+def _check_service(cmd: list[str], service_name: str) -> str:
+    """Run a health check command and return status."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=10)
+        return "healthy" if result.returncode == 0 else "unhealthy"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return "unhealthy"
+
+
+def _list_agents() -> list[str]:
+    """Get list of running Gastown agents from gt status."""
+    try:
+        result = subprocess.run(
+            ["gt", "status", "--agents"],
+            capture_output=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return [
+                line.strip() for line in result.stdout.decode().splitlines()
+                if line.strip()
+            ]
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return []
+
+
+def check_health(*, gateway_port: int = 18789) -> HealthReport:
+    """Run all health checks and return a complete report.
+
+    Args:
+        gateway_port: OpenClaw gateway port for connectivity check.
+    """
+    return HealthReport(
+        dolt=_check_service(["dolt", "sql", "--port", "3307", "-q", "SELECT 1"], "dolt"),
+        daemon=_check_service(["gt", "daemon", "status"], "daemon"),
+        mayor=_check_service(["gt", "mayor", "status"], "mayor"),
+        openclaw=_check_service(
+            ["curl", "-sf", f"http://localhost:{gateway_port}/health"],
+            "openclaw",
+        ),
+        agents=_list_agents(),
+    )
+
+
+def check_agent_activity(*, deadline_seconds: int = 3600) -> dict[str, Any]:
+    """Check if there has been recent git activity (push/PR/commit).
+
+    The overseer (OpenClaw) uses this to enforce the activity benchmark:
+    code must be pushed or a PR merged within the deadline window.
+
+    Args:
+        deadline_seconds: Max allowed time since last activity.
+
+    Returns:
+        Dict with last_commit_age (seconds) and compliant (bool).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "-1", "--format=%ct", "/project"],
+            capture_output=True,
+            timeout=10,
+            cwd="/project",
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            last_ts = int(result.stdout.decode().strip())
+            age = int(time.time() - last_ts)
+            return {
+                "last_commit_age": age,
+                "compliant": age <= deadline_seconds,
+            }
+    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+        pass
+
+    return {
+        "last_commit_age": None,
+        "compliant": False,
+    }

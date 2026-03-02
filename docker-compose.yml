@@ -1,0 +1,11 @@
+services:
+  gasclaw:
+    build: .
+    container_name: gasclaw
+    ports:
+      - "18789:18789"
+    volumes:
+      - ./project:/project
+    env_file:
+      - .env
+    restart: unless-stopped

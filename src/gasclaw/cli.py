@@ -1,0 +1,97 @@
+"""Gasclaw CLI — start, stop, status, update."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from gasclaw.bootstrap import bootstrap, monitor_loop
+from gasclaw.config import load_config
+from gasclaw.gastown.lifecycle import stop_all
+from gasclaw.health import check_health, check_agent_activity
+from gasclaw.kimigas.key_pool import KeyPool
+from gasclaw.updater.applier import apply_updates
+from gasclaw.updater.checker import check_versions
+
+app = typer.Typer(help="Gasclaw — Gastown + OpenClaw + KimiGas in one container.")
+console = Console()
+
+
+@app.command()
+def start(
+    gt_root: Path = typer.Option(Path("/workspace/gt"), help="Gastown root directory"),
+) -> None:
+    """Start gasclaw: bootstrap all services and enter monitor loop."""
+    try:
+        config = load_config()
+    except ValueError as e:
+        console.print(f"[red]Config error:[/red] {e}")
+        raise typer.Exit(code=1) from None
+
+    console.print("[bold]Starting gasclaw...[/bold]")
+    bootstrap(config, gt_root=gt_root)
+    console.print("[green]All services started. Entering monitor loop.[/green]")
+    monitor_loop(config)
+
+
+@app.command()
+def stop() -> None:
+    """Stop all gasclaw services."""
+    console.print("Stopping all services...")
+    stop_all()
+    console.print("[green]All services stopped.[/green]")
+
+
+@app.command()
+def status() -> None:
+    """Show health status of all subsystems."""
+    report = check_health()
+
+    try:
+        config = load_config()
+        activity = check_agent_activity(deadline_seconds=config.activity_deadline)
+        report.activity = activity
+        pool = KeyPool(config.gastown_kimi_keys)
+        report.key_pool = pool.status()
+    except (ValueError, Exception):
+        pass
+
+    table = Table(title="Gasclaw Status")
+    table.add_column("Service", style="bold")
+    table.add_column("Status")
+
+    for svc in ["dolt", "daemon", "mayor", "openclaw"]:
+        val = getattr(report, svc, "unknown")
+        style = "green" if val == "healthy" else "red"
+        table.add_row(svc, f"[{style}]{val}[/{style}]")
+
+    table.add_row("agents", str(len(report.agents)))
+    if report.key_pool:
+        table.add_row(
+            "key pool",
+            f"{report.key_pool.get('available', '?')}/{report.key_pool.get('total', '?')} available",
+        )
+    if report.activity:
+        compliant = report.activity.get("compliant", False)
+        style = "green" if compliant else "red"
+        table.add_row("activity", f"[{style}]{'compliant' if compliant else 'NOT COMPLIANT'}[/{style}]")
+
+    console.print(table)
+
+
+@app.command()
+def update() -> None:
+    """Check and apply updates to all dependencies."""
+    console.print("[bold]Checking versions...[/bold]")
+    versions = check_versions()
+    for name, ver in versions.items():
+        console.print(f"  {name}: {ver}")
+
+    console.print("\n[bold]Applying updates...[/bold]")
+    results = apply_updates()
+    for name, result in results.items():
+        style = "green" if result == "updated" else "yellow"
+        console.print(f"  {name}: [{style}]{result}[/{style}]")
