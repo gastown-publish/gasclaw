@@ -104,10 +104,10 @@ class TestStartOpenclaw:
             patch("subprocess.Popen", return_value=mock_proc),
             patch("httpx.get", side_effect=httpx.ConnectError("refused")),
             patch("time.sleep"),
+            pytest.raises(TimeoutError),
         ):
             # Cleanup exceptions don't propagate - the original TimeoutError does
-            with pytest.raises(TimeoutError):
-                start_openclaw(port=18789, timeout=1)
+            start_openclaw(port=18789, timeout=1)
 
         mock_proc.terminate.assert_called_once()
         mock_proc.kill.assert_called_once()

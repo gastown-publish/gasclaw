@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import httpx
-import pytest
 import respx
 
 from gasclaw.kimigas.credit_checker import (
@@ -193,7 +192,7 @@ class TestCreditChecker:
     @respx.mock
     def test_yuan_amount_not_converted(self):
         """Yuan amounts (small numbers) are not converted."""
-        route = respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
             return_value=httpx.Response(
                 200,
                 json={"data": {"available_balance": 50.5, "total_usage": 10.25}},
@@ -210,7 +209,7 @@ class TestCreditChecker:
     @respx.mock
     def test_large_amount_not_converted(self):
         """Large amounts are preserved as-is (no conversion)."""
-        route = respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
             return_value=httpx.Response(
                 200,
                 json={"data": {"available_balance": 1234567, "total_usage": 890123}},
@@ -227,7 +226,7 @@ class TestCreditChecker:
     @respx.mock
     def test_none_amount_handled(self):
         """None amounts are handled gracefully."""
-        route = respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
             return_value=httpx.Response(
                 200,
                 json={"data": {"available_balance": None, "total_usage": None}},

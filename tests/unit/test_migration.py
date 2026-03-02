@@ -204,7 +204,7 @@ class TestMigrateConfig:
         assert "Failed to write env file" in result["error"]
 
     def test_migrate_config_without_env_file(self, tmp_path, monkeypatch):
-        """migrate_config without env_file returns success with keys - dry run mode (lines 313-316)."""
+        """migrate_config without env_file returns success - dry run mode (lines 313-316)."""
         monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
         monkeypatch.setenv("KIMI_API_KEY", "sk-dryrun-key")
         monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")

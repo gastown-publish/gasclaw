@@ -7,7 +7,7 @@ from gasclaw.kimigas.credit_checker import (
     CreditInfo,
     check_key_credits,
 )
-from gasclaw.kimigas.key_pool import KeyPool, RATE_LIMIT_COOLDOWN
+from gasclaw.kimigas.key_pool import RATE_LIMIT_COOLDOWN, KeyPool
 from gasclaw.kimigas.proxy import KIMI_ANTHROPIC_BASE_URL, build_claude_env
 
 __all__ = [

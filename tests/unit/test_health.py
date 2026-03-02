@@ -837,7 +837,9 @@ class TestCheckAgentActivityClockSkew:
         report = check_health(gateway_port=18789)
         assert report.openclaw == "unhealthy"
 
-    def test_check_health_with_oserror_on_service_check(self, monkeypatch, respx_mock: respx.MockRouter):
+    def test_check_health_with_oserror_on_service_check(
+        self, monkeypatch, respx_mock: respx.MockRouter
+    ):
         """check_health handles OSError on service checks - covers lines 55-58, 64-67."""
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
 
