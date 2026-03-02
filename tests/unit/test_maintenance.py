@@ -229,8 +229,9 @@ class TestMergePR:
 
         assert result is True
         # Verify success message is logged
-        success_calls = [c for c in mock_logger.info.call_args_list
-                         if "Successfully merged" in str(c)]
+        success_calls = [
+            c for c in mock_logger.info.call_args_list if "Successfully merged" in str(c)
+        ]
         assert len(success_calls) == 1
         assert "42" in str(success_calls[0])
 
