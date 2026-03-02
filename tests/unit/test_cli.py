@@ -277,3 +277,60 @@ class TestCLIEdgeCases:
 
         assert result.exit_code == 0
         assert "NOT COMPLIANT" in result.output or "not compliant" in result.output.lower()
+
+
+class TestMaintainCommand:
+    def test_maintain_once_runs_single_cycle(self, monkeypatch):
+        """maintain --once runs a single maintenance cycle."""
+        cycle_calls = []
+        monkeypatch.setattr(
+            "gasclaw.cli.run_maintenance_cycle", lambda: cycle_calls.append({"prs": {"merged": 1}})
+        )
+
+        result = runner.invoke(app, ["maintain", "--once"])
+
+        assert len(cycle_calls) == 1
+        assert result.exit_code == 0
+        assert "Cycle complete" in result.output
+
+    def test_maintain_once_exits_on_failure(self, monkeypatch):
+        """maintain --once exits with error on failure."""
+        def fail_cycle():
+            raise RuntimeError("API error")
+
+        monkeypatch.setattr("gasclaw.cli.run_maintenance_cycle", fail_cycle)
+
+        result = runner.invoke(app, ["maintain", "--once"])
+
+        assert result.exit_code == 1
+        assert "Maintenance failed" in result.output
+
+    def test_maintain_loop_starts_continuous_loop(self, monkeypatch):
+        """maintain without --once starts continuous loop."""
+        loop_calls = []
+
+        def mock_loop(interval):
+            loop_calls.append(interval)
+            raise KeyboardInterrupt  # Simulate user stop
+
+        monkeypatch.setattr("gasclaw.cli.maintenance_loop", mock_loop)
+
+        result = runner.invoke(app, ["maintain", "--interval", "60"])
+
+        assert len(loop_calls) == 1
+        assert loop_calls[0] == 60
+        assert "stopped" in result.output.lower()
+
+    def test_maintain_default_interval(self, monkeypatch):
+        """maintain uses default interval of 300 seconds."""
+        loop_calls = []
+
+        def mock_loop(interval):
+            loop_calls.append(interval)
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("gasclaw.cli.maintenance_loop", mock_loop)
+
+        runner.invoke(app, ["maintain"])
+
+        assert loop_calls[0] == 300
