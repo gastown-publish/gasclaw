@@ -97,4 +97,8 @@ class TestListAgentsErrorHandling:
         from gasclaw.health import _list_agents
 
         def _raise_timeout(*a, **kw):
-            
+            raise subprocess.TimeoutExpired(cmd=a[0] if a else "cmd", timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", _raise_timeout)
+        result = _list_agents()
+        assert result == []
