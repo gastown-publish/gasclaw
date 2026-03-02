@@ -1,6 +1,11 @@
 services:
   gasclaw:
-    build: .
+    build:
+      context: .
+      # Multi-platform support: linux/amd64, linux/arm64 (Apple Silicon)
+      platforms:
+        - linux/amd64
+        - linux/arm64
     container_name: gasclaw
     ports:
       - "18789:18789"

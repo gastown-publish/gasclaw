@@ -40,6 +40,24 @@ docker compose up -d
 # 4. Chat with your bot on Telegram
 ```
 
+## Platform Support
+
+Gasclaw runs on Linux and macOS (including Apple Silicon) via Docker:
+
+- **Linux (amd64/arm64)**: Native Docker support
+- **macOS Intel (amd64)**: Docker Desktop
+- **macOS Apple Silicon (arm64)**: Docker Desktop with native ARM64 support
+
+The Docker image is multi-platform and automatically selects the correct architecture:
+
+```bash
+# Build for your current platform
+docker compose up -d
+
+# Build for specific platform
+docker compose build --build-arg TARGETARCH=arm64
+```
+
 ## Environment Variables
 
 | Variable | Required | Description |
