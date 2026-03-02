@@ -99,6 +99,107 @@ class TestBootstrap:
             with pytest.raises(RuntimeError, match="boom"):
                 bootstrap(config, gt_root=tmp_path)
 
+    def test_rollback_on_dolt_failure(self, config, tmp_path):
+        """Rollback stops dolt if it was started before failure."""
+        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
+             patch("gasclaw.bootstrap.write_agent_config"), \
+             patch("gasclaw.bootstrap.gastown_install"), \
+             patch("gasclaw.bootstrap.start_dolt") as m_dolt, \
+             patch("gasclaw.bootstrap.stop_all") as m_stop, \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+
+            m_dolt.side_effect = RuntimeError("dolt failed")
+
+            with pytest.raises(RuntimeError, match="dolt failed"):
+                bootstrap(config, gt_root=tmp_path)
+
+            # Should not call stop_all since dolt failed to start
+            m_stop.assert_not_called()
+            # Should notify of failure
+            assert any("failed" in str(call).lower() for call in m_notify.call_args_list)
+
+    def test_rollback_on_daemon_failure(self, config, tmp_path):
+        """Rollback stops all services if daemon fails to start."""
+        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
+             patch("gasclaw.bootstrap.write_agent_config"), \
+             patch("gasclaw.bootstrap.gastown_install"), \
+             patch("gasclaw.bootstrap.start_dolt"), \
+             patch("gasclaw.bootstrap.write_openclaw_config"), \
+             patch("gasclaw.bootstrap.install_skills"), \
+             patch("gasclaw.bootstrap.run_doctor") as m_doctor, \
+             patch("gasclaw.bootstrap.start_daemon") as m_daemon, \
+             patch("gasclaw.bootstrap.stop_all") as m_stop, \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+
+            from gasclaw.openclaw.doctor import DoctorResult
+            m_doctor.return_value = DoctorResult(healthy=True, returncode=0, output="OK")
+            m_daemon.side_effect = RuntimeError("daemon failed")
+
+            with pytest.raises(RuntimeError, match="daemon failed"):
+                bootstrap(config, gt_root=tmp_path)
+
+            # Should call stop_all to rollback
+            m_stop.assert_called_once()
+            # Should notify of failure and rollback
+            notify_calls = [str(call) for call in m_notify.call_args_list]
+            assert any("failed" in c.lower() for c in notify_calls)
+            assert any("rolling back" in c.lower() for c in notify_calls)
+
+    def test_rollback_on_mayor_failure(self, config, tmp_path):
+        """Rollback stops all services if mayor fails to start."""
+        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
+             patch("gasclaw.bootstrap.write_agent_config"), \
+             patch("gasclaw.bootstrap.gastown_install"), \
+             patch("gasclaw.bootstrap.start_dolt"), \
+             patch("gasclaw.bootstrap.write_openclaw_config"), \
+             patch("gasclaw.bootstrap.install_skills"), \
+             patch("gasclaw.bootstrap.run_doctor") as m_doctor, \
+             patch("gasclaw.bootstrap.start_daemon"), \
+             patch("gasclaw.bootstrap.start_mayor") as m_mayor, \
+             patch("gasclaw.bootstrap.stop_all") as m_stop, \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+
+            from gasclaw.openclaw.doctor import DoctorResult
+            m_doctor.return_value = DoctorResult(healthy=True, returncode=0, output="OK")
+            m_mayor.side_effect = RuntimeError("mayor failed")
+
+            with pytest.raises(RuntimeError, match="mayor failed"):
+                bootstrap(config, gt_root=tmp_path)
+
+            # Should call stop_all to rollback
+            m_stop.assert_called_once()
+            # Should notify of failure and rollback
+            notify_calls = [str(call) for call in m_notify.call_args_list]
+            assert any("failed" in c.lower() for c in notify_calls)
+
+    def test_rollback_error_handled(self, config, tmp_path):
+        """Rollback errors are caught and notified but original exception is raised."""
+        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
+             patch("gasclaw.bootstrap.write_agent_config"), \
+             patch("gasclaw.bootstrap.gastown_install"), \
+             patch("gasclaw.bootstrap.start_dolt"), \
+             patch("gasclaw.bootstrap.write_openclaw_config"), \
+             patch("gasclaw.bootstrap.install_skills"), \
+             patch("gasclaw.bootstrap.run_doctor") as m_doctor, \
+             patch("gasclaw.bootstrap.start_daemon"), \
+             patch("gasclaw.bootstrap.start_mayor") as m_mayor, \
+             patch("gasclaw.bootstrap.stop_all") as m_stop, \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+
+            from gasclaw.openclaw.doctor import DoctorResult
+            m_doctor.return_value = DoctorResult(healthy=True, returncode=0, output="OK")
+            m_mayor.side_effect = RuntimeError("mayor failed")
+            m_stop.side_effect = RuntimeError("rollback also failed")
+
+            with pytest.raises(RuntimeError, match="mayor failed"):
+                bootstrap(config, gt_root=tmp_path)
+
+            # Should still attempt stop_all
+            m_stop.assert_called_once()
+            # Should notify about rollback error
+            notify_calls = [str(call) for call in m_notify.call_args_list]
+            assert any("rollback error" in c.lower() for c in notify_calls)
+
 
 class TestMonitorLoop:
     def test_runs_health_check(self, config, monkeypatch):
