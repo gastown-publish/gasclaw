@@ -30,7 +30,7 @@ def install_skills(
     try:
         skills_dst.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Ensured skills destination exists: {skills_dst}")
-    except PermissionError as e:
+    except PermissionError:
         logger.error(f"Permission denied creating skills directory: {skills_dst}")
         raise
 
