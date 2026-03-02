@@ -333,8 +333,7 @@ class TestGastownFeed:
                 returncode = 0
                 # First line malformed (only 2 parts), second valid
                 stdout = (
-                    "hash1|timestamp1\n"
-                    "abc123|2026-03-02 10:00:00 +0000|Test User|Merge PR #123"
+                    "hash1|timestamp1\nabc123|2026-03-02 10:00:00 +0000|Test User|Merge PR #123"
                 )
                 stderr = ""
 

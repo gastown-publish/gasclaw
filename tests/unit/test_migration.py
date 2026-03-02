@@ -130,7 +130,6 @@ class TestMigrateConfig:
         assert result["gastown_kimi_keys"] == "sk-migrate-key"
         assert "KIMI_API_KEY" in result["migrated_keys"]
 
-
     def test_migrates_multiple_keys(self, tmp_path, monkeypatch):
         """Handles multiple keys in KIMI_API_KEY."""
         monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
@@ -544,8 +543,10 @@ class TestMigrate:
         env_file = tmp_path / ".env"
 
         # Mock detection to return non-existent config_dir
-        with patch("gasclaw.migration.detect_gastown_setup") as m_detect, \
-             patch("gasclaw.migration.migrate_config") as m_migrate:
+        with (
+            patch("gasclaw.migration.detect_gastown_setup") as m_detect,
+            patch("gasclaw.migration.migrate_config") as m_migrate,
+        ):
             m_detect.return_value = {
                 "detected": True,
                 "source": "config_file",
