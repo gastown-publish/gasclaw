@@ -378,6 +378,38 @@ class TestMigrate:
         assert result.success is False
         assert "Missing required configuration" in result.error_message
 
+    def test_creates_backup_via_config_file_detection(self, tmp_path, monkeypatch):
+        """Creates backup when gastown detected via config_file source without explicit gastown_dir (lines 372-374)."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        # Create gastown config directory (will be found via search)
+        # Use DEFAULT_GASTOWN_DIRS path pattern
+        gt_dir = tmp_path / ".gt"
+        gt_dir.mkdir()
+        config_file = gt_dir / "config.json"
+        config_file.write_text(json.dumps({"kimi_api_key": "sk-from-config"}))
+
+        env_file = tmp_path / ".env"
+
+        # Don't pass gastown_dir - force detection via config_file source
+        # and the backup path at lines 372-374
+        with monkeypatch.context() as m:
+            m.setattr("gasclaw.migration.DEFAULT_GASTOWN_DIRS", [gt_dir])
+            result = migrate(
+                gastown_dir=None,  # Not passing explicit gastown_dir
+                gasclaw_env_file=env_file,
+                dry_run=False,
+                interactive=False,
+            )
+
+        assert result.success is True
+        assert result.backup_path is not None
+        assert result.backup_path.exists()
+
 
 class TestMigrationResult:
     """Tests for MigrationResult dataclass."""
