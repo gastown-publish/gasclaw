@@ -64,7 +64,10 @@ def start(
     console.print("[bold]Starting gasclaw...[/bold]")
     bootstrap(config, gt_root=gt_root)
     console.print("[green]All services started. Entering monitor loop.[/green]")
-    monitor_loop(config)
+    try:
+        monitor_loop(config)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Shutting down...[/yellow]")
 
 
 @app.command()

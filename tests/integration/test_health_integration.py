@@ -9,14 +9,20 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, patch
 
+import respx
+from httpx import Response
+
 from gasclaw.health import HealthReport, check_agent_activity, check_health
 
 
 class TestHealthCheckIntegration:
     """Integration tests for health check system."""
 
+    @respx.mock
     def test_full_health_report_with_all_services_healthy(self, monkeypatch):
         """Test complete health report when all services are healthy."""
+        # Mock the gateway HTTP endpoint
+        respx.get("http://localhost:18789/health").mock(return_value=Response(200, text="healthy"))
 
         def mock_subprocess_run(cmd, **kwargs):
             # Return success for all service checks
@@ -36,8 +42,11 @@ class TestHealthCheckIntegration:
         assert report.openclaw == "healthy"
         assert report.openclaw_doctor == "healthy"
 
+    @respx.mock
     def test_health_report_with_mixed_service_status(self, monkeypatch):
         """Test health report with some services up, some down."""
+        # Mock the gateway HTTP endpoint as healthy
+        respx.get("http://localhost:18789/health").mock(return_value=Response(200, text="healthy"))
 
         def mock_subprocess_run(cmd, **kwargs):
             cmd_str = " ".join(str(c) for c in cmd)
@@ -48,8 +57,6 @@ class TestHealthCheckIntegration:
                 return subprocess.CompletedProcess(cmd, 1, stderr=b"not running")  # Unhealthy
             elif "mayor" in cmd_str:
                 return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")  # Healthy
-            elif "curl" in cmd_str:
-                return subprocess.CompletedProcess(cmd, 0, stdout=b"healthy")  # Healthy
             elif "gt status" in cmd_str:
                 return subprocess.CompletedProcess(cmd, 0, stdout=b"mayor\n")
 
