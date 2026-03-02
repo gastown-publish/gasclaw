@@ -181,6 +181,71 @@ class TestMigrateConfig:
         assert result["success"] is False
         assert "error" in result
 
+    def test_handles_config_file_without_kimi_api_key(self, tmp_path, monkeypatch):
+        """Handles config file without kimi_api_key key (covers lines 255->262, 257->262)."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        gt_dir = tmp_path / ".gt"
+        gt_dir.mkdir()
+        config_file = gt_dir / "config.json"
+        # Config file exists but has no kimi_api_key
+        config_file.write_text(json.dumps({"other_key": "value"}))
+
+        result = migrate_config(gastown_dir=gt_dir, interactive=False)
+
+        # Should fail because no kimi_api_key in config
+        assert result["success"] is False
+        assert "Missing required configuration" in result["error"]
+
+    def test_handles_unknown_detection_source(self, tmp_path, monkeypatch):
+        """Handles unknown detection source by failing to migrate keys."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        env_file = tmp_path / ".env"
+
+        # Mock detect_gastown_setup to return unknown source
+        with patch("gasclaw.migration.detect_gastown_setup") as m_detect:
+            m_detect.return_value = {
+                "detected": True,
+                "source": "unknown_source",  # Neither env_var nor config_file
+            }
+            result = migrate_config(env_file=env_file, interactive=False)
+
+        # Should fail because no keys were migrated from unknown source
+        assert result["success"] is False
+        assert "Missing required configuration" in result["error"]
+
+    def test_handles_empty_kimi_key_with_env_var_source(self, tmp_path, monkeypatch):
+        """Handles empty kimi_api_key when source is env_var (covers 251->262)."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        env_file = tmp_path / ".env"
+
+        # Mock detect_gastown_setup to return env_var source but empty key
+        with patch("gasclaw.migration.detect_gastown_setup") as m_detect:
+            m_detect.return_value = {
+                "detected": True,
+                "source": "env_var",
+                "kimi_api_key": "",  # Empty key - should skip the if block
+            }
+            result = migrate_config(env_file=env_file, interactive=False)
+
+        # Should fail because empty key was not migrated
+        assert result["success"] is False
+        assert "Missing required configuration" in result["error"]
+
     def test_returns_error_when_missing_required_config(self, tmp_path, monkeypatch):
         """Returns error when required configuration is missing."""
         monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
