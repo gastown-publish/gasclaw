@@ -104,7 +104,10 @@ def monitor_loop(
     try:
         while True:
             report = check_health()
-            activity = check_agent_activity(deadline_seconds=config.activity_deadline)
+            activity = check_agent_activity(
+                project_dir=config.project_dir,
+                deadline_seconds=config.activity_deadline,
+            )
             report.activity = activity
 
             # If not compliant, notify the overseer
