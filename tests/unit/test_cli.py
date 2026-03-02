@@ -354,6 +354,115 @@ class TestCLIEdgeCases:
         assert "NOT COMPLIANT" in result.output or "not compliant" in result.output.lower()
 
 
+class TestMigrateCommand:
+    """Tests for migrate command (lines 193-210)."""
+
+    def test_migrate_successful(self, tmp_path, monkeypatch):
+        """migrate command succeeds when migration is successful."""
+        from gasclaw.migration import MigrationResult
+
+        def mock_migrate(*args, **kwargs):
+            return MigrationResult(
+                success=True,
+                dry_run=False,
+                gastown_detected=True,
+                migrated_keys=["KIMI_API_KEY"],
+                env_file_path=tmp_path / ".env",
+            )
+
+        monkeypatch.setattr("gasclaw.cli.run_migration", mock_migrate)
+
+        result = runner.invoke(app, ["migrate"])
+
+        assert result.exit_code == 0
+        assert "Migration complete" in result.output
+        assert "Next steps" in result.output
+
+    def test_migrate_successful_dry_run(self, tmp_path, monkeypatch):
+        """migrate --dry-run shows summary without next steps."""
+        from gasclaw.migration import MigrationResult
+
+        def mock_migrate(*args, **kwargs):
+            return MigrationResult(
+                success=True,
+                dry_run=True,
+                gastown_detected=True,
+            )
+
+        monkeypatch.setattr("gasclaw.cli.run_migration", mock_migrate)
+
+        result = runner.invoke(app, ["migrate", "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.output or "dry run" in result.output.lower()
+
+    def test_migrate_failure_exits_with_code_1(self, tmp_path, monkeypatch):
+        """migrate command exits with code 1 when migration fails (lines 209-210)."""
+        from gasclaw.migration import MigrationResult
+
+        def mock_migrate(*args, **kwargs):
+            return MigrationResult(
+                success=False,
+                dry_run=False,
+                gastown_detected=False,
+                error_message="No Gastown installation found",
+            )
+
+        monkeypatch.setattr("gasclaw.cli.run_migration", mock_migrate)
+
+        result = runner.invoke(app, ["migrate"])
+
+        assert result.exit_code == 1
+
+    def test_migrate_displays_checking_message(self, monkeypatch):
+        """migrate command displays 'Checking for Gastown' message (line 193)."""
+        from gasclaw.migration import MigrationResult
+
+        def mock_migrate(*args, **kwargs):
+            return MigrationResult(
+                success=True,
+                dry_run=False,
+                gastown_detected=True,
+                migrated_keys=["KIMI_API_KEY"],
+            )
+
+        monkeypatch.setattr("gasclaw.cli.run_migration", mock_migrate)
+
+        result = runner.invoke(app, ["migrate"])
+
+        assert "Checking for Gastown" in result.output
+
+    def test_migrate_accepts_custom_paths(self, tmp_path, monkeypatch):
+        """migrate command accepts custom gastown-dir and env-file paths."""
+        from gasclaw.migration import MigrationResult
+
+        migrate_calls = []
+
+        def mock_migrate(**kwargs):
+            migrate_calls.append(kwargs)
+            return MigrationResult(
+                success=True,
+                dry_run=False,
+                gastown_detected=True,
+            )
+
+        monkeypatch.setattr("gasclaw.cli.run_migration", mock_migrate)
+
+        gt_dir = tmp_path / "custom_gt"
+        env_file = tmp_path / "custom.env"
+
+        result = runner.invoke(app, [
+            "migrate",
+            "--gastown-dir", str(gt_dir),
+            "--env-file", str(env_file),
+        ])
+
+        assert result.exit_code == 0
+        assert len(migrate_calls) == 1
+        assert migrate_calls[0]["gastown_dir"] == gt_dir
+        assert migrate_calls[0]["gasclaw_env_file"] == env_file
+
+
 class TestMaintainCommand:
     def test_maintain_once_runs_single_cycle(self, monkeypatch):
         """maintain --once runs a single maintenance cycle."""
