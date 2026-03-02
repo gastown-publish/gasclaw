@@ -153,3 +153,57 @@ class TestMonitorLoop:
             project_dir="/custom/project",
             deadline_seconds=config.activity_deadline,
         )
+
+    def test_notifies_on_non_compliance(self, config, monkeypatch):
+        """monitor_loop sends notification when activity is non-compliant."""
+        check_count = 0
+        notify_calls = []
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="healthy", daemon="healthy", mayor="healthy",
+                openclaw="healthy", agents=["mayor"],
+            )
+
+        activity_return = {"compliant": False, "last_commit_age": 7200}
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("time.sleep"):
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            monitor_loop(config, interval=1)
+
+        assert len(notify_calls) >= 1
+        assert any("ACTIVITY ALERT" in msg for msg in notify_calls)
+
+    def test_notifies_on_service_down(self, config, monkeypatch):
+        """monitor_loop sends notification when critical service is down."""
+        check_count = 0
+        notify_calls = []
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="unhealthy", daemon="healthy", mayor="healthy",
+                openclaw="healthy", agents=["mayor"],
+            )
+
+        activity_return = {"compliant": True, "last_commit_age": 100}
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("time.sleep"):
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            monitor_loop(config, interval=1)
+
+        assert len(notify_calls) >= 1
+        assert any("SERVICE DOWN" in msg for msg in notify_calls)

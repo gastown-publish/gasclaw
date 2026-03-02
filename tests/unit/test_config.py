@@ -158,6 +158,13 @@ class TestLoadConfig:
         cfg = load_config()
         assert cfg.activity_deadline == 3600
 
+    def test_activity_deadline_negative_defaults(self, monkeypatch, env_vars):
+        """Negative activity_deadline defaults to 3600."""
+        for k, v in env_vars(ACTIVITY_DEADLINE="-100").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.activity_deadline == 3600
+
 
 class TestGasclawConfig:
     def test_dataclass_fields(self):

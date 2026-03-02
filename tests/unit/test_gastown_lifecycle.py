@@ -73,6 +73,29 @@ class TestStartDaemon:
         start_daemon()
         assert any("daemon" in str(cmd) for cmd in calls)
 
+    def test_handles_failure(self, monkeypatch):
+        """start_daemon raises RuntimeError if daemon fails to start."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("daemon failed")),
+        )
+        try:
+            start_daemon()
+            assert False, "Expected RuntimeError"
+        except RuntimeError as e:
+            assert "daemon" in str(e).lower() or "failed" in str(e).lower()
+
+    def test_handles_missing_binary(self, monkeypatch):
+        """start_daemon raises FileNotFoundError if gt not installed."""
+        def raise_not_found(*a, **kw):
+            raise FileNotFoundError("gt not found")
+        monkeypatch.setattr(subprocess, "run", raise_not_found)
+        try:
+            start_daemon()
+            assert False, "Expected FileNotFoundError"
+        except FileNotFoundError:
+            pass
+
 
 class TestStartMayor:
     def test_runs_gt_mayor_start(self, monkeypatch):
@@ -85,6 +108,29 @@ class TestStartMayor:
         cmd_strs = [" ".join(str(x) for x in cmd) for cmd in calls]
         assert any("mayor" in s and "start" in s for s in cmd_strs)
         assert any("kimi-claude" in s for s in cmd_strs)
+
+    def test_handles_failure(self, monkeypatch):
+        """start_mayor raises RuntimeError if mayor fails to start."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("mayor failed")),
+        )
+        try:
+            start_mayor(agent="kimi-claude")
+            assert False, "Expected RuntimeError"
+        except RuntimeError as e:
+            assert "mayor" in str(e).lower() or "failed" in str(e).lower()
+
+    def test_handles_missing_binary(self, monkeypatch):
+        """start_mayor raises FileNotFoundError if gt not installed."""
+        def raise_not_found(*a, **kw):
+            raise FileNotFoundError("gt not found")
+        monkeypatch.setattr(subprocess, "run", raise_not_found)
+        try:
+            start_mayor(agent="kimi-claude")
+            assert False, "Expected FileNotFoundError"
+        except FileNotFoundError:
+            pass
 
 
 class TestStopAll:
