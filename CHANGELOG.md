@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-02
+
 ### Added
 
 - Added validation in `check_agent_activity()` to verify `project_dir` exists and is a git repository (#23)
 - Added warning logs when `_parse_positive_int()` receives invalid config values (#22)
 - Added bootstrap rollback mechanism - on failure, started services are stopped (#19)
 - Added `error` field to `check_agent_activity()` return value for better diagnostics
+- Added beads memory support for OpenClaw instead of file-based memory
 
 ### Changed
 
@@ -48,5 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Telegram Integration**: Bot notifications for alerts and status
 - **Skills System**: Auto-install OpenClaw skills on startup
 
-[Unreleased]: https://github.com/gastown-publish/gasclaw/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/gastown-publish/gasclaw/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/gastown-publish/gasclaw/releases/tag/v0.2.0
 [0.1.0]: https://github.com/gastown-publish/gasclaw/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 [project]
 name = "gasclaw"
-version = "0.1.0"
+version = "0.2.0"
 description = "Gastown + OpenClaw + KimiGas in one container"
 requires-python = ">=3.13"
 dependencies = [
