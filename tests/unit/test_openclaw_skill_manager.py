@@ -175,6 +175,7 @@ class TestInstallSkillsErrorHandling:
 
         # Mock copytree to raise OSError
         import shutil
+
         def mock_copytree(*args, **kwargs):
             raise OSError("Disk full")
 
@@ -195,6 +196,7 @@ class TestInstallSkillsErrorHandling:
 
         # Mock copytree to raise PermissionError
         import shutil
+
         def mock_copytree(*args, **kwargs):
             raise PermissionError("Permission denied copying")
 

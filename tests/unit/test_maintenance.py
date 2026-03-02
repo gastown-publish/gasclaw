@@ -44,10 +44,18 @@ class TestGetOpenPRs:
     @patch("gasclaw.maintenance.run_command")
     def test_returns_parsed_prs(self, mock_run):
         mock_prs = [
-            {"number": 1, "title": "Fix bug", "headRefName": "fix/bug",
-             "author": {"login": "user"}},
-            {"number": 2, "title": "Add feature", "headRefName": "feat/thing",
-             "author": {"login": "user"}},
+            {
+                "number": 1,
+                "title": "Fix bug",
+                "headRefName": "fix/bug",
+                "author": {"login": "user"},
+            },
+            {
+                "number": 2,
+                "title": "Add feature",
+                "headRefName": "feat/thing",
+                "author": {"login": "user"},
+            },
         ]
         mock_result = MagicMock()
         mock_result.returncode = 0
@@ -148,6 +156,7 @@ class TestCheckoutAndTestPR:
     @patch("gasclaw.maintenance.run_command")
     def test_logs_stdout_on_test_failure(self, mock_run, mock_logger):
         """Test that stdout is logged when tests fail (lines 122-124)."""
+
         def side_effect(cmd, **kwargs):
             if "pytest" in cmd:
                 mock_result = MagicMock()
@@ -177,8 +186,14 @@ class TestMergePR:
         assert result is True
         calls = [call[0][0] for call in mock_run.call_args_list]
         assert [
-            "gh", "pr", "merge", "42", "--repo", "gastown-publish/gasclaw",
-            "--squash", "--delete-branch",
+            "gh",
+            "pr",
+            "merge",
+            "42",
+            "--repo",
+            "gastown-publish/gasclaw",
+            "--squash",
+            "--delete-branch",
         ] in calls
         assert ["git", "checkout", "main"] in calls
 

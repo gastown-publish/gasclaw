@@ -32,21 +32,15 @@ class GasclawConfig:
         """Validate configuration after initialization."""
         # Validate telegram_owner_id is numeric
         if self.telegram_owner_id and not self.telegram_owner_id.isdigit():
-            raise ValueError(
-                f"TELEGRAM_OWNER_ID must be numeric, got: {self.telegram_owner_id}"
-            )
+            raise ValueError(f"TELEGRAM_OWNER_ID must be numeric, got: {self.telegram_owner_id}")
 
         # Validate paths are absolute
         if self.project_dir and not self.project_dir.startswith("/"):
-            logger.warning(
-                f"PROJECT_DIR should be an absolute path, got: {self.project_dir}"
-            )
+            logger.warning(f"PROJECT_DIR should be an absolute path, got: {self.project_dir}")
 
         # Validate gt_rig_url
         if self.gt_rig_url and not self.gt_rig_url.startswith(("/", "http", "https")):
-            logger.warning(
-                f"GT_RIG_URL should be a path or URL, got: {self.gt_rig_url}"
-            )
+            logger.warning(f"GT_RIG_URL should be a path or URL, got: {self.gt_rig_url}")
 
 
 def _require_env(name: str) -> str:
