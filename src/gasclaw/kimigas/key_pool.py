@@ -63,8 +63,8 @@ class KeyPool:
             with os.fdopen(fd, "w") as f:
                 json.dump(state, f, indent=2)
             os.replace(temp_path, state_file)
-        except Exception:
-            # Clean up temp file on failure
+        except (OSError, TypeError, ValueError):
+            # Clean up temp file on failure (disk errors or JSON serialization issues)
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
