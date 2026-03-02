@@ -406,5 +406,6 @@ class TestMaintainCommand:
         result = runner.invoke(app, ["maintain", "--interval", "60"])
 
         assert result.exit_code == 0
-        assert "Entering maintenance loop" in result.output or "Starting maintenance" in result.output
+        assert "Entering maintenance loop" in result.output or \
+               "Starting maintenance" in result.output
         assert "interval=60" in result.output or "60s" in result.output
