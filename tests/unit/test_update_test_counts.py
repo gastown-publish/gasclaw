@@ -128,6 +128,38 @@ class TestUpdateFile:
         assert content.count("75 tests") == 2
         assert "50 tests" not in content
 
+    def test_handles_case_insensitive_replacement(self, tmp_path: Path):
+        """Test updating 'Tests' with capital T."""
+        test_file = tmp_path / "test.md"
+        test_file.write_text("This project has 100 Tests in total.")
+
+        result = update_file(test_file, 100, 150)
+
+        assert result is True
+        assert "150 tests" in test_file.read_text()
+        assert "100 Tests" not in test_file.read_text()
+
+    def test_handles_singular_test(self, tmp_path: Path):
+        """Test updating singular 'test' count."""
+        test_file = tmp_path / "test.md"
+        test_file.write_text("Only 1 test exists.")
+
+        result = update_file(test_file, 1, 2)
+
+        assert result is True
+        assert "2 tests" in test_file.read_text()
+
+    def test_handles_from_to_pattern(self, tmp_path: Path):
+        """Test updating 'from X to Y' pattern for PR descriptions."""
+        test_file = tmp_path / "test.md"
+        test_file.write_text("Update test count from 100 to 200")
+
+        result = update_file(test_file, 200, 250)
+
+        assert result is True
+        content = test_file.read_text()
+        assert "from 100 to 250" in content
+
 
 class TestMain:
     """Tests for main function."""
