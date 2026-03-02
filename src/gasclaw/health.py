@@ -97,8 +97,8 @@ def _list_agents() -> list[str]:
                 if stripped:
                     agents.append(stripped)
             return agents
-    except (OSError, subprocess.TimeoutExpired):
-        pass
+    except (OSError, subprocess.TimeoutExpired) as e:
+        logger.debug("Failed to list agents: %s", e)
     return []
 
 
@@ -159,8 +159,10 @@ def check_agent_activity(
                 "compliant": age <= deadline_seconds,
                 "error": None,
             }
-    except (OSError, subprocess.TimeoutExpired, ValueError):
-        pass
+    except (OSError, subprocess.TimeoutExpired) as e:
+        logger.debug("Git log command failed: %s", e)
+    except ValueError as e:
+        logger.debug("Failed to parse commit timestamp: %s", e)
 
     return {
         "last_commit_age": None,
