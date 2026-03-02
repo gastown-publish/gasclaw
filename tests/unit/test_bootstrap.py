@@ -366,3 +366,31 @@ class TestMonitorLoop:
         assert any("dolt" in msg for msg in service_notifications)
         assert any("daemon" in msg for msg in service_notifications)
         assert any("mayor" in msg for msg in service_notifications)
+
+    def test_uses_config_interval_when_none_provided(self, config, monkeypatch):
+        """monitor_loop uses config.monitor_interval when interval=None."""
+        check_count = 0
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="healthy", daemon="healthy", mayor="healthy",
+                openclaw="healthy", agents=["mayor"],
+                activity={"compliant": True, "last_commit_age": 100},
+            )
+
+        activity_return = {"compliant": True, "last_commit_age": 100}
+        config.monitor_interval = 42  # Custom interval
+
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("time.sleep") as m_sleep:
+            monitor_loop(config, interval=None)  # interval=None triggers line 131
+
+        # Verify sleep was called with the config interval
+        m_sleep.assert_called_with(42)

@@ -177,6 +177,29 @@ class TestKeyPoolAtomicWrite:
         temp_files = list(tmp_path.glob(".key-rotation-*.tmp"))
         assert len(temp_files) == 0
 
+    def test_oserror_on_unlink_is_ignored(self, tmp_path, monkeypatch):
+        """OSError during temp file cleanup is ignored (line 71-72 coverage)."""
+        pool = KeyPool(["k1"], state_dir=tmp_path)
+
+        # Track if unlink was called
+        unlink_calls = []
+
+        def fail_unlink(*args, **kwargs):
+            unlink_calls.append(args)
+            raise OSError("Cannot unlink")
+
+        monkeypatch.setattr("os.unlink", fail_unlink)
+
+        # Make os.fdopen fail to trigger cleanup path
+        monkeypatch.setattr("os.fdopen", lambda *a, **kw: (_ for _ in ()).throw(OSError("Write failed")))
+
+        # Should raise the original OSError, not the unlink error
+        with pytest.raises(OSError, match="Write failed"):
+            pool._save_state({"test": "data"})
+
+        # Unlink should have been attempted
+        assert len(unlink_calls) >= 1
+
 
 class TestKeyPoolEdgeCases:
     def test_creates_state_dir_if_not_exists(self, tmp_path):
