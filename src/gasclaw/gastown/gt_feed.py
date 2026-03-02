@@ -194,6 +194,7 @@ def get_recent_activity(
 
     Returns:
         List of ActivityEvent objects.
+
     """
     feed = GastownFeed(project_dir)
     return feed.get_feed(limit)
@@ -212,6 +213,7 @@ def format_feed_for_telegram(
 
     Returns:
         Formatted markdown string for Telegram.
+
     """
     lines = [
         "📊 *Gastown Activity Dashboard*",

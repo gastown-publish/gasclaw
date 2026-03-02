@@ -41,6 +41,7 @@ def write_openclaw_config(
 
     Returns:
         Path to the written openclaw.json.
+
     """
     openclaw_dir.mkdir(parents=True, exist_ok=True)
 

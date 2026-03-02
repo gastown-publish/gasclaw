@@ -27,6 +27,7 @@ def start_openclaw(
     Raises:
         RuntimeError: If the openclaw process exits early.
         TimeoutError: If openclaw is not ready within the timeout.
+
     """
     proc = subprocess.Popen(
         ["openclaw", "gateway", "start", "--port", str(port)],
@@ -70,6 +71,7 @@ def stop_openclaw(*, timeout: int = 30) -> None:
 
     Args:
         timeout: Max seconds to wait for shutdown.
+
     """
     try:
         subprocess.run(

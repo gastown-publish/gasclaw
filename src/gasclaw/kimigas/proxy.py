@@ -19,6 +19,7 @@ def build_claude_env(api_key: str, *, config_dir: str | None = None) -> dict[str
 
     Returns:
         dict of environment variables to set/override.
+
     """
     return {
         "ANTHROPIC_BASE_URL": KIMI_ANTHROPIC_BASE_URL,

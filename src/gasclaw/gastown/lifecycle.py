@@ -27,6 +27,7 @@ def start_dolt(
     Raises:
         RuntimeError: If the dolt process exits early.
         TimeoutError: If dolt is not ready within the timeout.
+
     """
     proc = subprocess.Popen(
         ["dolt", "sql-server", "--port", str(port), "--data-dir", data_dir],
@@ -71,6 +72,7 @@ def start_mayor(*, agent: str = "kimi-claude") -> None:
 
     Args:
         agent: Agent name to use (default: kimi-claude).
+
     """
     subprocess.run(
         ["gt", "mayor", "start", "--agent", agent],

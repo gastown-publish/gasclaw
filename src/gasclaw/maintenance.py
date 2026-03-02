@@ -43,6 +43,7 @@ def run_command(
     Raises:
         subprocess.CalledProcessError: If check=True and command fails or binary not found.
         subprocess.TimeoutExpired: If command times out.
+
     """
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -72,6 +73,7 @@ def get_open_prs(timeout: int = 120) -> list[dict[str, Any]]:
 
     Returns:
         list of PR dicts with number, title, branch, and author.
+
     """
     try:
         result = run_command(
@@ -108,6 +110,7 @@ def get_open_issues(timeout: int = 120) -> list[dict[str, Any]]:
 
     Returns:
         list of issue dicts with number and title.
+
     """
     try:
         result = run_command(
@@ -135,6 +138,7 @@ def checkout_and_test_pr(pr_number: int, branch: str) -> bool:
 
     Returns:
         True if tests pass, False otherwise.
+
     """
     logger.info("Checking out PR #%d: %s", pr_number, branch)
     try:
@@ -172,6 +176,7 @@ def merge_pr(pr_number: int) -> bool:
 
     Returns:
         True if merge succeeded, False otherwise.
+
     """
     logger.info("Merging PR #%d", pr_number)
     try:
@@ -203,6 +208,7 @@ def fix_on_branch(pr_number: int) -> bool:
 
     Returns:
         True if fixes were applied, False otherwise.
+
     """
     logger.info("Attempting to fix PR #%d", pr_number)
     # For now, just notify that manual intervention is needed
@@ -215,6 +221,7 @@ def process_open_prs() -> dict[str, Any]:
 
     Returns:
         dict with counts of merged, failed, and fixed PRs.
+
     """
     stats = {"merged": 0, "failed": 0, "fixed": 0, "total": 0}
 
@@ -249,6 +256,7 @@ def process_open_issues() -> dict[str, Any]:
 
     Returns:
         dict with counts of issues processed.
+
     """
     stats = {"processed": 0, "total": 0}
 
@@ -271,6 +279,7 @@ def run_maintenance_cycle() -> dict[str, Any]:
 
     Returns:
         dict with summary of all actions taken.
+
     """
     logger.info("Starting maintenance cycle")
 
@@ -288,6 +297,7 @@ def maintenance_loop(interval: int = 300) -> None:
 
     Args:
         interval: Seconds between maintenance cycles (default: 300 = 5 min).
+
     """
     logger.info("Starting maintenance loop with interval=%d seconds", interval)
 
@@ -328,6 +338,7 @@ def _parse_args(args: list[str] | None = None) -> argparse.Namespace:
 
     Returns:
         Parsed arguments namespace.
+
     """
     parser = argparse.ArgumentParser(description="Gasclaw maintenance loop")
     parser.add_argument("--once", action="store_true", help="Run once and exit (don't loop)")
@@ -342,6 +353,7 @@ def main(args: list[str] | None = None) -> None:
 
     Args:
         args: Command line arguments. Defaults to sys.argv[1:].
+
     """
     parsed = _parse_args(args)
 

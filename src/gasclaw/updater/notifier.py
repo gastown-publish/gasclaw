@@ -27,6 +27,7 @@ def notify_telegram(
 
     Returns:
         True if notification was sent successfully, False otherwise.
+
     """
     url = f"http://localhost:{gateway_port}/api/message"
     headers = {"Content-Type": "application/json"}

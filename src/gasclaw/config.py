@@ -91,6 +91,7 @@ def _parse_positive_int(value: str, default: int, name: str = "") -> int:
 
     Returns:
         The parsed positive integer, or default if invalid.
+
     """
     try:
         result = int(value)
@@ -122,6 +123,7 @@ def _parse_port(value: str, default: int, name: str = "") -> int:
 
     Returns:
         The parsed port number, or default if invalid.
+
     """
     try:
         result = int(value)

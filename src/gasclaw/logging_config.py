@@ -24,6 +24,7 @@ def setup_logging(level: str | None = None, log_file: str | None = None) -> None
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR). Defaults to LOG_LEVEL env var.
         log_file: Optional file path to write logs to (in addition to stderr).
+
     """
     log_level = (level or LOG_LEVEL).upper()
 
@@ -75,5 +76,6 @@ def get_logger(name: str) -> logging.Logger:
 
     Returns:
         Configured logger instance.
+
     """
     return logging.getLogger(name)

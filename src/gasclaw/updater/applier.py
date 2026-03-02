@@ -22,6 +22,7 @@ def apply_updates() -> dict[str, str]:
 
     Returns:
         dict mapping dependency name to result string.
+
     """
     results: dict[str, str] = {}
     for name, cmd in _UPDATE_COMMANDS.items():

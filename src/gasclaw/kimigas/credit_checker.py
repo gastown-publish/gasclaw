@@ -53,6 +53,7 @@ class CreditChecker:
 
         Returns:
             CreditInfo with balance and usage data.
+
         """
         masked = self._mask_key(api_key)
 
@@ -130,6 +131,7 @@ class CreditChecker:
 
         Returns:
             List of CreditInfo for each key.
+
         """
         return [self.check_key(key) for key in api_keys]
 
@@ -141,6 +143,7 @@ class CreditChecker:
 
         Returns:
             Dict with total balance, usage, and per-key details.
+
         """
         results = self.check_keys(api_keys)
 
@@ -192,6 +195,7 @@ def check_key_credits(api_keys: list[str]) -> dict[str, Any]:
 
     Returns:
         Aggregated credit summary.
+
     """
     checker = CreditChecker()
     return checker.get_pool_summary(api_keys)

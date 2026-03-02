@@ -75,6 +75,7 @@ def detect_gastown_setup(
 
     Returns:
         Dict with detection results including detected status and source.
+
     """
     # If gasclaw config already exists, don't offer migration
     if os.environ.get("GASTOWN_KIMI_KEYS"):
@@ -135,6 +136,7 @@ def create_backup(gastown_dir: Path) -> Path | None:
 
     Returns:
         Path to the backup directory, or None if backup failed.
+
     """
     if not gastown_dir.exists():
         return None
@@ -161,6 +163,7 @@ def _parse_gastown_keys(key_value: str) -> str:
 
     Returns:
         Colon-separated keys for gasclaw.
+
     """
     # Handle both comma and colon separators
     if "," in key_value:
@@ -177,6 +180,7 @@ def _prompt_for_missing_config(interactive: bool = True) -> dict[str, str]:
 
     Returns:
         Dict with configuration values.
+
     """
     config: dict[str, str] = {}
 
@@ -234,6 +238,7 @@ def migrate_config(
 
     Returns:
         Dict with migration results.
+
     """
     result: dict[str, Any] = {"success": False, "migrated_keys": []}
 
@@ -338,6 +343,7 @@ def migrate(
 
     Returns:
         MigrationResult with details of the migration.
+
     """
     # Default paths
     if gasclaw_env_file is None:

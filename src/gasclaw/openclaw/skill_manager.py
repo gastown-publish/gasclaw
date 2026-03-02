@@ -26,6 +26,7 @@ def install_skills(
     Raises:
         PermissionError: If unable to create destination or make scripts executable.
         OSError: If unable to copy skill files.
+
     """
     try:
         skills_dst.mkdir(parents=True, exist_ok=True)

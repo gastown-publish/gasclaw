@@ -51,6 +51,7 @@ def setup_kimi_accounts(
     Args:
         keys: list of Kimi API keys.
         accounts_dir: Override for ~/.kimi-accounts.
+
     """
     if accounts_dir is None:
         accounts_dir = Path.home() / ".kimi-accounts"
@@ -65,6 +66,7 @@ def gastown_install(*, gt_root: Path, rig_url: str) -> None:
     Args:
         gt_root: Where to install Gastown (e.g. /workspace/gt).
         rig_url: Git URL or path for the rig.
+
     """
     subprocess.run(
         ["gt", "install", str(gt_root), "--git"],

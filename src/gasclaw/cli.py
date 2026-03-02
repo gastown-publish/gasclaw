@@ -193,6 +193,7 @@ def migrate(
     Examples:
         gasclaw migrate              # Run migration interactively
         gasclaw migrate --dry-run    # Preview what would be migrated
+
     """
     console.print("[bold]Checking for Gastown installation...[/bold]")
 

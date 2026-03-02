@@ -47,6 +47,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
 
     Raises:
         RuntimeError: If bootstrap fails, after attempting rollback.
+
     """
     # Track started services for rollback
     dolt_started = False
@@ -145,6 +146,7 @@ def monitor_loop(
     Args:
         config: Gasclaw configuration.
         interval: Seconds between checks (default from config.monitor_interval).
+
     """
     if interval is None:
         interval = config.monitor_interval

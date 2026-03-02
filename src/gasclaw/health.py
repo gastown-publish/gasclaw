@@ -72,6 +72,7 @@ def _check_openclaw_gateway(gateway_port: int) -> str:
 
     Returns:
         "healthy" if the gateway responds with 200, "unhealthy" otherwise.
+
     """
     try:
         response = httpx.get(f"http://localhost:{gateway_port}/health", timeout=10)
@@ -108,6 +109,7 @@ def check_health(*, gateway_port: int = 18789, dolt_port: int = 3307) -> HealthR
     Args:
         gateway_port: OpenClaw gateway port for connectivity check.
         dolt_port: Dolt SQL server port for health check.
+
     """
     doctor = run_doctor()
     return HealthReport(
@@ -136,6 +138,7 @@ def check_agent_activity(
 
     Returns:
         dict with last_commit_age (seconds), compliant (bool), and error (str|None).
+
     """
     try:
         result = subprocess.run(

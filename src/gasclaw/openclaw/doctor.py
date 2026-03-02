@@ -32,6 +32,7 @@ def run_doctor(*, repair: bool = False, timeout: int = 60) -> DoctorResult:
 
     Returns:
         DoctorResult with health status and output.
+
     """
     cmd = ["openclaw", "doctor", "--non-interactive"]
     if repair:

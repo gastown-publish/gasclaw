@@ -23,6 +23,7 @@ def check_versions() -> dict[str, str]:
 
     Returns:
         dict mapping dependency name to version string or "not installed".
+
     """
     versions: dict[str, str] = {}
     for name, cmd in _VERSION_COMMANDS.items():

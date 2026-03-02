@@ -9,6 +9,7 @@ Example:
     >>> from gasclaw import load_config, bootstrap
     >>> config = load_config()
     >>> bootstrap(config)
+
 """
 
 from __future__ import annotations
