@@ -141,3 +141,111 @@ Gasclaw validates configuration on startup:
 - Path variables should be absolute paths
 
 If validation fails, the bootstrap will exit with a clear error message.
+
+## Secrets Management
+
+### Keeping Keys Secure
+
+Never commit API keys to git. Use one of these approaches:
+
+**Option 1: Environment File (Recommended for development)**
+
+```bash
+# .env file (add to .gitignore!)
+GASTOWN_KIMI_KEYS="sk-..."
+OPENCLAW_KIMI_KEY="sk-..."
+TELEGRAM_BOT_TOKEN="..."
+TELEGRAM_OWNER_ID="..."
+```
+
+**Option 2: Docker Secrets**
+
+```yaml
+# docker-compose.yml
+secrets:
+  kimi_keys:
+    file: ./secrets/kimi_keys.txt
+  openclaw_key:
+    file: ./secrets/openclaw_key.txt
+```
+
+**Option 3: Environment Variables in Production**
+
+```bash
+# Systemd service or init script
+export GASTOWN_KIMI_KEYS="$(cat /etc/gasclaw/kimi_keys)"
+export OPENCLAW_KIMI_KEY="$(cat /etc/gasclaw/openclaw_key)"
+```
+
+### Key Permissions
+
+Ensure key files have restricted permissions:
+
+```bash
+chmod 600 .env
+chmod 600 /etc/gasclaw/*
+```
+
+## Multi-Key Configuration
+
+### Why Multiple Keys?
+
+Gasclaw supports multiple Kimi API keys for several reasons:
+
+1. **Rate Limit Distribution** - Each key has its own rate limit; spreading load prevents throttling
+2. **Redundancy** - If one key is rate-limited or revoked, others continue working
+3. **Cost Tracking** - Separate keys per project or team for billing purposes
+4. **Isolation** - Gastown agents and OpenClaw use completely separate key pools
+
+### Key Pool Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Gasclaw                               │
+├─────────────────────────────────────────────────────────────┤
+│  Gastown Agents                                             │
+│  ├── Key Pool: GASTOWN_KIMI_KEYS                            │
+│  │   ├── sk-key1 (worker 1)                                 │
+│  │   ├── sk-key2 (worker 2)                                 │
+│  │   └── sk-key3 (worker 3)                                 │
+│  └── Rotation: LRU with 5-min cooldown on rate limits       │
+├─────────────────────────────────────────────────────────────┤
+│  OpenClaw (Overseer)                                        │
+│  ├── Key Pool: OPENCLAW_KIMI_KEY (single key)               │
+│  │   └── sk-overseer-key                                    │
+│  └── Never shares pool with Gastown                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### How Key Rotation Works
+
+1. **LRU Selection** - Least recently used key is selected first
+2. **Cooldown** - Rate-limited keys are excluded for 5 minutes
+3. **Automatic Retry** - If all keys rate-limited, pool resets and tries again
+
+### Best Practices
+
+1. **Use Separate Keys** - Never share keys between Gastown and OpenClaw
+2. **Monitor Usage** - Check Kimi dashboard for per-key usage
+3. **Budget Alerts** - Set up spending alerts on Kimi for each key
+4. **Rotate Regularly** - Refresh keys monthly for security
+
+### Troubleshooting Key Issues
+
+**"Keys exhausted" error:**
+```bash
+# Check key status in logs
+gasclaw status
+
+# All keys rate-limited - wait 5 minutes or add more keys
+```
+
+**Invalid key errors:**
+```bash
+# Verify key format (should start with sk-)
+echo "$GASTOWN_KIMI_KEYS" | tr ':' '\n' | head -1
+
+# Test a key directly
+curl -H "Authorization: Bearer sk-your-key" \
+  https://api.kimi.com/v1/users/me/balance
+```
