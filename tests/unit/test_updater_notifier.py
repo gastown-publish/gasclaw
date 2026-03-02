@@ -80,3 +80,10 @@ class TestNotifyTelegram:
         respx.post("http://localhost:18789/api/message").mock(return_value=httpx.Response(201))
         result = notify_telegram("Test", gateway_port=18789)
         assert result is True
+
+    @respx.mock
+    def test_returns_true_on_204_no_content(self):
+        """Function returns True on 204 No Content (2xx range)."""
+        respx.post("http://localhost:18789/api/message").mock(return_value=httpx.Response(204))
+        result = notify_telegram("Test", gateway_port=18789)
+        assert result is True
