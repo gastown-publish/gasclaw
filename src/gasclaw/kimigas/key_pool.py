@@ -24,6 +24,16 @@ class KeyPool:
     """LRU-based API key rotation pool."""
 
     def __init__(self, keys: list[str], *, state_dir: Path | None = None) -> None:
+        """Initialize the key pool.
+
+        Args:
+            keys: List of API keys for rotation.
+            state_dir: Directory to store rotation state (default: ~/.gasclaw).
+
+        Raises:
+            ValueError: If keys list is empty.
+
+        """
         if not keys:
             raise ValueError("KeyPool requires at least one key")
         self._keys = list(keys)
@@ -31,6 +41,7 @@ class KeyPool:
 
     @property
     def total_keys(self) -> int:
+        """Return the total number of keys in the pool."""
         return len(self._keys)
 
     @staticmethod
