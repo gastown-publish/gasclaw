@@ -388,7 +388,7 @@ class TestMonitorLoop:
 
         with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
              patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
-             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("gasclaw.bootstrap.notify_telegram"), \
              patch("time.sleep") as m_sleep:
             monitor_loop(config, interval=None)  # interval=None triggers line 131
 

@@ -191,7 +191,9 @@ class TestKeyPoolAtomicWrite:
         monkeypatch.setattr("os.unlink", fail_unlink)
 
         # Make os.fdopen fail to trigger cleanup path
-        monkeypatch.setattr("os.fdopen", lambda *a, **kw: (_ for _ in ()).throw(OSError("Write failed")))
+        def fail_fdopen(*a, **kw):
+            raise OSError("Write failed")
+        monkeypatch.setattr("os.fdopen", fail_fdopen)
 
         # Should raise the original OSError, not the unlink error
         with pytest.raises(OSError, match="Write failed"):
