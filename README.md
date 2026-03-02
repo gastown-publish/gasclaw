@@ -70,6 +70,8 @@ docker compose build --build-arg TARGETARCH=arm64
 | `GT_AGENT_COUNT` | No | Crew worker count (default: 6) |
 | `MONITOR_INTERVAL` | No | Health check interval in seconds (default: 300) |
 | `ACTIVITY_DEADLINE` | No | Max seconds between commits (default: 3600) |
+| `DOLT_PORT` | No | Dolt SQL server port (default: 3307) |
+| `LOG_LEVEL` | No | Log level: DEBUG, INFO, WARNING, ERROR (default: INFO) |
 
 **Key separation:** Gastown and OpenClaw keys are completely separate pools. Keys are never shared unless you explicitly put the same key in both `GASTOWN_KIMI_KEYS` and `OPENCLAW_KIMI_KEY`.
 
@@ -92,7 +94,7 @@ python -m venv .venv && source .venv/bin/activate
 make dev
 
 # Test
-make test          # Unit tests only (483 tests)
+make test          # Unit tests only (485 tests)
 make test-all      # Include integration tests
 
 # Lint
