@@ -56,11 +56,24 @@ class HealthReport:
 
 
 def _check_service(cmd: list[str], service_name: str) -> str:
-    """Run a health check command and return status."""
+    """Run a health check command and return status.
+
+    Args:
+        cmd: Command and arguments to run.
+        service_name: Name of the service being checked (for logging).
+
+    Returns:
+        "healthy" if command succeeds, "unhealthy" otherwise.
+
+    """
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=10)
-        return "healthy" if result.returncode == 0 else "unhealthy"
+        if result.returncode == 0:
+            return "healthy"
+        logger.debug("Health check failed for %s: exit code %d", service_name, result.returncode)
+        return "unhealthy"
     except (OSError, subprocess.TimeoutExpired):
+        logger.debug("Health check error for %s: command failed or timed out", service_name)
         return "unhealthy"
 
 
