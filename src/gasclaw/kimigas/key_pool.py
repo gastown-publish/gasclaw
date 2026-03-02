@@ -104,6 +104,19 @@ class KeyPool:
         state["last_used"] = last_used
         self._save_state(state)
 
+    def _validate_key(self, key: str) -> None:
+        """Validate that a key belongs to this pool.
+
+        Args:
+            key: The API key to validate.
+
+        Raises:
+            ValueError: If the key does not belong to this pool.
+
+        """
+        if key not in self._keys:
+            raise ValueError(f"Key {self._key_hash(key)} does not belong to this pool")
+
     def mark_rate_limited(self, key: str) -> None:
         """Mark a key as rate-limited (enters cooldown).
 
@@ -114,8 +127,7 @@ class KeyPool:
             ValueError: If the key does not belong to this pool.
 
         """
-        if key not in self._keys:
-            raise ValueError(f"Key {self._key_hash(key)} does not belong to this pool")
+        self._validate_key(key)
 
         state = self._load_state()
         rate_limited = state.get("rate_limited", {})
@@ -137,8 +149,7 @@ class KeyPool:
             ValueError: If the key does not belong to this pool.
 
         """
-        if key not in self._keys:
-            raise ValueError(f"Key {self._key_hash(key)} does not belong to this pool")
+        self._validate_key(key)
 
         state = self._load_state()
         rate_limited = state.get("rate_limited", {})
