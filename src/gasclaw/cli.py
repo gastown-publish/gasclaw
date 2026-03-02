@@ -166,7 +166,16 @@ def maintain(
     once: bool = typer.Option(False, help="Run once and exit (don't loop)"),
     interval: int = typer.Option(300, help="Seconds between cycles (default: 300)"),
 ) -> None:
-    """Run maintenance loop: check and merge PRs, monitor issues."""
+    """Run continuous maintenance on the gasclaw repository.
+
+    - Check open PRs: checkout, test, and merge if passing
+    - Monitor open issues: identify and auto-fix where possible
+    - Maintain 100% test coverage by adding edge case tests
+    - Ensure code quality through linting and type checking
+
+    When run without --once, enters an infinite loop checking every
+    interval seconds. Use Ctrl+C to stop.
+    """
     console.print("[bold]Starting maintenance...[/bold]")
 
     if once:
