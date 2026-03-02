@@ -11,6 +11,7 @@ Can be run as a standalone script or imported as a module.
 
 from __future__ import annotations
 
+import argparse
 import subprocess
 import time
 
@@ -293,7 +294,7 @@ def maintenance_loop(interval: int = 300) -> None:
         notify_telegram("🛑 Maintenance loop stopped")
 
 
-def _parse_args(args: list[str] | None = None):
+def _parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments.
 
     Args:
@@ -302,8 +303,6 @@ def _parse_args(args: list[str] | None = None):
     Returns:
         Parsed arguments namespace.
     """
-    import argparse
-
     parser = argparse.ArgumentParser(description="Gasclaw maintenance loop")
     parser.add_argument("--once", action="store_true", help="Run once and exit (don't loop)")
     parser.add_argument(
