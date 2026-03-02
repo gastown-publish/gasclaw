@@ -186,6 +186,16 @@ class TestMain:
 
         assert result == 1
 
+    def test_exits_one_on_runtime_error(self):
+        """Test exit code 1 when RuntimeError occurs during test counting."""
+        with patch(
+            "scripts.update_test_counts.count_tests",
+            side_effect=RuntimeError("Could not parse test count"),
+        ):
+            result = main([])
+
+        assert result == 1
+
     def test_skips_update_when_count_unchanged(self):
         """Test no updates when test count hasn't changed."""
         with (
