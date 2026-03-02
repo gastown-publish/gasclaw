@@ -249,8 +249,9 @@ class TestCheckServiceErrorHandling:
 
     def test_check_service_logs_debug_on_failure(self, monkeypatch, caplog):
         """Test _check_service logs debug message when service returns non-zero exit code."""
-        from gasclaw.health import _check_service
         import logging
+
+        from gasclaw.health import _check_service
 
         monkeypatch.setattr(
             subprocess,
@@ -267,8 +268,9 @@ class TestCheckServiceErrorHandling:
 
     def test_check_service_logs_debug_on_exception(self, monkeypatch, caplog):
         """Test _check_service logs debug message when command fails or times out."""
-        from gasclaw.health import _check_service
         import logging
+
+        from gasclaw.health import _check_service
 
         def _raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0] if a else "cmd", timeout=10)
