@@ -39,6 +39,12 @@ class CreditChecker:
     """Check credit usage for Kimi API keys."""
 
     def __init__(self, base_url: str = KIMI_API_BASE) -> None:
+        """Initialize the credit checker.
+
+        Args:
+            base_url: Base URL for the Kimi API.
+
+        """
         self.base_url = base_url
 
     def _mask_key(self, key: str) -> str:
@@ -188,7 +194,7 @@ def _parse_amount(amount: Any) -> float | None:
 
 
 def check_key_credits(api_keys: list[str]) -> dict[str, Any]:
-    """Convenience function to check credits for a list of keys.
+    """Check credits for a list of API keys.
 
     Args:
         api_keys: List of Kimi API keys.

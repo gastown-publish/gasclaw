@@ -45,6 +45,12 @@ class CommandNotFoundError(subprocess.CalledProcessError):
     """Raised when a command binary is not found in PATH."""
 
     def __init__(self, cmd: list[str]) -> None:
+        """Initialize the error with the command that failed.
+
+        Args:
+            cmd: The command that was not found.
+
+        """
         self.binary = cmd[0] if cmd else "unknown"
         super().__init__(
             returncode=-1,
@@ -374,7 +380,7 @@ def _parse_args(args: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(args: list[str] | None = None) -> None:
-    """Main entry point for the maintenance script.
+    """Run the maintenance script entry point.
 
     Args:
         args: Command line arguments. Defaults to sys.argv[1:].

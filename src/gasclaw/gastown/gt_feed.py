@@ -46,6 +46,12 @@ class GastownFeed:
     """Reader for Gastown activity feed."""
 
     def __init__(self, project_dir: str = "/project") -> None:
+        """Initialize the Gastown feed reader.
+
+        Args:
+            project_dir: Path to the project directory with git repository.
+
+        """
         self.project_dir = project_dir
 
     def _run_gt_command(self, args: list[str]) -> str | None:
@@ -186,7 +192,7 @@ def get_recent_activity(
     project_dir: str = "/project",
     limit: int = 10,
 ) -> list[ActivityEvent]:
-    """Convenience function to get recent activity.
+    """Get recent activity from Gastown feed.
 
     Args:
         project_dir: Project directory with git repository.

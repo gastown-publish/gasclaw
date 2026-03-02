@@ -331,9 +331,9 @@ def migrate(
     dry_run: bool = False,
     interactive: bool = True,
 ) -> MigrationResult:
-    """Main migration function.
+    """Migrate Gastown configuration to gasclaw.
 
-    Detects Gastown installation and migrates configuration to gasclaw.
+    Detects existing Gastown installation and migrates configuration.
 
     Args:
         gastown_dir: Path to Gastown config directory (optional).
