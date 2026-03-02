@@ -12,6 +12,7 @@ Can be run as a standalone script or imported as a module.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import time
 from typing import Any
@@ -92,8 +93,6 @@ def get_open_prs(timeout: int = 120) -> list[dict[str, Any]]:
             logger.warning("Failed to list PRs: %s", result.stderr)
             return []
 
-        import json
-
         prs: list[dict[str, Any]] = json.loads(result.stdout)
         return prs
     except Exception as e:
@@ -119,8 +118,6 @@ def get_open_issues(timeout: int = 120) -> list[dict[str, Any]]:
         if result.returncode != 0:
             logger.warning("Failed to list issues: %s", result.stderr)
             return []
-
-        import json
 
         issues: list[dict[str, Any]] = json.loads(result.stdout)
         return issues
