@@ -285,6 +285,25 @@ class TestProcessOpenPRs:
         assert result["fixed"] == 1  # Line 204 coverage
         mock_merge.assert_not_called()
 
+    @patch("gasclaw.maintenance.merge_pr")
+    @patch("gasclaw.maintenance.checkout_and_test_pr")
+    @patch("gasclaw.maintenance.get_open_prs")
+    def test_handles_merge_failure_after_passing_tests(self, mock_get_prs, mock_test, mock_merge):
+        """Test when tests pass but merge fails (line 207 branch coverage)."""
+        mock_get_prs.return_value = [
+            {"number": 1, "title": "Fix", "headRefName": "fix/1"},
+        ]
+        mock_test.return_value = True  # Tests pass
+        mock_merge.return_value = False  # But merge fails
+
+        result = process_open_prs()
+
+        assert result["total"] == 1
+        assert result["merged"] == 0  # Not counted as merged
+        assert result["failed"] == 0  # Not counted as failed (tests passed)
+        mock_test.assert_called_once()
+        mock_merge.assert_called_once()
+
     @patch("gasclaw.maintenance.get_open_prs")
     def test_handles_no_prs(self, mock_get_prs):
         mock_get_prs.return_value = []
