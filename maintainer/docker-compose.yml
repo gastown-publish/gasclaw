@@ -1,0 +1,8 @@
+services:
+  maintainer:
+    build: .
+    container_name: gasclaw-maintainer
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - KIMI_API_KEY=${KIMI_API_KEY}
+    restart: unless-stopped
