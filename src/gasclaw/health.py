@@ -11,6 +11,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from gasclaw.openclaw.doctor import run_doctor
+
 
 @dataclass
 class HealthReport:
@@ -20,6 +22,7 @@ class HealthReport:
     daemon: str = "unknown"
     mayor: str = "unknown"
     openclaw: str = "unknown"
+    openclaw_doctor: str = "unknown"
     agents: list[str] = field(default_factory=list)
     key_pool: dict[str, Any] = field(default_factory=dict)
     activity: dict[str, Any] = field(default_factory=dict)
@@ -31,6 +34,7 @@ class HealthReport:
             f"Daemon: {self.daemon}",
             f"Mayor: {self.mayor}",
             f"OpenClaw: {self.openclaw}",
+            f"OpenClaw Doctor: {self.openclaw_doctor}",
             f"Agents: {len(self.agents)} active ({', '.join(self.agents[:5])})",
             f"Keys: {self.key_pool.get('available', '?')}/{self.key_pool.get('total', '?')} available",
         ]
@@ -74,6 +78,7 @@ def check_health(*, gateway_port: int = 18789) -> HealthReport:
     Args:
         gateway_port: OpenClaw gateway port for connectivity check.
     """
+    doctor = run_doctor()
     return HealthReport(
         dolt=_check_service(["dolt", "sql", "--port", "3307", "-q", "SELECT 1"], "dolt"),
         daemon=_check_service(["gt", "daemon", "status"], "daemon"),
@@ -82,6 +87,7 @@ def check_health(*, gateway_port: int = 18789) -> HealthReport:
             ["curl", "-sf", f"http://localhost:{gateway_port}/health"],
             "openclaw",
         ),
+        openclaw_doctor="healthy" if doctor.healthy else "unhealthy",
         agents=_list_agents(),
     )
 

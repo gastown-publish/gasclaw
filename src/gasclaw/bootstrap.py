@@ -27,6 +27,7 @@ from gasclaw.gastown.agent_config import write_agent_config
 from gasclaw.gastown.installer import gastown_install, setup_kimi_accounts
 from gasclaw.gastown.lifecycle import start_dolt, start_daemon, start_mayor
 from gasclaw.health import check_health, check_agent_activity
+from gasclaw.openclaw.doctor import run_doctor
 from gasclaw.openclaw.installer import write_openclaw_config
 from gasclaw.openclaw.skill_manager import install_skills
 from gasclaw.updater.notifier import notify_telegram
@@ -64,6 +65,11 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
 
     # 6. Install skills
     install_skills(skills_src=_SKILLS_DIR, skills_dst=openclaw_dir / "skills")
+
+    # 6.5. Run openclaw doctor to verify config and fix issues
+    doctor_result = run_doctor(repair=True)
+    if not doctor_result.healthy:
+        notify_telegram(f"openclaw doctor found issues:\n{doctor_result.output[:500]}")
 
     # 7. Start daemon
     start_daemon()
