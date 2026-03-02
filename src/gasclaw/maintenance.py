@@ -45,8 +45,11 @@ def run_command(
     return result
 
 
-def get_open_prs() -> list[dict[str, Any]]:
+def get_open_prs(timeout: int = 120) -> list[dict[str, Any]]:
     """Get list of open PRs from GitHub.
+
+    Args:
+        timeout: Max seconds to wait for the command (default: 120).
 
     Returns:
         list of PR dicts with number, title, branch, and author.
@@ -65,6 +68,7 @@ def get_open_prs() -> list[dict[str, Any]]:
                 "number,title,headRefName,author",
             ],
             check=False,
+            timeout=timeout,
         )
         if result.returncode != 0:
             logger.warning("Failed to list PRs: %s", result.stderr)
@@ -79,8 +83,11 @@ def get_open_prs() -> list[dict[str, Any]]:
         return []
 
 
-def get_open_issues() -> list[dict[str, Any]]:
+def get_open_issues(timeout: int = 120) -> list[dict[str, Any]]:
     """Get list of open issues from GitHub.
+
+    Args:
+        timeout: Max seconds to wait for the command (default: 120).
 
     Returns:
         list of issue dicts with number and title.
@@ -89,6 +96,7 @@ def get_open_issues() -> list[dict[str, Any]]:
         result = run_command(
             ["gh", "issue", "list", "--repo", REPO, "--state", "open", "--json", "number,title"],
             check=False,
+            timeout=timeout,
         )
         if result.returncode != 0:
             logger.warning("Failed to list issues: %s", result.stderr)
