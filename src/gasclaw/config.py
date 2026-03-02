@@ -86,7 +86,13 @@ def load_config() -> GasclawConfig:
         telegram_owner_id=_require_env("TELEGRAM_OWNER_ID"),
         gt_rig_url=os.environ.get("GT_RIG_URL", "/project").strip() or "/project",
         project_dir=os.environ.get("PROJECT_DIR", "/project").strip() or "/project",
-        gt_agent_count=_parse_positive_int(os.environ.get("GT_AGENT_COUNT", "6"), 6, "GT_AGENT_COUNT"),
-        monitor_interval=_parse_positive_int(os.environ.get("MONITOR_INTERVAL", "300"), 300, "MONITOR_INTERVAL"),
-        activity_deadline=_parse_positive_int(os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"),
+        gt_agent_count=_parse_positive_int(
+            os.environ.get("GT_AGENT_COUNT", "6"), 6, "GT_AGENT_COUNT"
+        ),
+        monitor_interval=_parse_positive_int(
+            os.environ.get("MONITOR_INTERVAL", "300"), 300, "MONITOR_INTERVAL"
+        ),
+        activity_deadline=_parse_positive_int(
+            os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"
+        ),
     )
