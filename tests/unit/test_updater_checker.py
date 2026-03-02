@@ -106,6 +106,7 @@ class TestCheckerLogging:
 
     def test_logs_warning_on_timeout(self, monkeypatch, caplog):
         """Timeout logs warning."""
+
         def raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
 

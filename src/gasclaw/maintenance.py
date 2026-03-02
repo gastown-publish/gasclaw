@@ -52,8 +52,15 @@ def get_open_prs() -> list[dict]:
     try:
         result = run_command(
             [
-                "gh", "pr", "list", "--repo", REPO, "--state", "open",
-                "--json", "number,title,headRefName,author",
+                "gh",
+                "pr",
+                "list",
+                "--repo",
+                REPO,
+                "--state",
+                "open",
+                "--json",
+                "number,title,headRefName,author",
             ],
             check=False,
         )
@@ -62,6 +69,7 @@ def get_open_prs() -> list[dict]:
             return []
 
         import json
+
         return json.loads(result.stdout)
     except Exception as e:
         logger.error("Error getting open PRs: %s", e)
@@ -84,6 +92,7 @@ def get_open_issues() -> list[dict]:
             return []
 
         import json
+
         return json.loads(result.stdout)
     except Exception as e:
         logger.error("Error getting open issues: %s", e)

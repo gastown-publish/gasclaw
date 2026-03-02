@@ -165,4 +165,3 @@ def check_agent_activity(
         "compliant": False,
         "error": "failed to get git log",
     }
-

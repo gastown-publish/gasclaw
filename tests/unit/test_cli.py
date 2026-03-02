@@ -81,6 +81,7 @@ class TestStartCommand:
 
     def test_start_exits_on_bootstrap_failure(self, config, monkeypatch, tmp_path):
         """start command exits with code 1 if bootstrap raises an exception."""
+
         def mock_bootstrap_fail(cfg, gt_root):
             raise RuntimeError("dolt connection failed")
 
@@ -295,6 +296,7 @@ class TestMaintainCommand:
 
     def test_maintain_once_exits_on_failure(self, monkeypatch):
         """maintain --once exits with error on failure."""
+
         def fail_cycle():
             raise RuntimeError("API error")
 
