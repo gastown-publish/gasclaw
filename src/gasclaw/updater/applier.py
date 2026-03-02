@@ -21,7 +21,7 @@ def apply_updates() -> dict[str, str]:
     """Run update commands for all dependencies.
 
     Returns:
-        Dict mapping dependency name to result string.
+        dict mapping dependency name to result string.
     """
     results: dict[str, str] = {}
     for name, cmd in _UPDATE_COMMANDS.items():
