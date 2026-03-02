@@ -71,3 +71,74 @@ class TestGastownInstall:
         gastown_install(gt_root=tmp_path, rig_url="/project")
         cmds = [c[0][0] for c in calls]
         assert any("rig" in str(cmd) for cmd in cmds)
+
+    def test_gt_install_failure_raises(self, monkeypatch, tmp_path):
+        """gt install failure raises CalledProcessError."""
+        def mock_run(*a, **kw):
+            cmd = a[0] if a else []
+            if "install" in str(cmd):
+                raise subprocess.CalledProcessError(1, cmd, stderr=b"install failed")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        try:
+            gastown_install(gt_root=tmp_path, rig_url="/project")
+            assert False, "Expected CalledProcessError"
+        except subprocess.CalledProcessError as e:
+            assert e.returncode == 1
+            assert "install" in str(e.cmd)
+
+    def test_gt_rig_add_failure_raises(self, monkeypatch, tmp_path):
+        """gt rig add failure raises CalledProcessError."""
+        def mock_run(*a, **kw):
+            cmd = a[0] if a else []
+            if "rig" in str(cmd) and "add" in str(cmd):
+                raise subprocess.CalledProcessError(2, cmd, stderr=b"rig add failed")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        try:
+            gastown_install(gt_root=tmp_path, rig_url="/project")
+            assert False, "Expected CalledProcessError"
+        except subprocess.CalledProcessError as e:
+            assert e.returncode == 2
+            assert "rig" in str(e.cmd)
+
+    def test_missing_gt_binary_raises(self, monkeypatch, tmp_path):
+        """Missing gt binary raises FileNotFoundError."""
+        def raise_not_found(*a, **kw):
+            raise FileNotFoundError("gt not found")
+
+        monkeypatch.setattr(subprocess, "run", raise_not_found)
+        try:
+            gastown_install(gt_root=tmp_path, rig_url="/project")
+            assert False, "Expected FileNotFoundError"
+        except FileNotFoundError:
+            pass
+
+    def test_gt_install_timeout_raises(self, monkeypatch, tmp_path):
+        """gt install timeout raises TimeoutExpired."""
+        def raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0] if a else ["gt"], timeout=60)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+        try:
+            gastown_install(gt_root=tmp_path, rig_url="/project")
+            assert False, "Expected TimeoutExpired"
+        except subprocess.TimeoutExpired:
+            pass
+
+    def test_check_true_passed_to_subprocess(self, monkeypatch, tmp_path):
+        """check=True is passed to subprocess.run for proper error handling."""
+        calls = []
+
+        def mock_run(*a, **kw):
+            calls.append(kw.get("check", False))
+            return subprocess.CompletedProcess(a[0], 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        gastown_install(gt_root=tmp_path, rig_url="/project")
+
+        # Both calls should have check=True
+        assert all(calls), f"Expected all calls to have check=True, got {calls}"
+        assert len(calls) == 2
