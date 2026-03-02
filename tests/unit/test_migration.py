@@ -607,3 +607,18 @@ class TestMigrationResult:
         summary = result.summary()
 
         assert "DRY RUN" in summary
+        assert "KIMI_API_KEY" in summary
+
+    def test_summary_shows_dry_run_no_keys(self):
+        """Summary shows dry run message when migrated_keys is empty."""
+        result = MigrationResult(
+            success=True,
+            dry_run=True,
+            gastown_detected=True,
+            migrated_keys=[],
+        )
+
+        summary = result.summary()
+
+        assert "DRY RUN" in summary
+        assert "will be determined during actual migration" in summary

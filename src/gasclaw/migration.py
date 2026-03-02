@@ -49,6 +49,8 @@ class MigrationResult:
                 lines.append(f"   Backup created: {self.backup_path}")
             if self.migrated_keys:
                 lines.append(f"   Migrated keys: {', '.join(self.migrated_keys)}")
+            elif self.dry_run:
+                lines.append("   Migrated keys: (will be determined during actual migration)")
             if self.env_file_path:
                 lines.append(f"   Config file: {self.env_file_path}")
         else:
