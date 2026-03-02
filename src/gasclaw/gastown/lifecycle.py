@@ -67,6 +67,10 @@ def start_mayor(*, agent: str = "kimi-claude") -> None:
 
 def stop_all() -> None:
     """Stop all Gastown services (mayor, daemon, dolt)."""
-    subprocess.run(["gt", "mayor", "stop"], check=False)
-    subprocess.run(["gt", "daemon", "stop"], check=False)
-    subprocess.run(["dolt", "sql-server", "--stop"], check=False)
+    try:
+        subprocess.run(["gt", "mayor", "stop"], check=False)
+        subprocess.run(["gt", "daemon", "stop"], check=False)
+        subprocess.run(["dolt", "sql-server", "--stop"], check=False)
+    except FileNotFoundError:
+        # Binaries not installed - services likely not running
+        pass
