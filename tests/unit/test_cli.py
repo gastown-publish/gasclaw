@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -241,6 +242,22 @@ class TestVersionCommand:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert __version__ in result.output
+
+    def test_version_matches_pyproject_toml(self):
+        """__version__ matches the version in pyproject.toml."""
+        import tomllib
+
+        from gasclaw import __version__
+
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        with open(pyproject_path, "rb") as f:
+            pyproject = tomllib.load(f)
+
+        expected_version = pyproject["project"]["version"]
+        assert __version__ == expected_version, (
+            f"Version mismatch: __init__.py has '{__version__}', "
+            f"pyproject.toml has '{expected_version}'"
+        )
 
 
 class TestCLIEdgeCases:
