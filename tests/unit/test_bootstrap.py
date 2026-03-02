@@ -120,3 +120,32 @@ class TestMonitorLoop:
             monitor_loop(config, interval=1)
 
         assert check_count >= 1
+
+    def test_passes_project_dir_to_activity_check(self, config, monkeypatch):
+        """monitor_loop should pass config.project_dir to check_agent_activity."""
+        config.project_dir = "/custom/project"
+        call_count = 0
+
+        def mock_check_health(**kw):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="healthy", daemon="healthy", mayor="healthy",
+                openclaw="healthy", agents=["mayor"],
+                activity={"compliant": True, "last_commit_age": 100},
+            )
+
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check_health), \
+             patch("gasclaw.bootstrap.check_agent_activity") as m_activity, \
+             patch("gasclaw.bootstrap.notify_telegram"), \
+             patch("time.sleep"):
+            m_activity.return_value = {"compliant": True, "last_commit_age": 100}
+            monitor_loop(config, interval=1)
+
+        m_activity.assert_called_with(
+            project_dir="/custom/project",
+            deadline_seconds=config.activity_deadline,
+        )
