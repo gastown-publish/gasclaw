@@ -43,6 +43,25 @@ class TestStartDolt:
             assert "exited early" in str(e)
             assert "1" in str(e)
 
+    def test_raises_timeout_if_never_ready(self, monkeypatch):
+        """If dolt never becomes ready, raise TimeoutError."""
+        class MockProc:
+            pid = 1
+            def poll(self):
+                return None  # Still running
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
+        # Always return non-zero (not ready)
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
+        )
+        try:
+            start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
+            assert False, "Expected TimeoutError"
+        except TimeoutError as e:
+            assert "not ready" in str(e).lower() or "timeout" in str(e).lower()
+
 
 class TestStartDaemon:
     def test_runs_gt_daemon(self, monkeypatch):
@@ -79,3 +98,22 @@ class TestStopAll:
         cmd_strs = [" ".join(str(x) for x in cmd) for cmd in calls]
         assert any("mayor" in s and "stop" in s for s in cmd_strs)
         assert any("daemon" in s and "stop" in s for s in cmd_strs)
+
+    def test_handles_stop_failures_gracefully(self, monkeypatch):
+        """stop_all uses check=False so failures don't raise."""
+        def mock_run(*a, **kw):
+            # Simulate failure for all commands
+            return subprocess.CompletedProcess(a[0], 1, stderr=b"not running")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        # Should not raise even though all commands "fail"
+        stop_all()
+
+    def test_handles_missing_binaries_gracefully(self, monkeypatch):
+        """stop_all handles FileNotFoundError when binaries are missing."""
+        def mock_run(*a, **kw):
+            raise FileNotFoundError("gt not found")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        # Should not raise even though binaries are missing
+        stop_all()
