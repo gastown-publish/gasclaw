@@ -6,6 +6,7 @@ it needs to assess system health, agent activity, and compliance.
 
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import time
@@ -15,6 +16,8 @@ from typing import Any
 import httpx
 
 from gasclaw.openclaw.doctor import run_doctor
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -134,7 +137,14 @@ def check_agent_activity(
         )
         if result.returncode == 0 and result.stdout.strip():
             last_ts = int(result.stdout.decode().strip())
-            age = int(time.time() - last_ts)
+            now = time.time()
+            age = int(now - last_ts)
+
+            # Handle future timestamps (clock skew)
+            if age < 0:
+                logger.warning("Commit timestamp is in the future - possible clock skew")
+                age = 0  # Treat as "just now"
+
             return {
                 "last_commit_age": age,
                 "compliant": age <= deadline_seconds,

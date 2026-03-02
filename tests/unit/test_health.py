@@ -498,6 +498,120 @@ class TestHealthCheckEdgeCases:
         activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=100000)
         assert activity["compliant"] is True
 
+
+class TestCheckAgentActivityClockSkew:
+    """Tests for future timestamp handling - Issue #67."""
+
+    def test_future_timestamp_treated_as_now(self, monkeypatch, tmp_path):
+        """Future timestamps are treated as age=0 (just now)."""
+        import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # Future timestamp (1 hour from now)
+        future_ts = int(time.time()) + 3600
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{future_ts}\n".encode()),
+        )
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+        # Future timestamp should be treated as age=0 (compliant)
+        assert activity["last_commit_age"] == 0
+        assert activity["compliant"] is True
+        assert activity["error"] is None
+
+    def test_future_timestamp_logs_warning(self, monkeypatch, tmp_path, caplog):
+        """Future timestamps log a warning about clock skew."""
+        import logging
+        import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # Future timestamp
+        future_ts = int(time.time()) + 3600
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{future_ts}\n".encode()),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+
+        assert "future" in caplog.text.lower()
+        assert "clock skew" in caplog.text.lower()
+
+    def test_very_future_timestamp_handled(self, monkeypatch, tmp_path):
+        """Very future timestamps (days ahead) are handled correctly."""
+        import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # Future timestamp (1 day from now)
+        future_ts = int(time.time()) + 86400
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{future_ts}\n".encode()),
+        )
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+        # Should still be treated as age=0
+        assert activity["last_commit_age"] == 0
+        assert activity["compliant"] is True
+
+    def test_past_timestamp_unchanged(self, monkeypatch, tmp_path):
+        """Past timestamps are handled normally."""
+        import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # 30 minutes ago
+        past_ts = int(time.time()) - 1800
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{past_ts}\n".encode()),
+        )
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+        # Should be ~1800 seconds ago, compliant
+        assert 1790 <= activity["last_commit_age"] <= 1810
+        assert activity["compliant"] is True
+
+    def test_future_timestamp_with_zero_deadline(self, monkeypatch, tmp_path):
+        """Future timestamp with zero deadline - should still be compliant."""
+        import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # Future timestamp
+        future_ts = int(time.time()) + 3600
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{future_ts}\n".encode()),
+        )
+        # Zero deadline would normally require age <= 0
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=0)
+        # Age is set to 0, so 0 <= 0 is True
+        assert activity["last_commit_age"] == 0
+        assert activity["compliant"] is True
+
     def test_check_health_custom_gateway_port(self, monkeypatch, respx_mock: respx.MockRouter):
         """check_health uses custom gateway port for openclaw check."""
         respx_mock.get("http://localhost:99999/health").mock(return_value=httpx.Response(200))
