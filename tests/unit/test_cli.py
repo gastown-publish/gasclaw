@@ -607,3 +607,113 @@ class TestMaintainCommand:
 
         assert result.exit_code != 0
         assert "Invalid value" in result.output or "-1" in result.output
+
+
+class TestKeysCommand:
+    """Tests for keys command."""
+
+    def test_keys_shows_status(self, config, monkeypatch):
+        """keys command shows key pool status table."""
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+
+        def mock_status():
+            return {"total": 3, "available": 2, "rate_limited": 1}
+
+        monkeypatch.setattr(
+            "gasclaw.cli.KeyPool",
+            MagicMock(return_value=MagicMock(status=mock_status)),
+        )
+
+        result = runner.invoke(app, ["keys"])
+
+        assert result.exit_code == 0
+        assert "Key Pool Status" in result.output
+        assert "3" in result.output
+        assert "2" in result.output
+
+    def test_keys_json_output(self, config, monkeypatch):
+        """keys --json outputs JSON format."""
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+
+        def mock_status():
+            return {"total": 3, "available": 2, "rate_limited": 1}
+
+        monkeypatch.setattr(
+            "gasclaw.cli.KeyPool",
+            MagicMock(return_value=MagicMock(status=mock_status)),
+        )
+
+        result = runner.invoke(app, ["keys", "--json"])
+
+        assert result.exit_code == 0
+        import json
+
+        data = json.loads(result.output.strip())
+        assert data["total"] == 3
+        assert data["available"] == 2
+        assert data["rate_limited"] == 1
+
+    def test_keys_rotate(self, config, monkeypatch):
+        """keys --json outputs JSON format."""
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+
+        mock_pool = MagicMock()
+        mock_pool.get_key.return_value = "sk-key1"
+        mock_pool.status.return_value = {"total": 3, "available": 2, "rate_limited": 1}
+        monkeypatch.setattr("gasclaw.cli.KeyPool", MagicMock(return_value=mock_pool))
+
+        result = runner.invoke(app, ["keys", "--rotate"])
+
+        assert result.exit_code == 0
+        mock_pool.get_key.assert_called_once()
+        mock_pool.mark_rate_limited.assert_called_once_with("sk-key1")
+        assert "rotated" in result.output.lower() or "successfully" in result.output.lower()
+
+    def test_keys_rotate_json_output(self, config, monkeypatch):
+        """keys --rotate --json outputs JSON with rotated flag."""
+        import json
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+
+        mock_pool = MagicMock()
+        mock_pool.get_key.return_value = "sk-key1"
+        mock_pool.status.return_value = {"total": 3, "available": 2, "rate_limited": 1}
+        monkeypatch.setattr("gasclaw.cli.KeyPool", MagicMock(return_value=mock_pool))
+
+        result = runner.invoke(app, ["keys", "--rotate", "--json"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output.strip())
+        assert data["rotated"] is True
+        assert data["total"] == 3
+
+    def test_keys_exits_on_config_error(self, monkeypatch):
+        """keys command exits with code 1 if config is invalid."""
+
+        def mock_load_config():
+            raise ValueError("missing env")
+
+        monkeypatch.setattr("gasclaw.cli.load_config", mock_load_config)
+
+        result = runner.invoke(app, ["keys"])
+
+        assert result.exit_code == 1
+        assert "Config error" in result.output
+
+    def test_keys_shows_zero_available(self, config, monkeypatch):
+        """keys command shows red styling when no keys available."""
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+
+        def mock_status():
+            return {"total": 2, "available": 0, "rate_limited": 2}
+
+        monkeypatch.setattr(
+            "gasclaw.cli.KeyPool",
+            MagicMock(return_value=MagicMock(status=mock_status)),
+        )
+
+        result = runner.invoke(app, ["keys"])
+
+        assert result.exit_code == 0
+        assert "Key Pool Status" in result.output
+        assert "0" in result.output

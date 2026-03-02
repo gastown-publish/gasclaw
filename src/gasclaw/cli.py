@@ -248,3 +248,63 @@ def maintain(
             maintenance_loop(interval=interval)
         except KeyboardInterrupt:
             console.print("\n[yellow]Maintenance loop stopped[/yellow]")
+
+
+@app.command()
+def keys(
+    rotate: bool = typer.Option(
+        False, "--rotate", help="Force rotation of the most recently used key"
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+) -> None:
+    """Show Kimi API key pool status or force key rotation.
+
+    Displays the current state of the key pool including total keys,
+    available keys, and rate-limited keys. Use --rotate to mark the
+    most recently used key as rate-limited (5 minute cooldown).
+
+    Examples:
+        gasclaw keys              # Show key pool status
+        gasclaw keys --json       # Output as JSON
+        gasclaw keys --rotate     # Force rotation of current key
+    """
+    try:
+        config = load_config()
+    except ValueError as e:
+        logger.error("Configuration error: %s", e)
+        console.print(f"[red]Config error:[/red] {e}")
+        raise typer.Exit(code=1) from None
+
+    pool = KeyPool(config.gastown_kimi_keys)
+
+    if rotate:
+        # Get current key, mark it as rate-limited
+        current_key = pool.get_key()
+        pool.mark_rate_limited(current_key)
+        status = pool.status()
+        if json_output:
+            import json
+            console.print(json.dumps({"rotated": True, **status}))
+        else:
+            console.print("[green]Key rotated successfully[/green]")
+            total = status['total']
+            avail = status['available']
+            rl = status['rate_limited']
+            console.print(f"Total: {total}, Available: {avail}, Rate-limited: {rl}")
+        return
+
+    # Show status
+    status = pool.status()
+    if json_output:
+        import json
+        console.print(json.dumps(status))
+    else:
+        table = Table(title="Key Pool Status")
+        table.add_column("Metric", style="bold")
+        table.add_column("Value")
+        table.add_row("Total Keys", str(status["total"]))
+        available_style = "green" if status["available"] > 0 else "red"
+        table.add_row("Available", f"[{available_style}]{status['available']}[/{available_style}]")
+        rl_style = "yellow" if status["rate_limited"] > 0 else "green"
+        table.add_row("Rate-limited", f"[{rl_style}]{status['rate_limited']}[/{rl_style}]")
+        console.print(table)
