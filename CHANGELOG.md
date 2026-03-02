@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **Bootstrap**: 17-step startup sequence orchestrating all subsystems
+- **Bootstrap**: 12-step startup sequence orchestrating all subsystems
 - **Health Checks**: Monitor Dolt, daemon, mayor, OpenClaw, and agent activity
 - **Key Pool**: LRU key rotation with rate-limit cooldown
 - **Activity Compliance**: Enforces code push/PR every hour
