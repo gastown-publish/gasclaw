@@ -190,8 +190,8 @@ class TestWriteOpenclawConfig:
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         allow_from = cfg["channels"]["telegram"]["allowFrom"]
-        assert 999888777 in allow_from
-        assert isinstance(allow_from[0], int)
+        assert "999888777" in allow_from
+        assert isinstance(allow_from[0], str)
 
     def test_new_token_when_config_corrupted(self, tmp_path):
         """New token generated when existing config is corrupted."""
@@ -201,7 +201,7 @@ class TestWriteOpenclawConfig:
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
             bot_token="123:ABC",
-            owner_id="999",
+            owner_id=999,
         )
         cfg = json.loads(config_path.read_text())
         token = cfg["gateway"]["auth"]["token"]

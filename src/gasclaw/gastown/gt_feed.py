@@ -9,7 +9,7 @@ import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ class GastownFeed:
         if output:
             try:
                 data = json.loads(output)
-                return data.get("agents", [])
+                return cast(list[dict[str, Any]], data.get("agents", []))
             except json.JSONDecodeError:
                 logger.warning("Failed to parse gt status JSON")
         return []

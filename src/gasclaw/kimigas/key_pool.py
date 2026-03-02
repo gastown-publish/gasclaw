@@ -13,7 +13,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 RATE_LIMIT_COOLDOWN = 300  # 5 minutes
 
@@ -41,7 +41,7 @@ class KeyPool:
         state_file = self._state_dir / "key-rotation.json"
         if state_file.is_file():
             try:
-                return json.loads(state_file.read_text())
+                return cast(dict[str, Any], json.loads(state_file.read_text()))
             except (json.JSONDecodeError, OSError):
                 pass
         return {}

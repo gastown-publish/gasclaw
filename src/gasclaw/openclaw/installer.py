@@ -21,7 +21,7 @@ def write_openclaw_config(
     openclaw_dir: Path,
     kimi_key: str,
     bot_token: str,
-    owner_id: str,
+    owner_id: int,
     gateway_port: int = 18789,
     gt_root: str = "/workspace/gt",
 ) -> Path:
@@ -90,7 +90,7 @@ def write_openclaw_config(
             "telegram": {
                 "botToken": bot_token,
                 "dmPolicy": "allowlist",
-                "allowFrom": [owner_id],
+                "allowFrom": [str(owner_id)],
             },
         },
         "commands": {
