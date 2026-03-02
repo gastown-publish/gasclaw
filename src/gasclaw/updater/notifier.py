@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["notify_telegram"]
 
@@ -14,13 +17,16 @@ def notify_telegram(
     *,
     gateway_port: int = 18789,
     auth_token: str = "",
-) -> None:
+) -> bool:
     """Send a notification message via OpenClaw gateway.
 
     Args:
         message: The message text to send.
         gateway_port: OpenClaw gateway port.
         auth_token: Gateway auth token.
+
+    Returns:
+        True if notification was sent successfully, False otherwise.
     """
     url = f"http://localhost:{gateway_port}/api/message"
     headers = {"Content-Type": "application/json"}
@@ -34,5 +40,10 @@ def notify_telegram(
             headers=headers,
             timeout=10.0,
         )
-    except (httpx.ConnectError, httpx.TimeoutException):
-        pass  # Gateway not available — silently skip
+        return True
+    except httpx.ConnectError as e:
+        logger.warning("Failed to send notification: gateway not available (%s)", e)
+        return False
+    except httpx.TimeoutException as e:
+        logger.warning("Failed to send notification: gateway timeout (%s)", e)
+        return False
