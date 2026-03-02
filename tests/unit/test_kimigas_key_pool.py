@@ -138,3 +138,41 @@ class TestKeyPoolStatus:
         status = pool.status()
         assert status["available"] == 3
         assert status["rate_limited"] == 0
+
+
+class TestKeyPoolAtomicWrite:
+    def test_state_file_written_atomically(self, tmp_path):
+        """State file is written using atomic rename to avoid corruption."""
+        pool = KeyPool(["k1"], state_dir=tmp_path)
+        pool.get_key()
+
+        # The state file should exist, but no temp files should remain
+        state_file = tmp_path / "key-rotation.json"
+        assert state_file.exists()
+
+        # Check no temp files left behind
+        temp_files = list(tmp_path.glob(".key-rotation-*.tmp"))
+        assert len(temp_files) == 0
+
+    def test_corrupted_temp_file_cleaned_up(self, tmp_path, monkeypatch):
+        """Temp file is cleaned up if write fails."""
+        pool = KeyPool(["k1"], state_dir=tmp_path)
+
+        # Make os.fdopen fail to trigger cleanup
+        original_fdopen = __builtins__["open"] if "open" in __builtins__ else open
+
+        def fail_on_fdopen(*args, **kwargs):
+            if args and hasattr(args[0], '__class__') and 'int' in str(type(args[0])):
+                raise OSError("Write failed")
+            return original_fdopen(*args, **kwargs)
+
+        monkeypatch.setattr("os.fdopen", fail_on_fdopen)
+
+        try:
+            pool._save_state({"test": "data"})
+        except OSError:
+            pass
+
+        # Temp file should be cleaned up
+        temp_files = list(tmp_path.glob(".key-rotation-*.tmp"))
+        assert len(temp_files) == 0
