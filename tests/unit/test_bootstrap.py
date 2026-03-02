@@ -63,6 +63,42 @@ class TestBootstrap:
             m_mayor.assert_called_once()
             m_notify.assert_called_once()
 
+    def test_owner_id_converted_to_int(self, config, monkeypatch, tmp_path):
+        """Owner ID should be passed as integer to OpenClaw config."""
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        monkeypatch.setattr(
+            subprocess,
+            "Popen",
+            lambda *a, **kw: type("P", (), {"pid": 1, "poll": lambda s: None})(),
+        )
+
+        from gasclaw.openclaw.doctor import DoctorResult
+
+        mock_doctor = DoctorResult(healthy=True, returncode=0, output="OK")
+
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts"),
+            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap.write_openclaw_config") as m_oc,
+            patch("gasclaw.bootstrap.install_skills"),
+            patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor),
+            patch("gasclaw.bootstrap.start_daemon"),
+            patch("gasclaw.bootstrap.start_mayor"),
+            patch("gasclaw.bootstrap.notify_telegram"),
+        ):
+            bootstrap(config, gt_root=tmp_path)
+
+            # Verify owner_id is passed as int
+            call_kwargs = m_oc.call_args[1]
+            assert isinstance(call_kwargs["owner_id"], int)
+            assert call_kwargs["owner_id"] == 999
+
     def test_call_order(self, config, monkeypatch, tmp_path):
         order = []
 

@@ -180,6 +180,19 @@ class TestWriteOpenclawConfig:
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         assert "555666777" in cfg["channels"]["telegram"]["allowFrom"]
 
+    def test_owner_id_as_integer(self, tmp_path):
+        """Owner ID should be stored as integer for Telegram API compatibility."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id=999888777,  # Integer type
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        allow_from = cfg["channels"]["telegram"]["allowFrom"]
+        assert 999888777 in allow_from
+        assert isinstance(allow_from[0], int)
+
     def test_new_token_when_config_corrupted(self, tmp_path):
         """New token generated when existing config is corrupted."""
         config_path = tmp_path / "openclaw.json"
