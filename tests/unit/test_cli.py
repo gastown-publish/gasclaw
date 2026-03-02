@@ -108,6 +108,24 @@ class TestStartCommand:
         assert result.exit_code == 130
         assert "interrupted" in result.output.lower()
 
+    def test_start_monitor_loop_keyboard_interrupt(self, config, monkeypatch, tmp_path):
+        """start command handles KeyboardInterrupt in monitor_loop (lines 88-91)."""
+
+        def mock_bootstrap(cfg, gt_root):
+            pass
+
+        def mock_monitor_interrupt(cfg):
+            raise KeyboardInterrupt()
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
+        monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor_interrupt)
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "Shutting down" in result.output or "shutting down" in result.output.lower()
+
 
 class TestStopCommand:
     def test_calls_stop_all(self, monkeypatch):
@@ -120,6 +138,17 @@ class TestStopCommand:
         assert len(calls) == 1
         assert result.exit_code == 0
         assert "Stopping all services" in result.output
+        assert "All services stopped" in result.output
+
+    def test_stop_command_prints_messages(self, monkeypatch):
+        """stop command prints start and stop messages (lines 97, 99)."""
+        monkeypatch.setattr("gasclaw.cli.stop_all", lambda: None)
+
+        result = runner.invoke(app, ["stop"])
+
+        assert result.exit_code == 0
+        assert "Stopping all services..." in result.output
+        assert "All services stopped" in result.output
 
 
 class TestStatusCommand:
@@ -350,3 +379,32 @@ class TestMaintainCommand:
         runner.invoke(app, ["maintain"])
 
         assert loop_calls[0] == 300
+
+    def test_maintain_keyboard_interrupt_handling(self, monkeypatch):
+        """maintain command handles KeyboardInterrupt gracefully (lines 184-187)."""
+
+        def mock_loop(interval):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("gasclaw.cli.maintenance_loop", mock_loop)
+
+        result = runner.invoke(app, ["maintain"])
+
+        assert result.exit_code == 0
+        assert "stopped" in result.output.lower() or "Maintenance loop stopped" in result.output
+
+    def test_maintain_displays_start_message(self, monkeypatch):
+        """maintain command displays start message (line 170, 182-183)."""
+        loop_calls = []
+
+        def mock_loop(interval):
+            loop_calls.append(interval)
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("gasclaw.cli.maintenance_loop", mock_loop)
+
+        result = runner.invoke(app, ["maintain", "--interval", "60"])
+
+        assert result.exit_code == 0
+        assert "Entering maintenance loop" in result.output or "Starting maintenance" in result.output
+        assert "interval=60" in result.output or "60s" in result.output
