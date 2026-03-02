@@ -217,7 +217,7 @@ def migrate(
 @app.command()
 def maintain(
     once: bool = typer.Option(False, help="Run once and exit (don't loop)"),
-    interval: int = typer.Option(300, help="Seconds between cycles (default: 300)"),
+    interval: int = typer.Option(300, help="Seconds between cycles (default: 300)", min=1),
 ) -> None:
     """Run continuous maintenance on the gasclaw repository.
 

@@ -278,6 +278,41 @@ class TestCheckKeyGenericException:
         assert "Unexpected error" in result.error
 
 
+class TestPoolSummaryEdgeCases:
+    """Tests for pool summary edge cases."""
+
+    @respx.mock
+    def test_valid_key_with_none_balance_counts_as_invalid(self):
+        """Keys with valid=True but balance=None should be counted as invalid.
+
+        This tests the fix for a bug where keys with no balance data were
+        not being properly counted in either valid or invalid categories.
+        """
+        route = respx.get("https://api.kimi.com/v1/users/me/balance")
+        route.side_effect = [
+            # First key: valid with balance
+            httpx.Response(
+                200,
+                json={"data": {"available_balance": 100.0, "total_usage": 50.0}},
+            ),
+            # Second key: valid response but no balance data (None)
+            httpx.Response(
+                200,
+                json={"data": {"available_balance": None, "total_usage": None}},
+            ),
+            # Third key: explicitly invalid (401)
+            httpx.Response(401, json={"error": "Unauthorized"}),
+        ]
+
+        checker = CreditChecker()
+        summary = checker.get_pool_summary(["sk-valid", "sk-no-balance", "sk-invalid"])
+
+        assert summary["total_keys"] == 3
+        assert summary["valid_keys"] == 1  # Only sk-valid
+        assert summary["invalid_keys"] == 2  # sk-no-balance AND sk-invalid
+        assert summary["total_balance"] == 100.0
+
+
 class TestParseAmountEdgeCases:
     """Tests for _parse_amount edge cases (lines 178-179)."""
 
@@ -296,6 +331,60 @@ class TestParseAmountEdgeCases:
         result = checker.check_key("sk-test")
 
         # Should not crash - returns None for invalid amounts
+        assert result.balance is None
+        assert result.total_used is None
+        assert result.valid is True
+
+    @respx.mock
+    def test_parse_amount_inf_returns_none(self):
+        """_parse_amount handles inf values by returning None."""
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "inf", "total_usage": "Infinity"}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # inf values should be rejected as invalid amounts
+        assert result.balance is None
+        assert result.total_used is None
+        assert result.valid is True
+
+    @respx.mock
+    def test_parse_amount_negative_inf_returns_none(self):
+        """_parse_amount handles -inf values by returning None."""
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "-inf", "total_usage": 0}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # -inf values should be rejected as invalid amounts
+        assert result.balance is None
+        assert result.total_used == 0.0
+        assert result.valid is True
+
+    @respx.mock
+    def test_parse_amount_nan_returns_none(self):
+        """_parse_amount handles nan values by returning None."""
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "nan", "total_usage": "NaN"}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # nan values should be rejected as invalid amounts
         assert result.balance is None
         assert result.total_used is None
         assert result.valid is True

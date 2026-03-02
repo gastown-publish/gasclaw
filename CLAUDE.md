@@ -16,7 +16,7 @@ make test    # Must pass before any changes
 src/gasclaw/
 ├── cli.py              # Typer CLI: start, stop, status, update
 ├── config.py           # Env var config (pydantic-free, dataclass)
-├── bootstrap.py        # Startup orchestration (17-step sequence)
+├── bootstrap.py        # Startup orchestration (10-step sequence)
 ├── health.py           # Health checks + activity compliance
 ├── gastown/
 │   ├── agent_config.py # Write settings/config.json for gt
@@ -33,7 +33,7 @@ src/gasclaw/
     ├── applier.py      # Run update commands
     └── notifier.py     # POST to OpenClaw gateway
 skills/                 # OpenClaw skills (4: health, keys, update, agents)
-tests/unit/             # 483 unit tests — all mocked, no API keys needed
+tests/unit/             # 513 unit tests — all mocked, no API keys needed
 tests/integration/      # Integration tests (optional, needs services)
 ```
 
@@ -53,7 +53,7 @@ make test-all      # Includes integration tests
 make lint          # Ruff linting
 ```
 
-All 483 unit tests must pass. Never modify a test to make it pass — fix the code.
+All 513 unit tests must pass. Never modify a test to make it pass — fix the code.
 
 ## Architecture Decisions
 
@@ -98,7 +98,7 @@ All 483 unit tests must pass. Never modify a test to make it pass — fix the co
 ## PR Checklist
 
 Before creating a PR, verify:
-- [ ] `make test` passes (all 483 tests)
+- [ ] `make test` passes (all 513 tests)
 - [ ] `make lint` passes
 - [ ] New code has corresponding tests
 - [ ] Commit message follows `<type>: <description>` format

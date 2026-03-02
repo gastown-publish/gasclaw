@@ -593,3 +593,17 @@ class TestMaintainCommand:
             "Entering maintenance loop" in result.output or "Starting maintenance" in result.output
         )
         assert "interval=60" in result.output or "60s" in result.output
+
+    def test_maintain_rejects_zero_interval(self):
+        """maintain command rejects --interval 0."""
+        result = runner.invoke(app, ["maintain", "--interval", "0"])
+
+        assert result.exit_code != 0
+        assert "Invalid value" in result.output or "0" in result.output
+
+    def test_maintain_rejects_negative_interval(self):
+        """maintain command rejects negative --interval values."""
+        result = runner.invoke(app, ["maintain", "--interval", "-1"])
+
+        assert result.exit_code != 0
+        assert "Invalid value" in result.output or "-1" in result.output

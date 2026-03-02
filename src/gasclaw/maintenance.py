@@ -38,8 +38,26 @@ def run_command(
 
     Returns:
         CompletedProcess with returncode, stdout, stderr.
+
+    Raises:
+        subprocess.CalledProcessError: If check=True and command fails or binary not found.
+        subprocess.TimeoutExpired: If command times out.
     """
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        # Handle missing binary gracefully
+        binary = cmd[0] if cmd else "unknown"
+        result = subprocess.CompletedProcess(
+            args=cmd,
+            returncode=-1,
+            stdout="",
+            stderr=f"Command not found: {binary}",
+        )
+        if check:
+            raise subprocess.CalledProcessError(
+                result.returncode, cmd, result.stdout, result.stderr
+            ) from None
     if check and result.returncode != 0:
         raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
     return result

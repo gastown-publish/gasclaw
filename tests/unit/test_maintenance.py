@@ -40,6 +40,19 @@ class TestRunCommand:
         with pytest.raises(subprocess.TimeoutExpired):
             run_command(["sleep", "10"], timeout=1)
 
+    def test_handles_file_not_found(self):
+        """FileNotFoundError is converted to CalledProcessError when check=True."""
+        with pytest.raises(subprocess.CalledProcessError) as exc_info:
+            run_command(["nonexistent_binary_xyz"], check=True)
+        assert exc_info.value.returncode == -1
+        assert "not found" in exc_info.value.stderr.lower()
+
+    def test_returns_result_on_file_not_found_when_check_false(self):
+        """FileNotFoundError returns result with returncode -1 when check=False."""
+        result = run_command(["nonexistent_binary_xyz"], check=False)
+        assert result.returncode == -1
+        assert "not found" in result.stderr.lower()
+
 
 class TestGetOpenPRs:
     @patch("gasclaw.maintenance.run_command")

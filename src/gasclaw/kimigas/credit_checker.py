@@ -6,6 +6,7 @@ Queries Kimi API billing endpoints to check credit balance and usage per API key
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -144,7 +145,7 @@ class CreditChecker:
         results = self.check_keys(api_keys)
 
         valid_keys = [r for r in results if r.valid and r.balance is not None]
-        invalid_keys = [r for r in results if not r.valid]
+        invalid_keys = [r for r in results if not r.valid or r.balance is None]
 
         total_balance = sum(r.balance for r in valid_keys if r.balance)
         total_usage = sum(r.total_used for r in valid_keys if r.total_used)
@@ -174,7 +175,11 @@ def _parse_amount(amount: Any) -> float | None:
     if amount is None:
         return None
     try:
-        return round(float(amount), 2)
+        result = float(amount)
+        # Reject inf and nan as they're not valid amounts
+        if math.isinf(result) or math.isnan(result):
+            return None
+        return round(result, 2)
     except (ValueError, TypeError):
         return None
 
