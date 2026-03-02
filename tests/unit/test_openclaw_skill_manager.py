@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import stat
 
 from gasclaw.openclaw.skill_manager import install_skills
 

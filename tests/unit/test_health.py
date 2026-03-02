@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-import httpx
-import respx
-
-from gasclaw.health import check_health, check_agent_activity, HealthReport
+from gasclaw.health import HealthReport, check_agent_activity, check_health
 
 
 class TestCheckHealth:

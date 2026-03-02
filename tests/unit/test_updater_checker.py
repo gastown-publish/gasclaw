@@ -12,7 +12,7 @@ class TestCheckVersions:
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(
-                a[0], 0, stdout="1.0.0\n".encode()
+                a[0], 0, stdout=b"1.0.0\n"
             ),
         )
         versions = check_versions()

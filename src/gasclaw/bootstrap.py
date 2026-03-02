@@ -25,8 +25,8 @@ from pathlib import Path
 from gasclaw.config import GasclawConfig
 from gasclaw.gastown.agent_config import write_agent_config
 from gasclaw.gastown.installer import gastown_install, setup_kimi_accounts
-from gasclaw.gastown.lifecycle import start_dolt, start_daemon, start_mayor
-from gasclaw.health import check_health, check_agent_activity
+from gasclaw.gastown.lifecycle import start_daemon, start_dolt, start_mayor
+from gasclaw.health import check_agent_activity, check_health
 from gasclaw.openclaw.doctor import run_doctor
 from gasclaw.openclaw.installer import write_openclaw_config
 from gasclaw.openclaw.skill_manager import install_skills

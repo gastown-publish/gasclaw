@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import call
 
 import tomlkit
 
-from gasclaw.gastown.installer import setup_kimi_accounts, gastown_install
+from gasclaw.gastown.installer import gastown_install, setup_kimi_accounts
 
 
 class TestSetupKimiAccounts:

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import time
 
 import pytest
 
-from gasclaw.kimigas.key_pool import KeyPool, RATE_LIMIT_COOLDOWN
+from gasclaw.kimigas.key_pool import RATE_LIMIT_COOLDOWN, KeyPool
 
 
 class TestKeyPoolSingleKey:

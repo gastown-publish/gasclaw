@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
 import pytest
 
@@ -69,16 +69,19 @@ class TestBootstrap:
             order.append("doctor")
             return mock_doctor
 
-        with patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=lambda *a, **kw: order.append("kimi")), \
-             patch("gasclaw.bootstrap.write_agent_config", side_effect=lambda *a, **kw: order.append("agent_config")), \
-             patch("gasclaw.bootstrap.gastown_install", side_effect=lambda *a, **kw: order.append("install")), \
-             patch("gasclaw.bootstrap.start_dolt", side_effect=lambda *a, **kw: order.append("dolt")), \
-             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=lambda *a, **kw: order.append("openclaw")), \
-             patch("gasclaw.bootstrap.install_skills", side_effect=lambda *a, **kw: order.append("skills")), \
+        def se(name):
+            return lambda *a, **kw: order.append(name)
+
+        with patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=se("kimi")), \
+             patch("gasclaw.bootstrap.write_agent_config", side_effect=se("agent_config")), \
+             patch("gasclaw.bootstrap.gastown_install", side_effect=se("install")), \
+             patch("gasclaw.bootstrap.start_dolt", side_effect=se("dolt")), \
+             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=se("openclaw")), \
+             patch("gasclaw.bootstrap.install_skills", side_effect=se("skills")), \
              patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect), \
-             patch("gasclaw.bootstrap.start_daemon", side_effect=lambda *a, **kw: order.append("daemon")), \
-             patch("gasclaw.bootstrap.start_mayor", side_effect=lambda *a, **kw: order.append("mayor")), \
-             patch("gasclaw.bootstrap.notify_telegram", side_effect=lambda *a, **kw: order.append("notify")):
+             patch("gasclaw.bootstrap.start_daemon", side_effect=se("daemon")), \
+             patch("gasclaw.bootstrap.start_mayor", side_effect=se("mayor")), \
+             patch("gasclaw.bootstrap.notify_telegram", side_effect=se("notify")):
 
             bootstrap(config, gt_root=tmp_path)
 
@@ -113,8 +116,9 @@ class TestMonitorLoop:
                 activity={"compliant": True, "last_commit_age": 100},
             )
 
+        activity_return = {"compliant": True, "last_commit_age": 100}
         with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
-             patch("gasclaw.bootstrap.check_agent_activity", return_value={"compliant": True, "last_commit_age": 100}), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
              patch("gasclaw.bootstrap.notify_telegram"), \
              patch("time.sleep"):
             monitor_loop(config, interval=1)

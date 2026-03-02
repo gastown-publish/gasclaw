@@ -11,7 +11,7 @@ from rich.table import Table
 from gasclaw.bootstrap import bootstrap, monitor_loop
 from gasclaw.config import load_config
 from gasclaw.gastown.lifecycle import stop_all
-from gasclaw.health import check_health, check_agent_activity
+from gasclaw.health import check_agent_activity, check_health
 from gasclaw.kimigas.key_pool import KeyPool
 from gasclaw.updater.applier import apply_updates
 from gasclaw.updater.checker import check_versions
@@ -74,14 +74,14 @@ def status() -> None:
 
     table.add_row("agents", str(len(report.agents)))
     if report.key_pool:
-        table.add_row(
-            "key pool",
-            f"{report.key_pool.get('available', '?')}/{report.key_pool.get('total', '?')} available",
-        )
+        avail = report.key_pool.get("available", "?")
+        total = report.key_pool.get("total", "?")
+        table.add_row("key pool", f"{avail}/{total} available")
     if report.activity:
         compliant = report.activity.get("compliant", False)
         style = "green" if compliant else "red"
-        table.add_row("activity", f"[{style}]{'compliant' if compliant else 'NOT COMPLIANT'}[/{style}]")
+        status = "compliant" if compliant else "NOT COMPLIANT"
+        table.add_row("activity", f"[{style}]{status}[/{style}]")
 
     console.print(table)
 

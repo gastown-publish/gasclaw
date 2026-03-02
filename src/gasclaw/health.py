@@ -29,6 +29,8 @@ class HealthReport:
 
     def summary(self) -> str:
         """Human-readable summary string."""
+        avail = self.key_pool.get("available", "?")
+        total = self.key_pool.get("total", "?")
         lines = [
             f"Dolt: {self.dolt}",
             f"Daemon: {self.daemon}",
@@ -36,12 +38,13 @@ class HealthReport:
             f"OpenClaw: {self.openclaw}",
             f"OpenClaw Doctor: {self.openclaw_doctor}",
             f"Agents: {len(self.agents)} active ({', '.join(self.agents[:5])})",
-            f"Keys: {self.key_pool.get('available', '?')}/{self.key_pool.get('total', '?')} available",
+            f"Keys: {avail}/{total} available",
         ]
         if self.activity:
             compliant = self.activity.get("compliant", False)
             age = self.activity.get("last_commit_age", "?")
-            lines.append(f"Activity: {'compliant' if compliant else 'NOT COMPLIANT'} (last commit {age}s ago)")
+            status = "compliant" if compliant else "NOT COMPLIANT"
+            lines.append(f"Activity: {status} (last commit {age}s ago)")
         return "\n".join(lines)
 
 

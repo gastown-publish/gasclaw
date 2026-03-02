@@ -14,7 +14,7 @@ class TestApplyUpdates:
             subprocess, "run",
             lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
         )
-        results = apply_updates()
+        apply_updates()
         assert len(calls) > 0
         # Should attempt to update gt, openclaw, kimigas
         cmd_strs = [" ".join(str(x) for x in cmd) for cmd in calls]

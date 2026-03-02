@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-from gasclaw.gastown.lifecycle import start_dolt, start_daemon, start_mayor, stop_all
+from gasclaw.gastown.lifecycle import start_daemon, start_dolt, start_mayor, stop_all
 
 
 class TestStartDolt:

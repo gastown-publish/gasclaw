@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
 from gasclaw.cli import app
 from gasclaw.config import GasclawConfig
-
 
 runner = CliRunner()
 
@@ -84,8 +82,10 @@ class TestStatusCommand:
                 agents=["mayor", "crew-1"],
             )
 
+        def raise_valueerror():
+            raise ValueError("no config")
         monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
-        monkeypatch.setattr("gasclaw.cli.load_config", lambda: (_ for _ in ()).throw(ValueError("no config")))
+        monkeypatch.setattr("gasclaw.cli.load_config", raise_valueerror)
 
         result = runner.invoke(app, ["status"])
 

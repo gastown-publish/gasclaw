@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
-import pytest
-
-from gasclaw.openclaw.doctor import run_doctor, DoctorResult
+from gasclaw.openclaw.doctor import DoctorResult, run_doctor
 
 
 class TestRunDoctor:
@@ -51,7 +49,9 @@ class TestRunDoctor:
 
         def mock_run(cmd, **kwargs):
             captured_args["cmd"] = cmd
-            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=b"Repaired", stderr=b"")
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=0, stdout=b"Repaired", stderr=b""
+            )
 
         monkeypatch.setattr("gasclaw.openclaw.doctor.subprocess.run", mock_run)
         run_doctor(repair=True)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gasclaw.kimigas.proxy import build_claude_env, KIMI_ANTHROPIC_BASE_URL
+from gasclaw.kimigas.proxy import KIMI_ANTHROPIC_BASE_URL, build_claude_env
 
 
 class TestBuildClaudeEnv:
