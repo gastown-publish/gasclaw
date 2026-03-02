@@ -94,7 +94,7 @@ python -m venv .venv && source .venv/bin/activate
 make dev
 
 # Test
-make test          # Unit tests only (513 tests)
+make test          # Unit tests only (578 tests)
 make test-all      # Include integration tests
 
 # Lint
