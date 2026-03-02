@@ -39,6 +39,15 @@ def _parse_keys(raw: str) -> list[str]:
     return [k.strip() for k in raw.split(":") if k.strip()]
 
 
+def _parse_positive_int(value: str, default: int) -> int:
+    """Parse a positive integer, returning default if invalid."""
+    try:
+        result = int(value)
+        return result if result > 0 else default
+    except (ValueError, TypeError):
+        return default
+
+
 def load_config() -> GasclawConfig:
     """Load and validate configuration from environment variables."""
     raw_keys = _require_env("GASTOWN_KIMI_KEYS")
@@ -53,7 +62,7 @@ def load_config() -> GasclawConfig:
         telegram_owner_id=_require_env("TELEGRAM_OWNER_ID"),
         gt_rig_url=os.environ.get("GT_RIG_URL", "/project").strip() or "/project",
         project_dir=os.environ.get("PROJECT_DIR", "/project").strip() or "/project",
-        gt_agent_count=int(os.environ.get("GT_AGENT_COUNT", "6")),
-        monitor_interval=int(os.environ.get("MONITOR_INTERVAL", "300")),
-        activity_deadline=int(os.environ.get("ACTIVITY_DEADLINE", "3600")),
+        gt_agent_count=_parse_positive_int(os.environ.get("GT_AGENT_COUNT", "6"), 6),
+        monitor_interval=_parse_positive_int(os.environ.get("MONITOR_INTERVAL", "300"), 300),
+        activity_deadline=_parse_positive_int(os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600),
     )

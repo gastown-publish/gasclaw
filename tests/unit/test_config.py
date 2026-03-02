@@ -107,6 +107,58 @@ class TestLoadConfig:
         assert cfg.openclaw_kimi_key not in cfg.gastown_kimi_keys
 
 
+    def test_whitespace_only_env_vars_treated_as_missing(self, monkeypatch, env_vars):
+        """Whitespace-only env vars should be treated as missing."""
+        for k, v in env_vars().items():
+            monkeypatch.setenv(k, v)
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "   ")
+        with pytest.raises(ValueError, match="GASTOWN_KIMI_KEYS"):
+            load_config()
+
+    def test_only_colons_in_keys_raises(self, monkeypatch, env_vars):
+        """Keys containing only colons should raise ValueError."""
+        for k, v in env_vars().items():
+            monkeypatch.setenv(k, v)
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", ":::")
+        with pytest.raises(ValueError, match="GASTOWN_KIMI_KEYS"):
+            load_config()
+
+    def test_gt_agent_count_zero_defaults_to_six(self, monkeypatch, env_vars):
+        """Zero gt_agent_count defaults to 6."""
+        for k, v in env_vars(GT_AGENT_COUNT="0").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_agent_count == 6
+
+    def test_gt_agent_count_negative_defaults_to_six(self, monkeypatch, env_vars):
+        """Negative gt_agent_count defaults to 6."""
+        for k, v in env_vars(GT_AGENT_COUNT="-1").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_agent_count == 6
+
+    def test_monitor_interval_zero_defaults(self, monkeypatch, env_vars):
+        """Zero monitor_interval defaults to 300."""
+        for k, v in env_vars(MONITOR_INTERVAL="0").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.monitor_interval == 300
+
+    def test_monitor_interval_negative_defaults(self, monkeypatch, env_vars):
+        """Negative monitor_interval defaults to 300."""
+        for k, v in env_vars(MONITOR_INTERVAL="-10").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.monitor_interval == 300
+
+    def test_activity_deadline_zero_defaults(self, monkeypatch, env_vars):
+        """Zero activity_deadline defaults to 3600."""
+        for k, v in env_vars(ACTIVITY_DEADLINE="0").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.activity_deadline == 3600
+
+
 class TestGasclawConfig:
     def test_dataclass_fields(self):
         """GasclawConfig has all expected fields."""
