@@ -278,6 +278,41 @@ class TestCheckKeyGenericException:
         assert "Unexpected error" in result.error
 
 
+class TestPoolSummaryEdgeCases:
+    """Tests for pool summary edge cases."""
+
+    @respx.mock
+    def test_valid_key_with_none_balance_counts_as_invalid(self):
+        """Keys with valid=True but balance=None should be counted as invalid.
+
+        This tests the fix for a bug where keys with no balance data were
+        not being properly counted in either valid or invalid categories.
+        """
+        route = respx.get("https://api.kimi.com/v1/users/me/balance")
+        route.side_effect = [
+            # First key: valid with balance
+            httpx.Response(
+                200,
+                json={"data": {"available_balance": 100.0, "total_usage": 50.0}},
+            ),
+            # Second key: valid response but no balance data (None)
+            httpx.Response(
+                200,
+                json={"data": {"available_balance": None, "total_usage": None}},
+            ),
+            # Third key: explicitly invalid (401)
+            httpx.Response(401, json={"error": "Unauthorized"}),
+        ]
+
+        checker = CreditChecker()
+        summary = checker.get_pool_summary(["sk-valid", "sk-no-balance", "sk-invalid"])
+
+        assert summary["total_keys"] == 3
+        assert summary["valid_keys"] == 1  # Only sk-valid
+        assert summary["invalid_keys"] == 2  # sk-no-balance AND sk-invalid
+        assert summary["total_balance"] == 100.0
+
+
 class TestParseAmountEdgeCases:
     """Tests for _parse_amount edge cases (lines 178-179)."""
 

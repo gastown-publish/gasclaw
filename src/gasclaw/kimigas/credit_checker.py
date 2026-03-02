@@ -144,7 +144,7 @@ class CreditChecker:
         results = self.check_keys(api_keys)
 
         valid_keys = [r for r in results if r.valid and r.balance is not None]
-        invalid_keys = [r for r in results if not r.valid]
+        invalid_keys = [r for r in results if r not in valid_keys]
 
         total_balance = sum(r.balance for r in valid_keys if r.balance)
         total_usage = sum(r.total_used for r in valid_keys if r.total_used)
