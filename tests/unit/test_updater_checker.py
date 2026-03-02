@@ -29,3 +29,49 @@ class TestCheckVersions:
         versions = check_versions()
         for v in versions.values():
             assert v == "not installed"
+
+    def test_handles_nonzero_exit(self, monkeypatch):
+        """Non-zero exit code is treated as not installed."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(
+                a[0], 1, stdout=b"", stderr=b"error"
+            ),
+        )
+        versions = check_versions()
+        for v in versions.values():
+            assert v == "not installed"
+
+    def test_handles_timeout(self, monkeypatch):
+        """TimeoutExpired is caught and reported as not installed."""
+        def _timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", _timeout)
+        versions = check_versions()
+        for v in versions.values():
+            assert v == "not installed"
+
+    def test_strips_whitespace_from_output(self, monkeypatch):
+        """Version output has whitespace stripped."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(
+                a[0], 0, stdout=b"  1.0.0  \n\r\n"
+            ),
+        )
+        versions = check_versions()
+        for v in versions.values():
+            assert v == "1.0.0"
+
+    def test_includes_kimigas(self, monkeypatch):
+        """Kimigas is included in version checks."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(
+                a[0], 0, stdout=b"0.5.0\n"
+            ),
+        )
+        versions = check_versions()
+        assert "kimigas" in versions
+        assert versions["kimigas"] == "0.5.0"

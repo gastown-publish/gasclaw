@@ -95,3 +95,43 @@ class TestInstallSkills:
         # Should have new content, not old
         assert "# Health Skill" in (dst / "gastown-health" / "SKILL.md").read_text()
         assert not (dst / "gastown-health" / "old-file.txt").exists()
+
+    def test_empty_source_directory(self, tmp_path):
+        """Empty source directory results in no skills copied."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+        src.mkdir()
+        install_skills(skills_src=src, skills_dst=dst)
+        assert dst.exists()
+        assert len(list(dst.iterdir())) == 0
+
+    def test_skill_without_scripts_dir(self, tmp_path):
+        """Skills without scripts directory don't cause errors."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+
+        # Create skill without scripts
+        skill_dir = src / "minimal-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("# Minimal Skill")
+
+        install_skills(skills_src=src, skills_dst=dst)
+
+        assert (dst / "minimal-skill" / "SKILL.md").exists()
+        assert not (dst / "minimal-skill" / "scripts").exists()
+
+    def test_multiple_skills(self, tmp_path):
+        """Multiple skills are copied correctly."""
+        src = tmp_path / "src-skills"
+        dst = tmp_path / "dst-skills"
+
+        for name in ["skill-a", "skill-b", "skill-c"]:
+            skill_dir = src / name
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text(f"# {name}")
+
+        install_skills(skills_src=src, skills_dst=dst)
+
+        for name in ["skill-a", "skill-b", "skill-c"]:
+            assert (dst / name / "SKILL.md").exists()
+            assert f"# {name}" in (dst / name / "SKILL.md").read_text()

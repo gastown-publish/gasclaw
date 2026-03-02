@@ -176,3 +176,54 @@ class TestKeyPoolAtomicWrite:
         # Temp file should be cleaned up
         temp_files = list(tmp_path.glob(".key-rotation-*.tmp"))
         assert len(temp_files) == 0
+
+
+class TestKeyPoolEdgeCases:
+    def test_creates_state_dir_if_not_exists(self, tmp_path):
+        """State directory is created if it doesn't exist."""
+        nested_dir = tmp_path / "nested" / "state"
+        pool = KeyPool(["k1"], state_dir=nested_dir)
+        pool.get_key()
+        assert nested_dir.exists()
+        assert (nested_dir / "key-rotation.json").exists()
+
+    def test_duplicate_keys_treated_as_separate(self, tmp_path):
+        """Duplicate keys in list are treated as separate entries."""
+        # This tests the behavior when duplicate keys are provided
+        pool = KeyPool(["k1", "k1", "k2"], state_dir=tmp_path)
+        assert pool.total_keys == 3
+
+    def test_empty_string_key_is_valid(self, tmp_path):
+        """Empty string can be a key (edge case)."""
+        pool = KeyPool([""], state_dir=tmp_path)
+        assert pool.get_key() == ""
+
+    def test_key_hash_consistency(self, tmp_path):
+        """Same key produces same hash across instances."""
+        pool1 = KeyPool(["k1"], state_dir=tmp_path)
+        pool2 = KeyPool(["k1"], state_dir=tmp_path)
+        assert pool1._key_hash("k1") == pool2._key_hash("k1")
+
+    def test_mark_nonexistent_key_rate_limited(self, tmp_path):
+        """Marking a key not in pool as rate-limited is handled gracefully."""
+        pool = KeyPool(["k1"], state_dir=tmp_path)
+        # This should not raise an error
+        pool.mark_rate_limited("nonexistent-key")
+        # k1 should still be available
+        assert pool.get_key() == "k1"
+
+    def test_state_file_is_json(self, tmp_path):
+        """State file contains valid JSON with expected structure."""
+        import json
+
+        pool = KeyPool(["k1", "k2"], state_dir=tmp_path)
+        pool.get_key()
+        pool.mark_rate_limited("k2")
+
+        state_file = tmp_path / "key-rotation.json"
+        state = json.loads(state_file.read_text())
+
+        assert "last_used" in state
+        assert "rate_limited" in state
+        assert isinstance(state["last_used"], dict)
+        assert isinstance(state["rate_limited"], dict)
