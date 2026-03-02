@@ -258,3 +258,44 @@ class TestCheckKeyCredits:
         assert summary["total_keys"] == 1
         assert summary["valid_keys"] == 1
         assert route.called
+
+
+class TestCheckKeyGenericException:
+    """Tests for generic exception handling in check_key (lines 116-118)."""
+
+    def test_check_key_generic_exception(self, monkeypatch):
+        """check_key handles unexpected exceptions (covers lines 116-118)."""
+
+        def raise_exception(*args, **kwargs):
+            raise RuntimeError("Unexpected error")
+
+        monkeypatch.setattr(httpx.Client, "__enter__", raise_exception)
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test-key")
+
+        assert result.valid is False
+        assert "Unexpected error" in result.error
+
+
+class TestParseAmountEdgeCases:
+    """Tests for _parse_amount edge cases (lines 178-179)."""
+
+    @respx.mock
+    def test_parse_amount_valueerror(self):
+        """_parse_amount handles ValueError for invalid amounts (covers lines 178-179)."""
+        # Mock response with non-numeric balance that causes ValueError
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "invalid", "total_usage": "not-a-number"}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # Should not crash - returns None for invalid amounts
+        assert result.balance is None
+        assert result.total_used is None
+        assert result.valid is True

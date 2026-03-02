@@ -102,6 +102,30 @@ class TestGastownFeed:
 
         assert agents == []
 
+    def test_get_agent_status_oserror(self, monkeypatch):
+        """get_agent_status handles OSError from gt command (covers lines 64-65)."""
+        def raise_oserror(*args, **kwargs):
+            raise OSError(2, "No such file or directory")
+
+        monkeypatch.setattr(subprocess, "run", raise_oserror)
+
+        feed = GastownFeed()
+        agents = feed.get_agent_status()
+
+        assert agents == []
+
+    def test_get_agent_status_timeout(self, monkeypatch):
+        """get_agent_status handles subprocess timeout (covers lines 64-65)."""
+        def raise_timeout(*args, **kwargs):
+            raise subprocess.TimeoutExpired("gt", 30)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+
+        feed = GastownFeed()
+        agents = feed.get_agent_status()
+
+        assert agents == []
+
     def test_get_recent_commits_success(self, monkeypatch):
         """get_recent_commits parses git log output."""
         def mock_run(*args, **kwargs):
@@ -172,6 +196,30 @@ class TestGastownFeed:
 
         assert commits == []
 
+    def test_get_recent_commits_oserror(self, monkeypatch):
+        """get_recent_commits handles OSError (covers lines 112-113)."""
+        def raise_oserror(*args, **kwargs):
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", raise_oserror)
+
+        feed = GastownFeed()
+        commits = feed.get_recent_commits()
+
+        assert commits == []
+
+    def test_get_recent_commits_timeout(self, monkeypatch):
+        """get_recent_commits handles subprocess timeout (covers lines 112-113)."""
+        def raise_timeout(*args, **kwargs):
+            raise subprocess.TimeoutExpired("git", 10)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+
+        feed = GastownFeed()
+        commits = feed.get_recent_commits()
+
+        assert commits == []
+
     def test_get_recent_prs_success(self, monkeypatch):
         """get_recent_prs parses merge commits."""
         def mock_run(*args, **kwargs):
@@ -189,6 +237,30 @@ class TestGastownFeed:
         assert len(prs) == 1
         assert prs[0].type == "pr_merge"
         assert "Merge pull request" in prs[0].description
+
+    def test_get_recent_prs_oserror(self, monkeypatch):
+        """get_recent_prs handles OSError (covers lines 151-153)."""
+        def raise_oserror(*args, **kwargs):
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", raise_oserror)
+
+        feed = GastownFeed()
+        prs = feed.get_recent_prs()
+
+        assert prs == []
+
+    def test_get_recent_prs_timeout(self, monkeypatch):
+        """get_recent_prs handles subprocess timeout (covers lines 151-153)."""
+        def raise_timeout(*args, **kwargs):
+            raise subprocess.TimeoutExpired("git", 10)
+
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+
+        feed = GastownFeed()
+        prs = feed.get_recent_prs()
+
+        assert prs == []
 
     def test_get_feed_combines_events(self, monkeypatch):
         """get_feed combines commits and PRs."""
