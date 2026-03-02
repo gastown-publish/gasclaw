@@ -82,6 +82,43 @@ class TestCheckAgentActivity:
         check_agent_activity(project_dir="/custom/path", deadline_seconds=3600)
         assert calls == ["/custom/path"]
 
+    def test_git_error_returns_non_compliant(self, monkeypatch):
+        """Git command failure returns non-compliant activity."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not a git repo"),
+        )
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+
+    def test_invalid_timestamp_returns_non_compliant(self, monkeypatch):
+        """Invalid timestamp in git output returns non-compliant."""
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"not-a-number\n"),
+        )
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        assert activity["compliant"] is False
+
+    def test_file_not_found_returns_non_compliant(self, monkeypatch):
+        """FileNotFoundError (git not installed) returns non-compliant."""
+        def raise_not_found(*a, **kw):
+            raise FileNotFoundError("git not found")
+        monkeypatch.setattr(subprocess, "run", raise_not_found)
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+
+    def test_timeout_returns_non_compliant(self, monkeypatch):
+        """TimeoutExpired returns non-compliant."""
+        def raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
+        monkeypatch.setattr(subprocess, "run", raise_timeout)
+        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+
 
 class TestHealthReportSummary:
     def test_summary_string(self):
@@ -97,3 +134,37 @@ class TestHealthReportSummary:
         summary = report.summary()
         assert "healthy" in summary.lower()
         assert "mayor" in summary.lower() or "2 agents" in summary.lower()
+
+    def test_summary_with_empty_agents(self):
+        """Summary handles empty agents list."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=[],
+            key_pool={"total": 1, "available": 1},
+        )
+        summary = report.summary()
+        assert "0 active" in summary or "agents:" in summary.lower()
+
+    def test_summary_with_no_activity(self):
+        """Summary handles missing activity data."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={"total": 1, "available": 1},
+            activity={},
+        )
+        summary = report.summary()
+        # Should not mention activity when empty
+        assert "compliant" not in summary.lower()
+
+    def test_summary_with_unhealthy_services(self):
+        """Summary shows unhealthy services correctly."""
+        report = HealthReport(
+            dolt="unhealthy",
+            daemon="unhealthy",
+            mayor="healthy",
+            agents=["mayor"],
+            key_pool={"total": 2, "available": 1},
+        )
+        summary = report.summary()
+        assert "unhealthy" in summary.lower()
