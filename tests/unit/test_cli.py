@@ -211,9 +211,12 @@ class TestStatusCommand:
             "gasclaw.cli.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
+        def mock_status():
+            return {"total": 2, "available": 2, "rate_limited": 0}
+
         monkeypatch.setattr(
             "gasclaw.cli.KeyPool",
-            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 2})),
+            MagicMock(return_value=MagicMock(status=mock_status)),
         )
 
         result = runner.invoke(app, ["status"])
@@ -352,6 +355,39 @@ class TestCLIEdgeCases:
 
         assert result.exit_code == 0
         assert "NOT COMPLIANT" in result.output or "not compliant" in result.output.lower()
+
+    def test_status_shows_rate_limited_count(self, config, monkeypatch):
+        """status command shows rate_limited count when keys are rate limited."""
+        from gasclaw.health import HealthReport
+
+        def mock_check_health(**kw):
+            return HealthReport(
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
+            )
+
+        monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr(
+            "gasclaw.cli.check_agent_activity",
+            lambda **kw: {"compliant": True, "last_commit_age": 300},
+        )
+        def mock_status_rl():
+            return {"total": 5, "available": 3, "rate_limited": 2}
+
+        monkeypatch.setattr(
+            "gasclaw.cli.KeyPool",
+            MagicMock(return_value=MagicMock(status=mock_status_rl)),
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "3/5 available" in result.output
+        assert "2 rate-limited" in result.output
 
 
 class TestMigrateCommand:

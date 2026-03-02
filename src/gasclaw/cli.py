@@ -138,7 +138,11 @@ def status() -> None:
     if report.key_pool:
         avail = report.key_pool.get("available", "?")
         total = report.key_pool.get("total", "?")
-        table.add_row("key pool", f"{avail}/{total} available")
+        rl_count = report.key_pool.get("rate_limited", 0)
+        status_text = f"{avail}/{total} available"
+        if rl_count:
+            status_text += f" ({rl_count} rate-limited)"
+        table.add_row("key pool", status_text)
     if report.activity:
         compliant = report.activity.get("compliant", False)
         style = "green" if compliant else "red"
