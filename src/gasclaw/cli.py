@@ -15,6 +15,7 @@ from gasclaw.gastown.lifecycle import stop_all
 from gasclaw.health import check_agent_activity, check_health
 from gasclaw.kimigas.key_pool import KeyPool
 from gasclaw.logging_config import get_logger, setup_logging
+from gasclaw.maintenance import maintenance_loop, run_maintenance_cycle
 from gasclaw.updater.applier import apply_updates
 from gasclaw.updater.checker import check_versions
 
@@ -154,3 +155,29 @@ def update() -> None:
 def version() -> None:
     """Show gasclaw version."""
     console.print(f"gasclaw {__version__}")
+
+
+@app.command()
+def maintain(
+    once: bool = typer.Option(False, help="Run once and exit (don't loop)"),
+    interval: int = typer.Option(300, help="Seconds between cycles (default: 300)"),
+) -> None:
+    """Run maintenance loop: check and merge PRs, monitor issues."""
+    console.print("[bold]Starting maintenance...[/bold]")
+
+    if once:
+        console.print("Running single maintenance cycle...")
+        try:
+            results = run_maintenance_cycle()
+            console.print(f"[green]Cycle complete:[/green] {results}")
+        except Exception as e:
+            logger.exception("Maintenance cycle failed")
+            console.print(f"[red]Maintenance failed:[/red] {e}")
+            raise typer.Exit(code=1) from None
+    else:
+        console.print(f"[green]Entering maintenance loop (interval={interval}s)...[/green]")
+        console.print("Press Ctrl+C to stop")
+        try:
+            maintenance_loop(interval=interval)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Maintenance loop stopped[/yellow]")
