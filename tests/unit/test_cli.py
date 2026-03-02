@@ -451,11 +451,16 @@ class TestMigrateCommand:
         gt_dir = tmp_path / "custom_gt"
         env_file = tmp_path / "custom.env"
 
-        result = runner.invoke(app, [
-            "migrate",
-            "--gastown-dir", str(gt_dir),
-            "--env-file", str(env_file),
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "migrate",
+                "--gastown-dir",
+                str(gt_dir),
+                "--env-file",
+                str(env_file),
+            ],
+        )
 
         assert result.exit_code == 0
         assert len(migrate_calls) == 1
