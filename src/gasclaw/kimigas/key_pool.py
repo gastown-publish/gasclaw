@@ -46,7 +46,20 @@ class KeyPool:
 
     @staticmethod
     def _key_hash(key: str) -> str:
-        return hashlib.sha256(key.encode()).hexdigest()[:12]
+        """Compute a short hash of the key for state tracking.
+
+        Uses blake2b with digest_size=6 for efficiency (produces 12 hex chars,
+        same as the truncated sha256 it replaces). blake2b is faster than
+        sha256 while providing equivalent collision resistance for this use case.
+
+        Args:
+            key: The API key to hash.
+
+        Returns:
+            12-character hexadecimal hash string.
+
+        """
+        return hashlib.blake2b(key.encode(), digest_size=6).hexdigest()
 
     def _load_state(self) -> dict[str, Any]:
         state_file = self._state_dir / "key-rotation.json"

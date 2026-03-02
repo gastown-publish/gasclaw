@@ -347,12 +347,12 @@ class TestKeyPoolValidateKey:
             pool._validate_key("")
 
     def test_validate_key_error_includes_partial_hash(self, tmp_path):
-        """Error message includes truncated SHA-256 hash for security."""
+        """Error message includes truncated blake2b hash for security."""
         pool = KeyPool(["valid-key"], state_dir=tmp_path)
         foreign_key = "foreign-key-not-in-pool"
         expected_hash = pool._key_hash(foreign_key)
 
-        # Verify hash is truncated to 12 chars (SHA-256[:12])
+        # Verify hash is 12 hex chars (blake2b with digest_size=6)
         assert len(expected_hash) == 12
 
         with pytest.raises(ValueError) as exc_info:
