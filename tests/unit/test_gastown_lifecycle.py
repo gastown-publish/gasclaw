@@ -349,6 +349,16 @@ class TestStopAll:
         # Should not raise even though binaries are missing
         stop_all()
 
+    def test_handles_oserror_gracefully(self, monkeypatch):
+        """stop_all handles OSError (e.g., permission denied) gracefully."""
+
+        def mock_run(*a, **kw):
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        # Should not raise even though we get permission denied
+        stop_all()
+
     def test_handles_partial_failure(self, monkeypatch):
         """stop_all continues even if one service fails to stop."""
         calls = []
