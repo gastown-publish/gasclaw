@@ -151,6 +151,20 @@ class TestStopCommand:
         assert "Stopping all services..." in result.output
         assert "All services stopped" in result.output
 
+    def test_stop_exits_on_exception(self, monkeypatch):
+        """stop command exits with code 1 if stop_all raises an exception (lines 103-106)."""
+
+        def mock_stop_fail():
+            raise RuntimeError("service not running")
+
+        monkeypatch.setattr("gasclaw.cli.stop_all", mock_stop_fail)
+
+        result = runner.invoke(app, ["stop"])
+
+        assert result.exit_code == 1
+        assert "Error stopping services" in result.output
+        assert "service not running" in result.output
+
 
 class TestStatusCommand:
     def test_shows_health_status(self, monkeypatch):
