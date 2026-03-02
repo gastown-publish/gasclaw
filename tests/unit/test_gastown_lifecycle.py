@@ -62,6 +62,63 @@ class TestStartDolt:
         except TimeoutError as e:
             assert "not ready" in str(e).lower() or "timeout" in str(e).lower()
 
+    def test_uses_custom_data_dir(self, monkeypatch):
+        """start_dolt passes custom data_dir to dolt command."""
+        popen_calls = []
+        run_calls = []
+
+        class MockProc:
+            pid = 1
+            def poll(self):
+                return None
+
+        def mock_popen(*a, **kw):
+            popen_calls.append(a[0])
+            return MockProc()
+
+        def mock_run(*a, **kw):
+            run_calls.append(a[0])
+            return subprocess.CompletedProcess(a[0], 0)
+
+        monkeypatch.setattr(subprocess, "Popen", mock_popen)
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        start_dolt(data_dir="/custom/dolt/path", port=3307, timeout=1)
+
+        # Check data-dir is in the command
+        cmd_str = " ".join(str(x) for x in popen_calls[0])
+        assert "--data-dir" in cmd_str
+        assert "/custom/dolt/path" in cmd_str
+
+    def test_uses_custom_port(self, monkeypatch):
+        """start_dolt uses custom port for both server and health check."""
+        popen_calls = []
+        run_calls = []
+
+        class MockProc:
+            pid = 1
+            def poll(self):
+                return None
+
+        def mock_popen(*a, **kw):
+            popen_calls.append(a[0])
+            return MockProc()
+
+        def mock_run(*a, **kw):
+            run_calls.append(a[0])
+            return subprocess.CompletedProcess(a[0], 0)
+
+        monkeypatch.setattr(subprocess, "Popen", mock_popen)
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        start_dolt(data_dir="/tmp/dolt", port=9999, timeout=1)
+
+        # Check port appears in both commands
+        popen_str = " ".join(str(x) for x in popen_calls[0])
+        run_str = " ".join(str(x) for x in run_calls[0])
+        assert "9999" in popen_str
+        assert "9999" in run_str
+
 
 class TestStartDaemon:
     def test_runs_gt_daemon(self, monkeypatch):
