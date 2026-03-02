@@ -88,6 +88,19 @@ class TestGetOpenPRs:
 
         assert result == []
 
+    @patch("gasclaw.maintenance.run_command")
+    def test_accepts_custom_timeout(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "[]"
+        mock_run.return_value = mock_result
+
+        get_open_prs(timeout=30)
+
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == 30
+
 
 class TestGetOpenIssues:
     @patch("gasclaw.maintenance.run_command")
@@ -115,6 +128,19 @@ class TestGetOpenIssues:
         result = get_open_issues()
 
         assert result == []
+
+    @patch("gasclaw.maintenance.run_command")
+    def test_accepts_custom_timeout(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "[]"
+        mock_run.return_value = mock_result
+
+        get_open_issues(timeout=60)
+
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs.get("timeout") == 60
 
 
 class TestCheckoutAndTestPR:
