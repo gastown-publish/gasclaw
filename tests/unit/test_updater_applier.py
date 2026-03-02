@@ -75,3 +75,17 @@ class TestApplyUpdates:
                 # The error portion after "failed: " should be truncated
                 error_part = v.split("failed: ", 1)[1]
                 assert len(error_part) <= 200
+
+    def test_uses_stdout_when_stderr_empty(self, monkeypatch):
+        """When stderr is empty, stdout is used for error message."""
+        stdout_error = b"error message in stdout"
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(
+                a[0], 1, stdout=stdout_error, stderr=b""
+            ),
+        )
+        results = apply_updates()
+        # Check that stdout error is captured when stderr is empty
+        assert any("error message in stdout" in v for v in results.values())

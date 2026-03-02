@@ -32,7 +32,11 @@ def apply_updates() -> dict[str, str]:
                 results[name] = "updated"
                 logger.info("%s updated successfully", name)
             else:
-                stderr = result.stderr.decode().strip()[:200]
+                stderr = result.stderr.decode().strip()
+                # Some commands write errors to stdout; fallback if stderr is empty
+                if not stderr:
+                    stderr = result.stdout.decode().strip()
+                stderr = stderr[:200]
                 results[name] = f"failed: {stderr}"
                 logger.error("%s update failed: %s", name, stderr)
         except (OSError, subprocess.TimeoutExpired) as e:
