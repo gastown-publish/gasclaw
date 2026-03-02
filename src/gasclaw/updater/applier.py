@@ -35,7 +35,7 @@ def apply_updates() -> dict[str, str]:
                 stderr = result.stderr.decode().strip()[:200]
                 results[name] = f"failed: {stderr}"
                 logger.error(f"{name} update failed: {stderr}")
-        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        except (OSError, subprocess.TimeoutExpired) as e:
             results[name] = f"error: {e}"
             logger.error(f"{name} update error: {e}")
     return results

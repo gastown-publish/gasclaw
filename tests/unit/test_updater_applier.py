@@ -50,6 +50,16 @@ class TestApplyUpdates:
         results = apply_updates()
         assert any("error" in v.lower() or "not found" in v.lower() for v in results.values())
 
+    def test_handles_permission_error(self, monkeypatch):
+        """PermissionError is caught and reported."""
+
+        def raise_permission_error(*a, **kw):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", raise_permission_error)
+        results = apply_updates()
+        assert any("error" in v.lower() or "permission" in v.lower() for v in results.values())
+
     def test_stderr_truncation_on_failure(self, monkeypatch):
         """Long stderr is truncated to 200 chars."""
         long_error = b"x" * 500
