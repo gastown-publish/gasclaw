@@ -789,6 +789,31 @@ class TestCheckAgentActivityClockSkew:
         assert activity["last_commit_age"] == 0
         assert activity["compliant"] is True
 
+    def test_epoch_timestamp_zero(self, monkeypatch, tmp_path):
+        """Epoch timestamp (0) is handled correctly - very old commit."""
+        import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # Unix epoch timestamp (Jan 1, 1970)
+        epoch_ts = 0
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{epoch_ts}\n".encode()),
+        )
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+        # Age should be very large (current time - 0)
+        now = int(time.time())
+        expected_age = now - epoch_ts
+        # Allow some tolerance for test execution time
+        assert activity["last_commit_age"] >= expected_age - 5
+        assert activity["compliant"] is False  # Epoch commit is way older than deadline
+        assert activity["error"] is None
+
     def test_check_health_custom_gateway_port(self, monkeypatch, respx_mock: respx.MockRouter):
         """check_health uses custom gateway port for openclaw check."""
         respx_mock.get("http://localhost:99999/health").mock(return_value=httpx.Response(200))
