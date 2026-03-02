@@ -9,10 +9,11 @@ Bootstrap sequence:
  6. Configure OpenClaw
  7. Install skills
  8. Run openclaw doctor
- 9. Start gt daemon
-10. Start Mayor
-11. Send "Gasclaw is up" via Telegram
-12. Enter health monitor loop (foreground)
+ 9. Start OpenClaw gateway
+10. Start gt daemon
+11. Start Mayor
+12. Send "Gasclaw is up" via Telegram
+13. Enter health monitor loop (foreground)
 
 Rollback on failure:
 - If bootstrap fails at any step, previously started services are stopped
@@ -32,6 +33,7 @@ from gasclaw.health import check_agent_activity, check_health
 from gasclaw.logging_config import get_logger
 from gasclaw.openclaw.doctor import run_doctor
 from gasclaw.openclaw.installer import write_openclaw_config
+from gasclaw.openclaw.lifecycle import start_openclaw, stop_openclaw
 from gasclaw.openclaw.skill_manager import install_skills
 from gasclaw.updater.notifier import notify_telegram
 
@@ -80,7 +82,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
             openclaw_dir=openclaw_dir,
             kimi_key=config.openclaw_kimi_key,
             bot_token=config.telegram_bot_token,
-            owner_id=config.telegram_owner_id,
+            owner_id=int(config.telegram_owner_id),
             gt_root=str(gt_root),
         )
 
