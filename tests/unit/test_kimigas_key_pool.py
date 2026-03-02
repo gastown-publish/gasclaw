@@ -103,3 +103,38 @@ class TestKeyPoolStatus:
     def test_empty_pool_raises(self):
         with pytest.raises(ValueError, match="at least one"):
             KeyPool([])
+
+    def test_partial_rate_limited_availability(self, tmp_path):
+        """Test with 4 keys where 2 are rate-limited."""
+        pool = KeyPool(["k1", "k2", "k3", "k4"], state_dir=tmp_path)
+        pool.mark_rate_limited("k1")
+        pool.mark_rate_limited("k3")
+        status = pool.status()
+        assert status["total"] == 4
+        assert status["available"] == 2
+        assert status["rate_limited"] == 2
+
+    def test_rate_limiting_unused_key(self, tmp_path):
+        """Marking a key as rate-limited before it's used works."""
+        pool = KeyPool(["k1", "k2"], state_dir=tmp_path)
+        # Mark k1 as rate-limited before ever using it
+        pool.mark_rate_limited("k1")
+        # k2 should be selected since k1 is rate-limited
+        assert pool.get_key() == "k2"
+
+    def test_all_keys_used_then_rotated(self, tmp_path):
+        """After all keys are used, rotation starts over with LRU."""
+        pool = KeyPool(["k1", "k2", "k3"], state_dir=tmp_path)
+        # Use all keys once
+        assert pool.get_key() == "k1"
+        assert pool.get_key() == "k2"
+        assert pool.get_key() == "k3"
+        # Next should be k1 again (LRU)
+        assert pool.get_key() == "k1"
+
+    def test_status_with_no_rate_limited_keys(self, tmp_path):
+        """Status shows all available when no keys are rate-limited."""
+        pool = KeyPool(["k1", "k2", "k3"], state_dir=tmp_path)
+        status = pool.status()
+        assert status["available"] == 3
+        assert status["rate_limited"] == 0

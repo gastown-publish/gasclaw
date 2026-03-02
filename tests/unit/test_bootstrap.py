@@ -153,3 +153,113 @@ class TestMonitorLoop:
             project_dir="/custom/project",
             deadline_seconds=config.activity_deadline,
         )
+
+    def test_notifies_on_non_compliance(self, config, monkeypatch):
+        """monitor_loop sends notification when activity is non-compliant."""
+        check_count = 0
+        notify_calls = []
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="healthy", daemon="healthy", mayor="healthy",
+                openclaw="healthy", agents=["mayor"],
+            )
+
+        activity_return = {"compliant": False, "last_commit_age": 7200}
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("time.sleep"):
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            monitor_loop(config, interval=1)
+
+        assert len(notify_calls) >= 1
+        assert any("ACTIVITY ALERT" in msg for msg in notify_calls)
+
+    def test_notifies_on_service_down(self, config, monkeypatch):
+        """monitor_loop sends notification when critical service is down."""
+        check_count = 0
+        notify_calls = []
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="unhealthy", daemon="healthy", mayor="healthy",
+                openclaw="healthy", agents=["mayor"],
+            )
+
+        activity_return = {"compliant": True, "last_commit_age": 100}
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("time.sleep"):
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            monitor_loop(config, interval=1)
+
+        assert len(notify_calls) >= 1
+        assert any("SERVICE DOWN" in msg for msg in notify_calls)
+
+    def test_notifies_when_doctor_unhealthy(self, config, monkeypatch, tmp_path):
+        """bootstrap notifies when doctor reports unhealthy."""
+        notify_calls = []
+
+        from gasclaw.openclaw.doctor import DoctorResult
+        mock_doctor = DoctorResult(healthy=False, returncode=1, output="Config error: missing token")
+
+        with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
+             patch("gasclaw.bootstrap.write_agent_config"), \
+             patch("gasclaw.bootstrap.gastown_install"), \
+             patch("gasclaw.bootstrap.start_dolt"), \
+             patch("gasclaw.bootstrap.write_openclaw_config"), \
+             patch("gasclaw.bootstrap.install_skills"), \
+             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor), \
+             patch("gasclaw.bootstrap.start_daemon"), \
+             patch("gasclaw.bootstrap.start_mayor"), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify:
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            bootstrap(config, gt_root=tmp_path)
+
+        # Should have "Gasclaw is up" and doctor warning notifications
+        assert len(notify_calls) >= 1
+        assert any("openclaw doctor" in msg.lower() for msg in notify_calls)
+        assert any("config error" in msg.lower() for msg in notify_calls)
+
+    def test_notifies_on_multiple_services_down(self, config, monkeypatch):
+        """monitor_loop sends notifications for each unhealthy service."""
+        check_count = 0
+        notify_calls = []
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+            return HealthReport(
+                dolt="unhealthy", daemon="unhealthy", mayor="unhealthy",
+                openclaw="healthy", agents=[],
+            )
+
+        activity_return = {"compliant": True, "last_commit_age": 100}
+        with patch("gasclaw.bootstrap.check_health", side_effect=mock_check), \
+             patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return), \
+             patch("gasclaw.bootstrap.notify_telegram") as m_notify, \
+             patch("time.sleep"):
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            monitor_loop(config, interval=1)
+
+        # Should have notifications for dolt, daemon, and mayor
+        service_notifications = [msg for msg in notify_calls if "SERVICE DOWN" in msg]
+        assert len(service_notifications) >= 3  # dolt, daemon, mayor
+        assert any("dolt" in msg for msg in service_notifications)
+        assert any("daemon" in msg for msg in service_notifications)
+        assert any("mayor" in msg for msg in service_notifications)
