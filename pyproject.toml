@@ -19,6 +19,7 @@ dev = [
     "respx>=0.22.0",
     "ruff>=0.14.0",
     "mypy>=1.15.0",
+    "pyyaml>=6.0.0",
 ]
 
 [project.scripts]
