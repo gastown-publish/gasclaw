@@ -64,6 +64,42 @@ class TestDetectGastownSetup:
         assert result["detected"] is True
         assert result["source"] == "config_file"
 
+    def test_handles_corrupted_config_file(self, tmp_path, monkeypatch):
+        """Skips corrupted config files and continues searching."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+
+        # Create corrupted config
+        gt_config = tmp_path / ".gt" / "config.json"
+        gt_config.parent.mkdir(parents=True)
+        gt_config.write_text("not valid json {{{")
+
+        result = detect_gastown_setup([gt_config.parent])
+
+        # Should not crash, just not detect
+        assert result["detected"] is False
+
+    def test_handles_config_file_permission_error(self, tmp_path, monkeypatch):
+        """Handles permission errors when reading config file."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+
+        # Create config file
+        gt_config = tmp_path / ".gt" / "config.json"
+        gt_config.parent.mkdir(parents=True)
+        gt_config.write_text(json.dumps({"kimi_api_key": "sk-from-file"}))
+
+        # Remove read permissions
+        gt_config.chmod(0o000)
+
+        try:
+            result = detect_gastown_setup([gt_config.parent])
+            # Should not crash, just not detect
+            assert result["detected"] is False
+        finally:
+            # Restore permissions for cleanup
+            gt_config.chmod(0o644)
+
 
 class TestMigrateConfig:
     """Tests for migrate_config function."""
@@ -130,6 +166,39 @@ class TestMigrateConfig:
         assert result["success"] is False
         assert "error" in result
 
+    def test_returns_error_when_missing_required_config(self, tmp_path, monkeypatch):
+        """Returns error when required configuration is missing."""
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("KIMI_API_KEY", "sk-migrate-key")
+        # Don't set other required env vars
+        monkeypatch.delenv("OPENCLAW_KIMI_KEY", raising=False)
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.delenv("TELEGRAM_OWNER_ID", raising=False)
+
+        env_file = tmp_path / ".env"
+
+        result = migrate_config(env_file=env_file, interactive=False)
+
+        assert result["success"] is False
+        assert "Missing required configuration" in result["error"]
+
+    def test_handles_env_file_write_error(self, tmp_path, monkeypatch):
+        """Handles OSError when writing env file."""
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("KIMI_API_KEY", "sk-migrate-key")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        # Use a directory path as env_file to trigger OSError on write
+        env_file = tmp_path / "is_a_directory"
+        env_file.mkdir()
+
+        result = migrate_config(env_file=env_file, interactive=False)
+
+        assert result["success"] is False
+        assert "Failed to write env file" in result["error"]
+
 
 class TestCreateBackup:
     """Tests for create_backup function."""
@@ -150,6 +219,23 @@ class TestCreateBackup:
     def test_handles_nonexistent_gastown_dir(self, tmp_path):
         """Returns None when gastown directory doesn't exist."""
         backup_dir = create_backup(tmp_path / "nonexistent")
+
+        assert backup_dir is None
+
+    def test_handles_backup_copy_error(self, tmp_path, monkeypatch):
+        """Returns None when backup copy fails."""
+        gastown_dir = tmp_path / ".gt"
+        gastown_dir.mkdir()
+        config_file = gastown_dir / "config.json"
+        config_file.write_text('{"key": "value"}')
+
+        # Mock shutil.copytree to raise OSError
+        def mock_copytree(*args, **kwargs):
+            raise OSError("Permission denied")
+
+        monkeypatch.setattr("gasclaw.migration.shutil.copytree", mock_copytree)
+
+        backup_dir = create_backup(gastown_dir)
 
         assert backup_dir is None
 
@@ -244,6 +330,53 @@ class TestMigrate:
         assert result.success is True
         content = env_file.read_text()
         assert "OPENCLAW_KIMI_KEY=sk-openclaw" in content
+
+    def test_creates_backup_when_config_file_source(self, tmp_path, monkeypatch):
+        """Creates backup when gastown detected via config_file source."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        # Create gastown config directory at the exact path
+        gt_dir = tmp_path / ".gt"
+        gt_dir.mkdir()
+        config_file = gt_dir / "config.json"
+        config_file.write_text(json.dumps({"kimi_api_key": "sk-from-config"}))
+
+        env_file = tmp_path / ".env"
+
+        # Pass the gastown directory - this covers the backup path
+        result = migrate(
+            gastown_dir=gt_dir,
+            gasclaw_env_file=env_file,
+            dry_run=False,
+            interactive=False,
+        )
+
+        assert result.success is True
+        assert result.backup_path is not None
+
+    def test_migration_fails_when_config_migration_fails(self, tmp_path, monkeypatch):
+        """Migration returns failure when migrate_config fails."""
+        monkeypatch.setenv("KIMI_API_KEY", "sk-migrate")
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        # Don't set required env vars to trigger failure
+        monkeypatch.delenv("OPENCLAW_KIMI_KEY", raising=False)
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.delenv("TELEGRAM_OWNER_ID", raising=False)
+
+        env_file = tmp_path / ".env"
+
+        result = migrate(
+            gasclaw_env_file=env_file,
+            dry_run=False,
+            interactive=False,
+        )
+
+        assert result.success is False
+        assert "Missing required configuration" in result.error_message
 
 
 class TestMigrationResult:
