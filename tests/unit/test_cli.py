@@ -94,6 +94,20 @@ class TestStartCommand:
         assert "Bootstrap failed" in result.output
         assert "dolt connection failed" in result.output
 
+    def test_start_exits_on_keyboard_interrupt(self, config, monkeypatch, tmp_path):
+        """start command exits with code 130 if bootstrap is interrupted."""
+
+        def mock_bootstrap_interrupt(cfg, gt_root):
+            raise KeyboardInterrupt()
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_interrupt)
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert result.exit_code == 130
+        assert "interrupted" in result.output.lower()
+
 
 class TestStopCommand:
     def test_calls_stop_all(self, monkeypatch):
