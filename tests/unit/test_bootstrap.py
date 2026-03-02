@@ -32,12 +32,16 @@ class TestBootstrap:
             lambda *a, **kw: type("P", (), {"pid": 1, "poll": lambda s: None})(),
         )
 
+        from gasclaw.openclaw.doctor import DoctorResult
+        mock_doctor = DoctorResult(healthy=True, returncode=0, output="OK")
+
         with patch("gasclaw.bootstrap.setup_kimi_accounts") as m_kimi, \
              patch("gasclaw.bootstrap.write_agent_config") as m_agent, \
              patch("gasclaw.bootstrap.gastown_install") as m_install, \
              patch("gasclaw.bootstrap.start_dolt") as m_dolt, \
              patch("gasclaw.bootstrap.write_openclaw_config") as m_oc, \
              patch("gasclaw.bootstrap.install_skills") as m_skills, \
+             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor) as m_doctor, \
              patch("gasclaw.bootstrap.start_daemon") as m_daemon, \
              patch("gasclaw.bootstrap.start_mayor") as m_mayor, \
              patch("gasclaw.bootstrap.notify_telegram") as m_notify:
@@ -50,6 +54,7 @@ class TestBootstrap:
             m_dolt.assert_called_once()
             m_oc.assert_called_once()
             m_skills.assert_called_once()
+            m_doctor.assert_called_once()
             m_daemon.assert_called_once()
             m_mayor.assert_called_once()
             m_notify.assert_called_once()
@@ -57,12 +62,20 @@ class TestBootstrap:
     def test_call_order(self, config, monkeypatch, tmp_path):
         order = []
 
+        from gasclaw.openclaw.doctor import DoctorResult
+        mock_doctor = DoctorResult(healthy=True, returncode=0, output="OK")
+
+        def doctor_side_effect(**kw):
+            order.append("doctor")
+            return mock_doctor
+
         with patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=lambda *a, **kw: order.append("kimi")), \
              patch("gasclaw.bootstrap.write_agent_config", side_effect=lambda *a, **kw: order.append("agent_config")), \
              patch("gasclaw.bootstrap.gastown_install", side_effect=lambda *a, **kw: order.append("install")), \
              patch("gasclaw.bootstrap.start_dolt", side_effect=lambda *a, **kw: order.append("dolt")), \
              patch("gasclaw.bootstrap.write_openclaw_config", side_effect=lambda *a, **kw: order.append("openclaw")), \
              patch("gasclaw.bootstrap.install_skills", side_effect=lambda *a, **kw: order.append("skills")), \
+             patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect), \
              patch("gasclaw.bootstrap.start_daemon", side_effect=lambda *a, **kw: order.append("daemon")), \
              patch("gasclaw.bootstrap.start_mayor", side_effect=lambda *a, **kw: order.append("mayor")), \
              patch("gasclaw.bootstrap.notify_telegram", side_effect=lambda *a, **kw: order.append("notify")):
@@ -72,6 +85,8 @@ class TestBootstrap:
         # Verify critical ordering
         assert order.index("kimi") < order.index("install")
         assert order.index("install") < order.index("dolt")
+        assert order.index("skills") < order.index("doctor")
+        assert order.index("doctor") < order.index("daemon")
         assert order.index("dolt") < order.index("daemon")
         assert order.index("daemon") < order.index("mayor")
         assert order.index("mayor") < order.index("notify")
