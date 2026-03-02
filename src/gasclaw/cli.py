@@ -16,6 +16,7 @@ from gasclaw.health import check_agent_activity, check_health
 from gasclaw.kimigas.key_pool import KeyPool
 from gasclaw.logging_config import get_logger, setup_logging
 from gasclaw.maintenance import maintenance_loop, run_maintenance_cycle
+from gasclaw.migration import migrate as run_migration
 from gasclaw.updater.applier import apply_updates
 from gasclaw.updater.checker import check_versions
 
@@ -166,6 +167,47 @@ def update() -> None:
 def version() -> None:
     """Show gasclaw version."""
     console.print(f"gasclaw {__version__}")
+
+
+@app.command()
+def migrate(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Detect and report only, don't modify anything"
+    ),
+    gastown_dir: Path | None = typer.Option(
+        None, help="Path to Gastown config directory (default: ~/.gt or ~/.gastown)"
+    ),
+    env_file: Path | None = typer.Option(
+        None, help="Path for gasclaw .env file (default: /workspace/.env)"
+    ),
+) -> None:
+    """Migrate from Gastown to gasclaw.
+
+    Detects existing Gastown installation and migrates configuration
+    to gasclaw format. Creates a backup of the original configuration.
+
+    Examples:
+        gasclaw migrate              # Run migration interactively
+        gasclaw migrate --dry-run    # Preview what would be migrated
+    """
+    console.print("[bold]Checking for Gastown installation...[/bold]")
+
+    result = run_migration(
+        gastown_dir=gastown_dir,
+        gasclaw_env_file=env_file,
+        dry_run=dry_run,
+        interactive=True,
+    )
+
+    console.print(result.summary())
+
+    if result.success and not dry_run:
+        console.print("\n[green]Migration complete![/green]")
+        console.print("\nNext steps:")
+        console.print("  1. Review the generated .env file")
+        console.print("  2. Run 'gasclaw start' to begin using gasclaw")
+    elif not result.success:
+        raise typer.Exit(code=1)
 
 
 @app.command()
