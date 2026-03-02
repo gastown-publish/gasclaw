@@ -3,18 +3,16 @@
 Bootstrap sequence:
  1. Load config from env vars (already done by caller)
  2. Setup Kimi accounts
- 3. Setup Claude config
- 4. gt install
- 5. Write agent config
- 6. gt rig add
- 7. Start Dolt
- 8. Configure OpenClaw
- 9. Install skills
-10. Start OpenClaw gateway
-11. Start gt daemon
-12. Start Mayor
-13. Send "Gasclaw is up" via Telegram
-14. Enter health monitor loop (foreground)
+ 3. Write agent config
+ 4. Install Gastown
+ 5. Start Dolt
+ 6. Configure OpenClaw
+ 7. Install skills
+ 8. Run openclaw doctor
+ 9. Start gt daemon
+10. Start Mayor
+11. Send "Gasclaw is up" via Telegram
+12. Enter health monitor loop (foreground)
 
 Rollback on failure:
 - If bootstrap fails at any step, previously started services are stopped
