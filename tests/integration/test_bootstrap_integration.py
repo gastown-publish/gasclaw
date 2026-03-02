@@ -85,20 +85,35 @@ class TestBootstrapIntegration:
                         with patch("gasclaw.bootstrap.write_openclaw_config") as m_oc:
                             m_oc.side_effect = lambda **kw: calls.update({"openclaw_config": True})
                             with patch("gasclaw.bootstrap.install_skills") as m_skills:
-                                m_skills.side_effect = lambda **kw: calls.update({"skills_install": True})
-                                with patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor) as m_doctor:
-                                    m_doctor.side_effect = lambda **kw: (calls.update({"doctor": True}), mock_doctor)[1]
+                                m_skills.side_effect = (
+                                    lambda **kw: calls.update({"skills_install": True})
+                                )
+                                with patch(
+                                    "gasclaw.bootstrap.run_doctor", return_value=mock_doctor
+                                ) as m_doctor:
+                                    def doctor_side_effect(**kw):
+                                        calls.update({"doctor": True})
+                                        return mock_doctor
+                                    m_doctor.side_effect = doctor_side_effect
                                     with patch("gasclaw.bootstrap.start_daemon") as m_daemon:
-                                        m_daemon.side_effect = lambda: calls.update({"daemon_start": True})
+                                        m_daemon.side_effect = (
+                                            lambda: calls.update({"daemon_start": True})
+                                        )
                                         with patch("gasclaw.bootstrap.start_mayor") as m_mayor:
-                                            m_mayor.side_effect = lambda **kw: calls.update({"mayor_start": True})
+                                            m_mayor.side_effect = (
+                                                lambda **kw: calls.update({"mayor_start": True})
+                                            )
                                             with respx.mock:
                                                 # Mock Telegram gateway
-                                                route = respx.post("http://localhost:18789/api/message").mock(
+                                                respx.post("http://localhost:18789/api/message").mock(
                                                     return_value=Response(200, json={"ok": True})
                                                 )
-                                                with patch("gasclaw.bootstrap.notify_telegram") as m_notify:
-                                                    m_notify.side_effect = lambda msg: calls.update({"telegram_notify": True})
+                                                with patch(
+                                                    "gasclaw.bootstrap.notify_telegram"
+                                                ) as m_notify:
+                                                    def notify_side_effect(msg):
+                                                        calls.update({"telegram_notify": True})
+                                                    m_notify.side_effect = notify_side_effect
                                                     
                                                     # Run bootstrap
                                                     bootstrap(config, gt_root=gt_root)
@@ -153,12 +168,15 @@ class TestBootstrapIntegration:
             return wrapper
         
         with patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=track_call("kimi")), \
-             patch("gasclaw.bootstrap.write_agent_config", side_effect=track_call("agent_config")), \
+             patch("gasclaw.bootstrap.write_agent_config",
+                   side_effect=track_call("agent_config")), \
              patch("gasclaw.bootstrap.gastown_install", side_effect=track_call("install")), \
              patch("gasclaw.bootstrap.start_dolt", side_effect=track_call("dolt")), \
-             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=track_call("openclaw_config")), \
+             patch("gasclaw.bootstrap.write_openclaw_config",
+                   side_effect=track_call("openclaw_config")), \
              patch("gasclaw.bootstrap.install_skills", side_effect=track_call("skills")), \
-             patch("gasclaw.bootstrap.run_doctor", side_effect=lambda **kw: (track_call("doctor")(kw), mock_doctor)[1]), \
+             patch("gasclaw.bootstrap.run_doctor",
+                   side_effect=lambda **kw: (track_call("doctor")(kw), mock_doctor)[1]), \
              patch("gasclaw.bootstrap.start_daemon", side_effect=track_call("daemon")), \
              patch("gasclaw.bootstrap.start_mayor", side_effect=track_call("mayor")), \
              patch("gasclaw.bootstrap.notify_telegram", side_effect=track_call("notify")):
@@ -242,7 +260,9 @@ class TestMonitorLoopIntegration:
         monitor_loop(config, interval=1)
         
         # Should have notified about unhealthy daemon
-        assert any("daemon" in msg.lower() or "service down" in msg.lower() for msg in notifications)
+        assert any(
+            "daemon" in msg.lower() or "service down" in msg.lower() for msg in notifications
+        )
 
     def test_monitor_loop_notifies_on_activity_violation(self, config, monkeypatch):
         """Test monitor loop notifies when activity deadline is violated."""
@@ -282,7 +302,7 @@ class TestMonitorLoopIntegration:
     def test_monitor_loop_with_http_notification(self, config, monkeypatch):
         """Test monitor loop sends HTTP notifications via gateway."""
         # Mock the gateway endpoint
-        route = respx.post("http://localhost:18789/api/message").mock(
+        respx.post("http://localhost:18789/api/message").mock(
             return_value=Response(200, json={"ok": True})
         )
         
