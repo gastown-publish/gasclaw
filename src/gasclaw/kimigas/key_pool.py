@@ -105,12 +105,49 @@ class KeyPool:
         self._save_state(state)
 
     def mark_rate_limited(self, key: str) -> None:
-        """Mark a key as rate-limited (enters cooldown)."""
+        """Mark a key as rate-limited (enters cooldown).
+
+        Args:
+            key: The API key to mark as rate-limited.
+
+        Raises:
+            ValueError: If the key does not belong to this pool.
+        """
+        if key not in self._keys:
+            raise ValueError("Key does not belong to this pool")
+
         state = self._load_state()
         rate_limited = state.get("rate_limited", {})
         rate_limited[self._key_hash(key)] = time.time()
         state["rate_limited"] = rate_limited
         self._save_state(state)
+
+    def clear_cooldown(self, key: str) -> bool:
+        """Clear rate-limited status for a key.
+
+        Args:
+            key: The API key to clear cooldown for.
+
+        Returns:
+            True if the key was rate-limited and is now cleared,
+            False if the key was not rate-limited.
+
+        Raises:
+            ValueError: If the key does not belong to this pool.
+        """
+        if key not in self._keys:
+            raise ValueError("Key does not belong to this pool")
+
+        state = self._load_state()
+        rate_limited = state.get("rate_limited", {})
+        key_hash = self._key_hash(key)
+
+        if key_hash in rate_limited:
+            del rate_limited[key_hash]
+            state["rate_limited"] = rate_limited
+            self._save_state(state)
+            return True
+        return False
 
     def status(self) -> dict[str, Any]:
         """Return pool status report."""
