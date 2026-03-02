@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed ruff formatting in `test_cli.py` (#50)
 - Fixed line length violations in `config.py`
 - Fixed silent failures when `project_dir` doesn't exist or isn't a git repo
 
