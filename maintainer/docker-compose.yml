@@ -2,11 +2,13 @@ services:
   maintainer:
     build: .
     container_name: gasclaw-maintainer
+    user: "${UID:-1000}:${GID:-1000}"
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - KIMI_API_KEY=${KIMI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - HOME=/home/maintainer
     volumes:
       - ./data:/workspace
     restart: unless-stopped

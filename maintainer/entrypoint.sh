@@ -59,7 +59,7 @@ export ANTHROPIC_API_KEY="${KIMI_API_KEY}"
 export DISABLE_COST_WARNINGS=true
 
 # --- 5. Claude Code config (isolated, API key auth) ---
-export CLAUDE_CONFIG_DIR="/workspace/.claude-config"
+export CLAUDE_CONFIG_DIR="$HOME/.claude-config"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 echo '{}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
 FINGERPRINT="${KIMI_API_KEY:(-20)}"

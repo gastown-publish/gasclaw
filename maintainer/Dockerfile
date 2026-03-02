@@ -21,9 +21,11 @@ RUN npm install -g @anthropic-ai/claude-code openclaw
 # PyYAML for config loader
 RUN pip install --no-cache-dir pyyaml
 
-# Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+# Non-root user setup
+# Home dir is 777 so any UID (via docker-compose user:) can write to it
 RUN useradd -m -s /bin/bash maintainer \
-    && mkdir -p /workspace && chown maintainer:maintainer /workspace
+    && mkdir -p /workspace \
+    && chmod 777 /workspace /home/maintainer
 
 # Copy scripts, skills, agent instructions
 COPY scripts/ /opt/scripts/
