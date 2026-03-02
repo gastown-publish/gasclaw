@@ -49,8 +49,32 @@ class TestDockerWorkflow:
         with open(workflow_path) as f:
             workflow = yaml.safe_load(f)
 
-        assert workflow["env"]["REGISTRY"] == "ghcr.io"
+        assert workflow["env"]["GHCR_REGISTRY"] == "ghcr.io"
         assert workflow["env"]["IMAGE_NAME"] == "${{ github.repository }}"
+
+    def test_workflow_uses_dockerhub(self):
+        """Workflow targets Docker Hub."""
+        workflow_path = ".github/workflows/docker.yml"
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+
+        assert workflow["env"]["DOCKERHUB_REGISTRY"] == "docker.io"
+
+    def test_workflow_has_dockerhub_login(self):
+        """Workflow logs in to Docker Hub."""
+        workflow_path = ".github/workflows/docker.yml"
+        with open(workflow_path) as f:
+            workflow = yaml.safe_load(f)
+
+        build_steps = workflow["jobs"]["build"]["steps"]
+        dockerhub_login = next(
+            (s for s in build_steps if "Docker Hub" in s.get("name", "")),
+            None
+        )
+        assert dockerhub_login is not None
+        assert dockerhub_login["uses"] == "docker/login-action@v3"
+        assert "DOCKERHUB_USERNAME" in dockerhub_login["with"].get("username", "")
+        assert "DOCKERHUB_TOKEN" in dockerhub_login["with"].get("password", "")
 
     def test_workflow_triggers_on_push_to_main(self):
         """Workflow triggers on push to main branch."""
