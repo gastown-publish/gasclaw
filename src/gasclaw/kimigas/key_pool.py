@@ -32,9 +32,23 @@ class KeyPool:
 
     @staticmethod
     def _key_hash(key: str) -> str:
+        """Generate a short hash for the given API key.
+
+        Args:
+            key: The API key to hash.
+
+        Returns:
+            A 12-character hexadecimal hash string.
+        """
         return hashlib.sha256(key.encode()).hexdigest()[:12]
 
     def _load_state(self) -> dict[str, Any]:
+        """Load the key rotation state from disk.
+
+        Returns:
+            A dictionary containing the rotation state, or an empty dict
+            if the state file does not exist or is corrupted.
+        """
         state_file = self._state_dir / "key-rotation.json"
         if state_file.is_file():
             try:
@@ -44,6 +58,11 @@ class KeyPool:
         return {}
 
     def _save_state(self, state: dict[str, Any]) -> None:
+        """Save the key rotation state to disk.
+
+        Args:
+            state: The rotation state dictionary to persist.
+        """
         self._state_dir.mkdir(parents=True, exist_ok=True)
         state_file = self._state_dir / "key-rotation.json"
         state_file.write_text(json.dumps(state, indent=2))
@@ -76,6 +95,11 @@ class KeyPool:
         return selected
 
     def _record_usage(self, key: str) -> None:
+        """Record the usage timestamp for the given key.
+
+        Args:
+            key: The API key that was used.
+        """
         state = self._load_state()
         last_used = state.get("last_used", {})
         last_used[self._key_hash(key)] = time.time()
@@ -85,24 +109,4 @@ class KeyPool:
     def mark_rate_limited(self, key: str) -> None:
         """Mark a key as rate-limited (enters cooldown)."""
         state = self._load_state()
-        rate_limited = state.get("rate_limited", {})
-        rate_limited[self._key_hash(key)] = time.time()
-        state["rate_limited"] = rate_limited
-        self._save_state(state)
-
-    def status(self) -> dict[str, Any]:
-        """Return pool status report."""
-        state = self._load_state()
-        now = time.time()
-        rate_limited: dict[str, float] = state.get("rate_limited", {})
-
-        rl_count = sum(
-            1 for k in self._keys
-            if now - rate_limited.get(self._key_hash(k), 0) <= RATE_LIMIT_COOLDOWN
-        )
-
-        return {
-            "total": len(self._keys),
-            "available": len(self._keys) - rl_count,
-            "rate_limited": rl_count,
-        }
+        rate_limited = state.get("rate_
