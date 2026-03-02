@@ -55,6 +55,18 @@ def run_doctor(*, repair: bool = False, timeout: int = 60) -> DoctorResult:
             returncode=-1,
             output="openclaw not installed or not found in PATH",
         )
+    except PermissionError:
+        return DoctorResult(
+            healthy=False,
+            returncode=-1,
+            output="openclaw binary exists but is not executable (permission denied)",
+        )
+    except OSError as e:
+        return DoctorResult(
+            healthy=False,
+            returncode=-1,
+            output=f"openclaw failed to execute: {e}",
+        )
     except subprocess.TimeoutExpired:
         return DoctorResult(
             healthy=False,
