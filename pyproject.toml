@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "Gastown + OpenClaw + KimiGas in one container"
 requires-python = ">=3.13"
 dependencies = [
-    "typer>=0.21.0",
+    "typer>=0.21.0,<0.25.0",
+    "click>=8.0.0,<9.0.0",
     "httpx>=0.28.0",
     "pydantic>=2.10.0",
     "tomlkit>=0.13.0",
