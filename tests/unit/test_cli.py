@@ -143,6 +143,22 @@ class TestUpdateCommand:
         assert "Applying updates" in result.output
 
 
+class TestVersionCommand:
+    def test_version_flag_shows_version(self):
+        """--version flag displays version and exits."""
+        from gasclaw import __version__
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+    def test_version_command_shows_version(self):
+        """version subcommand displays version."""
+        from gasclaw import __version__
+        result = runner.invoke(app, ["version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+
 class TestCLIEdgeCases:
     def test_help_flag_shows_help(self):
         """Running with --help shows help text."""
