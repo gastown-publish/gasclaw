@@ -82,9 +82,7 @@ class TestApplyUpdates:
         monkeypatch.setattr(
             subprocess,
             "run",
-            lambda *a, **kw: subprocess.CompletedProcess(
-                a[0], 1, stdout=stdout_error, stderr=b""
-            ),
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stdout=stdout_error, stderr=b""),
         )
         results = apply_updates()
         # Check that stdout error is captured when stderr is empty
