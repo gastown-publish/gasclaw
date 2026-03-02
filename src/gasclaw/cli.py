@@ -75,6 +75,10 @@ def start(
     try:
         bootstrap(config, gt_root=gt_root)
         logger.info("Bootstrap completed successfully")
+    except KeyboardInterrupt:
+        logger.info("Bootstrap interrupted by user")
+        console.print("\n[yellow]Bootstrap interrupted by user[/yellow]")
+        raise typer.Exit(code=130) from None
     except Exception as e:
         logger.exception("Bootstrap failed")
         console.print(f"[red]Bootstrap failed:[/red] {e}")
