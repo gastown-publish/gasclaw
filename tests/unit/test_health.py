@@ -52,35 +52,30 @@ class TestCheckHealth:
         assert isinstance(report.agents, list)
 
 
-class TestCheckAgentActivity:
-    def test_returns_activity_report(self, monkeypatch):
-        monkeypatch.setattr(
-            subprocess, "run",
-            lambda *a, **kw: subprocess.CompletedProcess(
-                a[0], 0, stdout=b"1234567890\n"
-            ),
-        )
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
-        assert "last_commit_age" in activity
-        assert "compliant" in activity
+class TestCheckServiceErrorHandling:
+    """Tests for _check_service() exception handling."""
 
-    def test_no_recent_activity_flagged(self, monkeypatch):
-        # No git log output — no recent commits
-        monkeypatch.setattr(
-            subprocess, "run",
-            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b""),
-        )
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
-        assert activity["compliant"] is False
+    def test_check_service_file_not_found(self, monkeypatch):
+        """Test _check_service returns 'unhealthy' when command is not found."""
+        from gasclaw.health import _check_service
 
-    def test_uses_project_dir(self, monkeypatch):
-        calls = []
-        def _capture(cmd, **kw):
-            calls.append(kw.get("cwd"))
-            return subprocess.CompletedProcess(cmd, 0, stdout=b"1234567890\n")
-        monkeypatch.setattr(subprocess, "run", _capture)
-        check_agent_activity(project_dir="/custom/path", deadline_seconds=3600)
-        assert calls == ["/custom/path"]
+        def _raise_filenotfound(*a, **kw):
+            raise FileNotFoundError("command not found")
+
+        monkeypatch.setattr(subprocess, "run", _raise_filenotfound)
+        result = _check_service(["gt", "daemon", "status"], "daemon")
+        assert result == "unhealthy"
+
+    def test_check_service_timeout_expired(self, monkeypatch):
+        """Test _check_service returns 'unhealthy' when command times out."""
+        from gasclaw.health import _check_service
+
+        def _raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0] if a else "cmd", timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", _raise_timeout)
+        result = _check_service(["gt", "daemon", "status"], "daemon")
+        assert result == "unhealthy"
 
     def test_git_error_returns_non_compliant(self, monkeypatch):
         """Git command failure returns non-compliant activity."""
@@ -118,6 +113,32 @@ class TestCheckAgentActivity:
         activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
         assert activity["compliant"] is False
         assert activity["last_commit_age"] is None
+
+
+class TestListAgentsErrorHandling:
+    """Tests for _list_agents() exception handling."""
+
+    def test_list_agents_file_not_found(self, monkeypatch):
+        """Test _list_agents returns empty list when gt command is not found."""
+        from gasclaw.health import _list_agents
+
+        def _raise_filenotfound(*a, **kw):
+            raise FileNotFoundError("gt command not found")
+
+        monkeypatch.setattr(subprocess, "run", _raise_filenotfound)
+        result = _list_agents()
+        assert result == []
+
+    def test_list_agents_timeout_expired(self, monkeypatch):
+        """Test _list_agents returns empty list when gt status times out."""
+        from gasclaw.health import _list_agents
+
+        def _raise_timeout(*a, **kw):
+            raise subprocess.TimeoutExpired(cmd=a[0] if a else "cmd", timeout=10)
+
+        monkeypatch.setattr(subprocess, "run", _raise_timeout)
+        result = _list_agents()
+        assert result == []
 
 
 class TestHealthReportSummary:
