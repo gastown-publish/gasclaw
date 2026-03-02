@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 
 __all__ = ["GasclawConfig", "load_config"]
@@ -27,6 +28,26 @@ class GasclawConfig:
     gt_agent_count: int = 6
     monitor_interval: int = 300  # seconds between health checks
     activity_deadline: int = 3600  # seconds — must see a push/PR within this window
+
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        # Validate telegram_owner_id is numeric
+        if self.telegram_owner_id and not self.telegram_owner_id.isdigit():
+            raise ValueError(
+                f"TELEGRAM_OWNER_ID must be numeric, got: {self.telegram_owner_id}"
+            )
+
+        # Validate paths are absolute
+        if self.project_dir and not self.project_dir.startswith("/"):
+            logger.warning(
+                f"PROJECT_DIR should be an absolute path, got: {self.project_dir}"
+            )
+
+        # Validate gt_rig_url
+        if self.gt_rig_url and not self.gt_rig_url.startswith(("/", "http", "https")):
+            logger.warning(
+                f"GT_RIG_URL should be a path or URL, got: {self.gt_rig_url}"
+            )
 
 
 def _require_env(name: str) -> str:
@@ -81,7 +102,7 @@ def load_config() -> GasclawConfig:
     if not keys:
         raise ValueError("GASTOWN_KIMI_KEYS contains no valid keys")
 
-    return GasclawConfig(
+    config = GasclawConfig(
         gastown_kimi_keys=keys,
         openclaw_kimi_key=_require_env("OPENCLAW_KIMI_KEY"),
         telegram_bot_token=_require_env("TELEGRAM_BOT_TOKEN"),
@@ -98,3 +119,6 @@ def load_config() -> GasclawConfig:
             os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"
         ),
     )
+
+    logger.debug(f"Loaded configuration with {len(keys)} Gastown keys")
+    return config

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from gasclaw.config import GasclawConfig, load_config
@@ -178,12 +180,61 @@ class TestGasclawConfig:
         assert cfg.gt_agent_count == 6
 
 
+class TestConfigValidation:
+    """Tests for config validation in __post_init__."""
+
+    def test_telegram_owner_id_must_be_numeric(self, monkeypatch):
+        """TELEGRAM_OWNER_ID must be a numeric string."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "not_numeric")
+
+        with pytest.raises(ValueError, match="TELEGRAM_OWNER_ID must be numeric"):
+            load_config()
+
+    def test_telegram_owner_id_numeric_is_valid(self, monkeypatch):
+        """Numeric TELEGRAM_OWNER_ID is accepted."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        config = load_config()
+        assert config.telegram_owner_id == "123456789"
+
+    def test_project_dir_relative_path_warning(self, monkeypatch, caplog):
+        """Relative PROJECT_DIR generates warning."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+        monkeypatch.setenv("PROJECT_DIR", "relative/path")
+
+        with caplog.at_level(logging.WARNING):
+            load_config()
+
+        assert "should be an absolute path" in caplog.text
+
+    def test_gt_rig_url_invalid_warning(self, monkeypatch, caplog):
+        """Invalid GT_RIG_URL generates warning."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+        monkeypatch.setenv("GT_RIG_URL", "invalid::url")
+
+        with caplog.at_level(logging.WARNING):
+            load_config()
+
+        assert "should be a path or URL" in caplog.text
+
+
 class TestParsePositiveIntWarnings:
     """Tests that _parse_positive_int logs warnings for invalid values."""
 
     def test_invalid_value_logs_warning(self, monkeypatch, env_vars, caplog):
         """Invalid integer value logs a warning."""
-        import logging
 
         for k, v in env_vars(GT_AGENT_COUNT="abc").items():
             monkeypatch.setenv(k, v)
@@ -198,7 +249,6 @@ class TestParsePositiveIntWarnings:
 
     def test_zero_value_logs_warning(self, monkeypatch, env_vars, caplog):
         """Zero value logs a warning about positive requirement."""
-        import logging
 
         for k, v in env_vars(MONITOR_INTERVAL="0").items():
             monkeypatch.setenv(k, v)
@@ -212,7 +262,6 @@ class TestParsePositiveIntWarnings:
 
     def test_negative_value_logs_warning(self, monkeypatch, env_vars, caplog):
         """Negative value logs a warning about positive requirement."""
-        import logging
 
         for k, v in env_vars(ACTIVITY_DEADLINE="-100").items():
             monkeypatch.setenv(k, v)
@@ -226,7 +275,6 @@ class TestParsePositiveIntWarnings:
 
     def test_valid_value_no_warning(self, monkeypatch, env_vars, caplog):
         """Valid value does not log a warning."""
-        import logging
 
         for k, v in env_vars(GT_AGENT_COUNT="8").items():
             monkeypatch.setenv(k, v)
@@ -244,7 +292,6 @@ class TestConfigEdgeCases:
 
     def test_float_value_defaults_to_int(self, monkeypatch, env_vars, caplog):
         """Float value for integer config uses default."""
-        import logging
 
         for k, v in env_vars(GT_AGENT_COUNT="3.14").items():
             monkeypatch.setenv(k, v)
@@ -272,7 +319,6 @@ class TestConfigEdgeCases:
 
     def test_whitespace_in_integer_value(self, monkeypatch, env_vars, caplog):
         """Whitespace around integer values is handled."""
-        import logging
 
         for k, v in env_vars(GT_AGENT_COUNT="  42  ").items():
             monkeypatch.setenv(k, v)
@@ -286,7 +332,6 @@ class TestConfigEdgeCases:
 
     def test_scientific_notation_defaults(self, monkeypatch, env_vars, caplog):
         """Scientific notation for integer config uses default."""
-        import logging
 
         for k, v in env_vars(MONITOR_INTERVAL="1e3").items():
             monkeypatch.setenv(k, v)
@@ -300,7 +345,6 @@ class TestConfigEdgeCases:
 
     def test_hexadecimal_notation_defaults(self, monkeypatch, env_vars, caplog):
         """Hexadecimal notation for integer config uses default."""
-        import logging
 
         for k, v in env_vars(ACTIVITY_DEADLINE="0x100").items():
             monkeypatch.setenv(k, v)
@@ -327,7 +371,6 @@ class TestConfigEdgeCases:
 
     def test_octal_prefix_parsed_as_decimal(self, monkeypatch, env_vars, caplog):
         """Explicit octal prefix (0o) is parsed as decimal, not octal."""
-        import logging
 
         for k, v in env_vars(MONITOR_INTERVAL="0o755").items():
             monkeypatch.setenv(k, v)
@@ -345,7 +388,6 @@ class TestParsePositiveIntEdgeCases:
 
     def test_no_name_no_warning_on_invalid(self, monkeypatch, env_vars, caplog):
         """When name is empty, no warning is logged for invalid values."""
-        import logging
 
         from gasclaw.config import _parse_positive_int
 
@@ -358,7 +400,6 @@ class TestParsePositiveIntEdgeCases:
 
     def test_no_name_no_warning_on_zero(self, monkeypatch, env_vars, caplog):
         """When name is empty, no warning is logged for zero/negative values."""
-        import logging
 
         from gasclaw.config import _parse_positive_int
 
