@@ -33,7 +33,7 @@ src/gasclaw/
     ├── applier.py      # Run update commands
     └── notifier.py     # POST to OpenClaw gateway
 skills/                 # OpenClaw skills (4: health, keys, update, agents)
-tests/unit/             # 507 unit tests — all mocked, no API keys needed
+tests/unit/             # 510 unit tests — all mocked, no API keys needed
 tests/integration/      # Integration tests (optional, needs services)
 ```
 
@@ -53,7 +53,7 @@ make test-all      # Includes integration tests
 make lint          # Ruff linting
 ```
 
-All 507 unit tests must pass. Never modify a test to make it pass — fix the code.
+All 510 unit tests must pass. Never modify a test to make it pass — fix the code.
 
 ## Architecture Decisions
 
