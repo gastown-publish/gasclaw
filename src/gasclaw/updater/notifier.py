@@ -40,7 +40,7 @@ def notify_telegram(
             headers=headers,
             timeout=10.0,
         )
-        return response.is_success
+        return 200 <= response.status_code < 300
     except httpx.ConnectError as e:
         logger.warning("Failed to send notification: gateway not available (%s)", e)
         return False
