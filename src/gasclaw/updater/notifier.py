@@ -34,13 +34,13 @@ def notify_telegram(
         headers["Authorization"] = f"Bearer {auth_token}"
 
     try:
-        httpx.post(
+        response = httpx.post(
             url,
             content=json.dumps({"message": message}),
             headers=headers,
             timeout=10.0,
         )
-        return True
+        return response.is_success
     except httpx.ConnectError as e:
         logger.warning("Failed to send notification: gateway not available (%s)", e)
         return False

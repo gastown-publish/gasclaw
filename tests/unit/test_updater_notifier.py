@@ -59,3 +59,24 @@ class TestNotifyTelegram:
         )
         result = notify_telegram("Test", gateway_port=18789)
         assert result is False
+
+    @respx.mock
+    def test_returns_false_on_4xx_error(self):
+        """Function returns False on 4xx HTTP status code."""
+        respx.post("http://localhost:18789/api/message").mock(return_value=httpx.Response(400))
+        result = notify_telegram("Test", gateway_port=18789)
+        assert result is False
+
+    @respx.mock
+    def test_returns_false_on_5xx_error(self):
+        """Function returns False on 5xx HTTP status code."""
+        respx.post("http://localhost:18789/api/message").mock(return_value=httpx.Response(500))
+        result = notify_telegram("Test", gateway_port=18789)
+        assert result is False
+
+    @respx.mock
+    def test_returns_true_on_201_created(self):
+        """Function returns True on 2xx HTTP status codes (not just 200)."""
+        respx.post("http://localhost:18789/api/message").mock(return_value=httpx.Response(201))
+        result = notify_telegram("Test", gateway_port=18789)
+        assert result is True
