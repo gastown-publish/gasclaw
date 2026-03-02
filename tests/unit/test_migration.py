@@ -203,6 +203,21 @@ class TestMigrateConfig:
         assert result["success"] is False
         assert "Failed to write env file" in result["error"]
 
+    def test_migrate_config_without_env_file(self, tmp_path, monkeypatch):
+        """migrate_config without env_file returns success with keys - dry run mode (lines 313-316)."""
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("KIMI_API_KEY", "sk-dryrun-key")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        # No env_file specified - dry run mode
+        result = migrate_config(env_file=None, interactive=False)
+
+        assert result["success"] is True
+        assert result["gastown_kimi_keys"] == "sk-dryrun-key"
+        assert "env_file" not in result or result.get("env_file") is None
+
 
 class TestCreateBackup:
     """Tests for create_backup function."""
@@ -409,6 +424,34 @@ class TestMigrate:
                 dry_run=False,
                 interactive=False,
             )
+
+        assert result.success is True
+        assert result.backup_path is not None
+        assert result.backup_path.exists()
+
+    def test_creates_backup_when_gastown_dir_provided_and_exists(self, tmp_path, monkeypatch):
+        """Creates backup when gastown_dir is explicitly provided and exists (lines 365-370)."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        # Create gastown config directory
+        gt_dir = tmp_path / ".gt"
+        gt_dir.mkdir()
+        config_file = gt_dir / "config.json"
+        config_file.write_text(json.dumps({"kimi_api_key": "sk-from-config"}))
+
+        env_file = tmp_path / ".env"
+
+        # Pass explicit gastown_dir that exists - covers lines 365-370
+        result = migrate(
+            gastown_dir=gt_dir,  # Explicitly provided
+            gasclaw_env_file=env_file,
+            dry_run=False,
+            interactive=False,
+        )
 
         assert result.success is True
         assert result.backup_path is not None

@@ -547,6 +547,29 @@ class TestHealthReportSummary:
         summary = report.summary()
         assert "not compliant" in summary.lower() or "?" in summary
 
+    def test_summary_with_only_compliant_in_activity(self):
+        """Summary handles activity with only 'compliant' key (no last_commit_age)."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={"total": 1, "available": 1},
+            activity={"compliant": True},  # No last_commit_age key
+        )
+        summary = report.summary()
+        # Should show compliant status with ? for age
+        assert "compliant" in summary.lower()
+
+    def test_summary_activity_without_last_commit_age_key(self):
+        """Summary handles activity dict missing last_commit_age key entirely."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={"total": 1, "available": 1},
+            activity={"compliant": False, "error": "some error"},  # No last_commit_age
+        )
+        summary = report.summary()
+        assert "not compliant" in summary.lower()
+
     def test_summary_with_many_agents_truncated(self):
         """Summary truncates agent list when many agents."""
         report = HealthReport(
@@ -813,3 +836,17 @@ class TestCheckAgentActivityClockSkew:
         )
         report = check_health(gateway_port=18789)
         assert report.openclaw == "unhealthy"
+
+    def test_check_health_with_oserror_on_service_check(self, monkeypatch, respx_mock: respx.MockRouter):
+        """check_health handles OSError on service checks - covers lines 55-58, 64-67."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
+        def raise_oserror(*a, **kw):
+            raise OSError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", raise_oserror)
+        report = check_health(gateway_port=18789)
+        # All services should be unhealthy due to OSError
+        assert report.dolt == "unhealthy"
+        assert report.daemon == "unhealthy"
+        assert report.mayor == "unhealthy"
