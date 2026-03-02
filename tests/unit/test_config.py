@@ -305,6 +305,50 @@ class TestConfigEdgeCases:
         assert cfg.activity_deadline == 3600  # Default used
         assert "ACTIVITY_DEADLINE" in caplog.text
 
+
+class TestParsePositiveIntEdgeCases:
+    """Tests for _parse_positive_int function edge cases."""
+
+    def test_no_name_no_warning_on_invalid(self, monkeypatch, env_vars, caplog):
+        """When name is empty, no warning is logged for invalid values."""
+        import logging
+
+        from gasclaw.config import _parse_positive_int
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int("abc", default=42, name="")
+
+        assert result == 42
+        # Should not log any warning since name is empty
+        assert caplog.text == ""
+
+    def test_no_name_no_warning_on_zero(self, monkeypatch, env_vars, caplog):
+        """When name is empty, no warning is logged for zero/negative values."""
+        import logging
+
+        from gasclaw.config import _parse_positive_int
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int("0", default=100, name="")
+
+        assert result == 100
+        # Should not log any warning since name is empty
+        assert caplog.text == ""
+
+    def test_no_name_returns_default_on_error(self):
+        """Default is returned when parsing fails and name is empty."""
+        from gasclaw.config import _parse_positive_int
+
+        result = _parse_positive_int("invalid", default=99, name="")
+        assert result == 99
+
+    def test_valid_value_with_name(self):
+        """Valid value returns correctly even with name provided."""
+        from gasclaw.config import _parse_positive_int
+
+        result = _parse_positive_int("50", default=10, name="TEST_VAR")
+        assert result == 50
+
     def test_large_integer_accepted(self, monkeypatch, env_vars):
         """Very large integers are accepted."""
         for k, v in env_vars(ACTIVITY_DEADLINE="999999").items():

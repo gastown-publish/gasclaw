@@ -259,6 +259,19 @@ class TestListAgentsErrorHandling:
         result = _list_agents()
         assert result == []
 
+    def test_list_agents_nonzero_exit(self, monkeypatch):
+        """Test _list_agents returns empty list when gt status returns non-zero."""
+        from gasclaw.health import _list_agents
+
+        def mock_run(*a, **kw):
+            return subprocess.CompletedProcess(
+                args=a[0] if a else ["cmd"], returncode=1, stderr=b"error"
+            )
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        result = _list_agents()
+        assert result == []
+
 
 class TestHealthReportSummary:
     def test_summary_string(self):
