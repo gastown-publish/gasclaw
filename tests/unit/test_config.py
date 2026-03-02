@@ -177,3 +177,60 @@ class TestGasclawConfig:
         )
         assert cfg.gt_rig_url == "/project"
         assert cfg.gt_agent_count == 6
+
+
+class TestParsePositiveIntWarnings:
+    """Tests that _parse_positive_int logs warnings for invalid values."""
+
+    def test_invalid_value_logs_warning(self, monkeypatch, env_vars, caplog):
+        """Invalid integer value logs a warning."""
+        import logging
+        for k, v in env_vars(GT_AGENT_COUNT="abc").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gt_agent_count == 6  # Default used
+        assert "GT_AGENT_COUNT" in caplog.text
+        assert "abc" in caplog.text
+        assert "not a valid integer" in caplog.text.lower()
+
+    def test_zero_value_logs_warning(self, monkeypatch, env_vars, caplog):
+        """Zero value logs a warning about positive requirement."""
+        import logging
+        for k, v in env_vars(MONITOR_INTERVAL="0").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.monitor_interval == 300  # Default used
+        assert "MONITOR_INTERVAL" in caplog.text
+        assert "must be positive" in caplog.text.lower()
+
+    def test_negative_value_logs_warning(self, monkeypatch, env_vars, caplog):
+        """Negative value logs a warning about positive requirement."""
+        import logging
+        for k, v in env_vars(ACTIVITY_DEADLINE="-100").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.activity_deadline == 3600  # Default used
+        assert "ACTIVITY_DEADLINE" in caplog.text
+        assert "must be positive" in caplog.text.lower()
+
+    def test_valid_value_no_warning(self, monkeypatch, env_vars, caplog):
+        """Valid value does not log a warning."""
+        import logging
+        for k, v in env_vars(GT_AGENT_COUNT="8").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gt_agent_count == 8
+        # Should not have any warnings about GT_AGENT_COUNT
+        assert "GT_AGENT_COUNT" not in caplog.text
