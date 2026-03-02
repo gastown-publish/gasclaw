@@ -16,7 +16,7 @@ make test    # Must pass before any changes
 src/gasclaw/
 ├── cli.py              # Typer CLI: start, stop, status, update
 ├── config.py           # Env var config (pydantic-free, dataclass)
-├── bootstrap.py        # Startup orchestration (17-step sequence)
+├── bootstrap.py        # Startup orchestration (10-step sequence)
 ├── health.py           # Health checks + activity compliance
 ├── gastown/
 │   ├── agent_config.py # Write settings/config.json for gt
