@@ -5,7 +5,8 @@ echo "=== Gasclaw Maintainer Agent ==="
 echo ""
 
 # --- Auth ---
-echo "$GITHUB_TOKEN" | gh auth login --with-token
+echo "$GITHUB_TOKEN" | gh auth login --with-token --hostname github.com 2>&1 || true
+gh auth status 2>&1 || true
 git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 git config --global user.email "gasclaw-bot@gastown.dev"
 git config --global user.name "Gasclaw Maintainer"
@@ -19,26 +20,36 @@ export DISABLE_COST_WARNINGS=true
 export CLAUDE_CONFIG_DIR="/workspace/.claude-config"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 echo '{}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
+FINGERPRINT="${KIMI_API_KEY:(-20)}"
 cat > "$CLAUDE_CONFIG_DIR/.claude.json" <<CJSON
 {
   "hasCompletedOnboarding": true,
   "bypassPermissionsModeAccepted": true,
   "customApiKeyResponses": {
-    "approved": ["${KIMI_API_KEY: -20}"]
+    "approved": ["${FINGERPRINT}"]
   }
 }
 CJSON
 
 # --- Clone repo ---
 echo "Cloning gasclaw..."
-git clone https://github.com/gastown-publish/gasclaw.git /workspace/gasclaw
-cd /workspace/gasclaw
+if [ -d /workspace/gasclaw/.git ]; then
+    cd /workspace/gasclaw && git pull origin main
+else
+    git clone https://github.com/gastown-publish/gasclaw.git /workspace/gasclaw
+    cd /workspace/gasclaw
+fi
 
 # --- Dev setup ---
 echo "Setting up dev environment..."
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]" --quiet 2>/dev/null || pip install -e . --quiet
+echo "Upgrading pip..."
+pip install --upgrade pip --timeout 120 --retries 5
+echo "Installing gasclaw + deps..."
+pip install --timeout 120 --retries 5 -e .
+echo "Installing test deps..."
+pip install --timeout 120 --retries 5 pytest pytest-asyncio respx
 
 # --- Verify tests pass ---
 echo "Running tests..."
