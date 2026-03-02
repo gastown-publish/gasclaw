@@ -54,6 +54,32 @@ class TestStartCommand:
         assert len(monitor_calls) == 1
         assert "Starting gasclaw" in result.output
 
+    def test_start_with_project_dir_override(self, config, monkeypatch, tmp_path):
+        """start command overrides project_dir when provided via --project-dir."""
+        monitor_calls = []
+        project_override = tmp_path / "custom_project"
+        project_override.mkdir()
+
+        def mock_bootstrap(cfg, gt_root):
+            pass
+
+        def mock_monitor(cfg):
+            monitor_calls.append(cfg)
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
+        monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
+
+        runner.invoke(
+            app,
+            ["start", "--gt-root", str(tmp_path), "--project-dir", str(project_override)]
+        )
+
+        assert len(monitor_calls) == 1
+        assert monitor_calls[0].project_dir == str(project_override)
+        # KeyboardInterrupt causes exit code 130, which is expected
+
 
 class TestStopCommand:
     def test_calls_stop_all(self, monkeypatch):

@@ -46,6 +46,9 @@ def main(
 @app.command()
 def start(
     gt_root: Path = typer.Option(Path("/workspace/gt"), help="Gastown root directory"),
+    project_dir: Path | None = typer.Option(
+        None, help="Project directory for activity checks (overrides config)"
+    ),
 ) -> None:
     """Start gasclaw: bootstrap all services and enter monitor loop."""
     try:
@@ -53,6 +56,10 @@ def start(
     except ValueError as e:
         console.print(f"[red]Config error:[/red] {e}")
         raise typer.Exit(code=1) from None
+
+    # Override project_dir if provided via CLI
+    if project_dir is not None:
+        config.project_dir = str(project_dir)
 
     console.print("[bold]Starting gasclaw...[/bold]")
     bootstrap(config, gt_root=gt_root)
