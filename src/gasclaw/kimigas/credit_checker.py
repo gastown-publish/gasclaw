@@ -101,21 +101,21 @@ class CreditChecker:
                 )
 
         except httpx.HTTPStatusError as e:
-            logger.warning(f"HTTP error checking key {masked}: {e.response.status_code}")
+            logger.warning("HTTP error checking key %s: %s", masked, e.response.status_code)
             return CreditInfo(
                 key=masked,
                 valid=False,
                 error=f"HTTP {e.response.status_code}",
             )
         except httpx.RequestError as e:
-            logger.warning(f"Request error checking key {masked}: {e}")
+            logger.warning("Request error checking key %s: %s", masked, e)
             return CreditInfo(
                 key=masked,
                 valid=False,
                 error=f"Request failed: {e}",
             )
         except Exception as e:
-            logger.warning(f"Error checking key {masked}: {e}")
+            logger.warning("Error checking key %s: %s", masked, e)
             return CreditInfo(
                 key=masked,
                 valid=False,
