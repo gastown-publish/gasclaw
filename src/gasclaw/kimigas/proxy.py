@@ -18,7 +18,7 @@ def build_claude_env(api_key: str, *, config_dir: str | None = None) -> dict[str
         config_dir: Isolated Claude config directory. Defaults to ~/.claude-kimigas.
 
     Returns:
-        Dict of environment variables to set/override.
+        dict of environment variables to set/override.
     """
     return {
         "ANTHROPIC_BASE_URL": KIMI_ANTHROPIC_BASE_URL,

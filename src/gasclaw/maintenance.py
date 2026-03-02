@@ -48,7 +48,7 @@ def get_open_prs() -> list[dict]:
     """Get list of open PRs from GitHub.
 
     Returns:
-        List of PR dicts with number, title, branch, and author.
+        list of PR dicts with number, title, branch, and author.
     """
     try:
         result = run_command(
@@ -81,7 +81,7 @@ def get_open_issues() -> list[dict]:
     """Get list of open issues from GitHub.
 
     Returns:
-        List of issue dicts with number and title.
+        list of issue dicts with number and title.
     """
     try:
         result = run_command(
@@ -188,7 +188,7 @@ def process_open_prs() -> dict:
     """Process all open PRs: test and merge if passing.
 
     Returns:
-        Dict with counts of merged, failed, and fixed PRs.
+        dict with counts of merged, failed, and fixed PRs.
     """
     stats = {"merged": 0, "failed": 0, "fixed": 0, "total": 0}
 
@@ -222,7 +222,7 @@ def process_open_issues() -> dict:
     """Process open issues by creating fix branches and PRs.
 
     Returns:
-        Dict with counts of issues processed.
+        dict with counts of issues processed.
     """
     stats = {"processed": 0, "total": 0}
 
@@ -244,7 +244,7 @@ def run_maintenance_cycle() -> dict:
     """Run a single maintenance cycle.
 
     Returns:
-        Dict with summary of all actions taken.
+        dict with summary of all actions taken.
     """
     logger.info("Starting maintenance cycle")
 

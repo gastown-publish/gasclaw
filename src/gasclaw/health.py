@@ -133,7 +133,7 @@ def check_agent_activity(
         deadline_seconds: Max allowed time since last activity.
 
     Returns:
-        Dict with last_commit_age (seconds), compliant (bool), and error (str|None).
+        dict with last_commit_age (seconds), compliant (bool), and error (str|None).
     """
     try:
         result = subprocess.run(

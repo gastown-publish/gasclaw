@@ -49,7 +49,7 @@ def setup_kimi_accounts(
     """Write ~/.kimi-accounts/<N>/config.toml for each key.
 
     Args:
-        keys: List of Kimi API keys.
+        keys: list of Kimi API keys.
         accounts_dir: Override for ~/.kimi-accounts.
     """
     if accounts_dir is None:
