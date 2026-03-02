@@ -1,8 +1,28 @@
 ---
 name: gastown-agents
-description: "Monitor, restart, and inspect individual Gastown agents: mayor, deacon, witness, refinery, crew. Use when: an agent is stuck, needs restarting, you need to check logs, or enforce activity compliance."
+description: Monitor, restart, and inspect individual Gastown agents
 metadata:
-  { "openclaw": { "emoji": "🤖", "os": ["linux"], "requires": { "bins": ["gt", "tmux"] } } }
+  openclaw:
+    emoji: 🤖
+    os:
+      - linux
+    requires:
+      bins:
+        - gt
+        - tmux
+parameters:
+  agent:
+    type: string
+    description: Name of the agent to manage (mayor, deacon, witness, refinery, crew-N)
+    required: false
+  action:
+    type: string
+    description: Action to perform (restart, logs, status, list)
+    required: true
+  lines:
+    type: integer
+    description: Number of log lines to show (for logs action)
+    required: false
 ---
 
 # Gastown Agent Manager
