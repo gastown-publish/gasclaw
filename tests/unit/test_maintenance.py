@@ -130,6 +130,20 @@ class TestCheckoutAndTestPR:
         assert ["git", "pull"] in calls
         assert ["gh", "pr", "checkout", "42", "--repo", "gastown-publish/gasclaw"] in calls
 
+    @patch("gasclaw.maintenance.logger")
+    @patch("gasclaw.maintenance.run_command")
+    def test_logs_success_message_when_tests_pass(self, mock_run, mock_logger):
+        """Test that passing tests log success message (line 129)."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        result = checkout_and_test_pr(42, "fix/branch")
+
+        assert result is True
+        # Verify success message is logged
+        success_calls = [c for c in mock_logger.info.call_args_list if "Tests passed" in str(c)]
+        assert len(success_calls) == 1
+        assert "42" in str(success_calls[0])
+
     @patch("gasclaw.maintenance.run_command")
     def test_returns_false_when_tests_fail(self, mock_run):
         # Make the pytest command fail
@@ -204,6 +218,33 @@ class TestMergePR:
         result = merge_pr(42)
 
         assert result is False
+
+    @patch("gasclaw.maintenance.logger")
+    @patch("gasclaw.maintenance.run_command")
+    def test_logs_success_message(self, mock_run, mock_logger):
+        """Test that successful merge logs info message (line 159)."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        result = merge_pr(42)
+
+        assert result is True
+        # Verify success message is logged
+        success_calls = [c for c in mock_logger.info.call_args_list if "Successfully merged" in str(c)]
+        assert len(success_calls) == 1
+        assert "42" in str(success_calls[0])
+
+    @patch("gasclaw.maintenance.logger")
+    @patch("gasclaw.maintenance.run_command")
+    def test_logs_info_message(self, mock_run, mock_logger):
+        """Test that merge_pr logs info message at start (line 149)."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        merge_pr(42)
+
+        # Verify initial info message is logged
+        info_calls = [c for c in mock_logger.info.call_args_list if "Merging PR" in str(c)]
+        assert len(info_calls) == 1
+        assert "42" in str(info_calls[0])
 
 
 class TestFixOnBranch:
