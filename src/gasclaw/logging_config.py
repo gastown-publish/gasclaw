@@ -44,10 +44,16 @@ def setup_logging(level: str | None = None, log_file: str | None = None) -> None
         file_handler.setFormatter(formatter)
         handlers.append(file_handler)
 
-    # Configure root logger (allow override in tests via force parameter)
+    # Validate log level and fall back to INFO if invalid
     force_config = os.environ.get("GASCLAW_LOGGING_FORCE", "true").lower() == "true"
+    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    if log_level not in valid_levels:
+        # Use print since logging isn't configured yet
+        print(f"Warning: Invalid LOG_LEVEL '{log_level}', using INFO", file=sys.stderr)
+        log_level = "INFO"
+
     logging.basicConfig(
-        level=getattr(logging, log_level, logging.INFO),
+        level=getattr(logging, log_level),
         handlers=handlers,
         force=force_config,
     )
