@@ -26,6 +26,33 @@ logger = get_logger(__name__)
 # Repository configuration
 REPO = "gastown-publish/gasclaw"
 
+__all__ = [
+    "CommandNotFoundError",
+    "run_command",
+    "get_open_prs",
+    "get_open_issues",
+    "checkout_and_test_pr",
+    "merge_pr",
+    "process_open_prs",
+    "process_open_issues",
+    "run_maintenance_cycle",
+    "maintenance_loop",
+    "main",
+]
+
+
+class CommandNotFoundError(subprocess.CalledProcessError):
+    """Raised when a command binary is not found in PATH."""
+
+    def __init__(self, cmd: list[str]) -> None:
+        self.binary = cmd[0] if cmd else "unknown"
+        super().__init__(
+            returncode=-1,
+            cmd=cmd,
+            output="",
+            stderr=f"Command not found: {self.binary}",
+        )
+
 
 def run_command(
     cmd: list[str], *, check: bool = True, timeout: int = 120
@@ -41,25 +68,23 @@ def run_command(
         CompletedProcess with returncode, stdout, stderr.
 
     Raises:
-        subprocess.CalledProcessError: If check=True and command fails or binary not found.
+        CommandNotFoundError: If check=True and the command binary is not found.
+        subprocess.CalledProcessError: If check=True and command fails.
         subprocess.TimeoutExpired: If command times out.
 
     """
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except FileNotFoundError:
-        # Handle missing binary gracefully
-        binary = cmd[0] if cmd else "unknown"
-        result = subprocess.CompletedProcess(
+        if check:
+            raise CommandNotFoundError(cmd) from None
+        # Return a failed result when check=False
+        return subprocess.CompletedProcess(
             args=cmd,
             returncode=-1,
             stdout="",
-            stderr=f"Command not found: {binary}",
+            stderr=f"Command not found: {cmd[0] if cmd else 'unknown'}",
         )
-        if check:
-            raise subprocess.CalledProcessError(
-                result.returncode, cmd, result.stdout, result.stderr
-            ) from None
     if check and result.returncode != 0:
         raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
     return result

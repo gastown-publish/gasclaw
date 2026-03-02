@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from gasclaw.maintenance import (
+    CommandNotFoundError,
     checkout_and_test_pr,
     fix_on_branch,
     get_open_issues,
@@ -20,6 +21,35 @@ from gasclaw.maintenance import (
     run_command,
     run_maintenance_cycle,
 )
+
+
+class TestCommandNotFoundError:
+    """Tests for CommandNotFoundError exception class."""
+
+    def test_is_subclass_of_called_process_error(self):
+        """CommandNotFoundError is a CalledProcessError subclass."""
+        assert issubclass(CommandNotFoundError, subprocess.CalledProcessError)
+
+    def test_stores_binary_name(self):
+        """Error stores the binary name that was not found."""
+        error = CommandNotFoundError(["nonexistent", "arg1", "arg2"])
+        assert error.binary == "nonexistent"
+
+    def test_stores_unknown_for_empty_cmd(self):
+        """Error stores 'unknown' for empty command list."""
+        error = CommandNotFoundError([])
+        assert error.binary == "unknown"
+
+    def test_has_correct_returncode(self):
+        """Error has returncode of -1."""
+        error = CommandNotFoundError(["cmd"])
+        assert error.returncode == -1
+
+    def test_has_informative_stderr(self):
+        """Error has informative stderr message."""
+        error = CommandNotFoundError(["mycommand"])
+        assert "not found" in error.stderr.lower()
+        assert "mycommand" in error.stderr
 
 
 class TestRunCommand:
@@ -41,11 +71,12 @@ class TestRunCommand:
             run_command(["sleep", "10"], timeout=1)
 
     def test_handles_file_not_found(self):
-        """FileNotFoundError is converted to CalledProcessError when check=True."""
-        with pytest.raises(subprocess.CalledProcessError) as exc_info:
+        """FileNotFoundError is converted to CommandNotFoundError when check=True."""
+        with pytest.raises(CommandNotFoundError) as exc_info:
             run_command(["nonexistent_binary_xyz"], check=True)
         assert exc_info.value.returncode == -1
         assert "not found" in exc_info.value.stderr.lower()
+        assert exc_info.value.binary == "nonexistent_binary_xyz"
 
     def test_returns_result_on_file_not_found_when_check_false(self):
         """FileNotFoundError returns result with returncode -1 when check=False."""
