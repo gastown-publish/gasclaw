@@ -522,6 +522,49 @@ class TestParsePositiveIntEdgeCases:
         assert "DOLT_PORT" in caplog.text
         assert "not a valid integer" in caplog.text.lower()
 
+    def test_parse_port_out_of_range_high_with_name(self, caplog):
+        """Port > 65535 with name logs warning and uses default."""
+        from gasclaw.config import _parse_port
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port("70000", default=3307, name="TEST_PORT")
+
+        assert result == 3307
+        assert "TEST_PORT" in caplog.text
+        assert "must be between 1 and 65535" in caplog.text
+
+    def test_parse_port_out_of_range_high_no_name(self, caplog):
+        """Port > 65535 without name silently uses default."""
+        from gasclaw.config import _parse_port
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port("70000", default=3307, name="")
+
+        assert result == 3307
+        assert caplog.text == ""
+
+    def test_parse_port_type_error_with_name(self, caplog):
+        """TypeError in _parse_port with name logs warning and uses default."""
+        from gasclaw.config import _parse_port
+
+        with caplog.at_level(logging.WARNING):
+            # Passing None will trigger TypeError in int()
+            result = _parse_port(None, default=3307, name="TEST_PORT")
+
+        assert result == 3307
+        assert "TEST_PORT" in caplog.text
+        assert "not a valid integer" in caplog.text
+
+    def test_parse_port_type_error_no_name(self, caplog):
+        """TypeError in _parse_port without name silently uses default."""
+        from gasclaw.config import _parse_port
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port(None, default=3307, name="")
+
+        assert result == 3307
+        assert caplog.text == ""
+
     def test_valid_value_with_name(self):
         """Valid value returns correctly even with name provided."""
         from gasclaw.config import _parse_positive_int
