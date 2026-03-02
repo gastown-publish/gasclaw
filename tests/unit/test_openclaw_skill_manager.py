@@ -76,7 +76,8 @@ class TestInstallSkills:
         install_skills(skills_src=src, skills_dst=dst)
 
         assert (dst / "complex-skill" / "data" / "templates" / "template.j2").exists()
-        assert (dst / "complex-skill" / "data" / "templates" / "template.j2").read_text() == "template content"
+        template_file = dst / "complex-skill" / "data" / "templates" / "template.j2"
+        assert template_file.read_text() == "template content"
 
     def test_overwrites_existing_skills(self, tmp_path):
         """Installing over existing skills replaces them."""

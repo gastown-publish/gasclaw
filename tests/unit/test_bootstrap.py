@@ -314,7 +314,9 @@ class TestMonitorLoop:
         notify_calls = []
 
         from gasclaw.openclaw.doctor import DoctorResult
-        mock_doctor = DoctorResult(healthy=False, returncode=1, output="Config error: missing token")
+        mock_doctor = DoctorResult(
+            healthy=False, returncode=1, output="Config error: missing token"
+        )
 
         with patch("gasclaw.bootstrap.setup_kimi_accounts"), \
              patch("gasclaw.bootstrap.write_agent_config"), \

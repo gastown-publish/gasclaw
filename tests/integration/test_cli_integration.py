@@ -298,7 +298,7 @@ class TestCLIWithHTTPMocking:
         from gasclaw.health import HealthReport
         
         # Mock the gateway health endpoint
-        route = respx.get("http://localhost:18789/health").mock(
+        respx.get("http://localhost:18789/health").mock(
             return_value=Response(200, text="healthy")
         )
         
