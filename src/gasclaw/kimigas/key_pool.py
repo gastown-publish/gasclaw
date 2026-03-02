@@ -6,6 +6,7 @@ rather than account discovery.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -64,10 +65,8 @@ class KeyPool:
             os.replace(temp_path, state_file)
         except Exception:
             # Clean up temp file on failure
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
             raise
 
     def get_key(self) -> str:

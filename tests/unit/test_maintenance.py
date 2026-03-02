@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -28,7 +29,7 @@ class TestRunCommand:
         assert "hello" in result.stdout
 
     def test_raises_on_failure_when_check_true(self):
-        with pytest.raises(Exception):
+        with pytest.raises(subprocess.CalledProcessError):
             run_command(["false"], check=True)
 
     def test_returns_result_on_failure_when_check_false(self):
@@ -36,7 +37,7 @@ class TestRunCommand:
         assert result.returncode != 0
 
     def test_respects_timeout(self):
-        with pytest.raises(Exception):
+        with pytest.raises(subprocess.TimeoutExpired):
             run_command(["sleep", "10"], timeout=1)
 
 

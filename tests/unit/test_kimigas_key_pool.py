@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
 
 import pytest
@@ -194,7 +195,7 @@ class TestKeyPoolAtomicWrite:
         pool = KeyPool(["k1"], state_dir=tmp_path)
 
         # Make os.fdopen fail to trigger cleanup
-        original_fdopen = __builtins__["open"] if "open" in __builtins__ else open
+        original_fdopen = __builtins__.get("open", open)
 
         def fail_on_fdopen(*args, **kwargs):
             if args and hasattr(args[0], "__class__") and "int" in str(type(args[0])):
@@ -203,10 +204,8 @@ class TestKeyPoolAtomicWrite:
 
         monkeypatch.setattr("os.fdopen", fail_on_fdopen)
 
-        try:
+        with contextlib.suppress(OSError):
             pool._save_state({"test": "data"})
-        except OSError:
-            pass
 
         # Temp file should be cleaned up
         temp_files = list(tmp_path.glob(".key-rotation-*.tmp"))

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
 import tomlkit
 
 from gasclaw.gastown.installer import gastown_install, setup_kimi_accounts
@@ -87,7 +88,7 @@ class TestGastownInstall:
         monkeypatch.setattr(subprocess, "run", mock_run)
         try:
             gastown_install(gt_root=tmp_path, rig_url="/project")
-            assert False, "Expected CalledProcessError"
+            pytest.fail("Expected CalledProcessError")
         except subprocess.CalledProcessError as e:
             assert e.returncode == 1
             assert "install" in str(e.cmd)
@@ -104,7 +105,7 @@ class TestGastownInstall:
         monkeypatch.setattr(subprocess, "run", mock_run)
         try:
             gastown_install(gt_root=tmp_path, rig_url="/project")
-            assert False, "Expected CalledProcessError"
+            pytest.fail("Expected CalledProcessError")
         except subprocess.CalledProcessError as e:
             assert e.returncode == 2
             assert "rig" in str(e.cmd)
@@ -118,7 +119,7 @@ class TestGastownInstall:
         monkeypatch.setattr(subprocess, "run", raise_not_found)
         try:
             gastown_install(gt_root=tmp_path, rig_url="/project")
-            assert False, "Expected FileNotFoundError"
+            pytest.fail("Expected FileNotFoundError")
         except FileNotFoundError:
             pass
 
@@ -131,7 +132,7 @@ class TestGastownInstall:
         monkeypatch.setattr(subprocess, "run", raise_timeout)
         try:
             gastown_install(gt_root=tmp_path, rig_url="/project")
-            assert False, "Expected TimeoutExpired"
+            pytest.fail("Expected TimeoutExpired")
         except subprocess.TimeoutExpired:
             pass
 

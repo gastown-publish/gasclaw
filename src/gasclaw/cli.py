@@ -51,8 +51,10 @@ def main(
 
 @app.command()
 def start(
-    gt_root: Path = typer.Option(Path("/workspace/gt"), help="Gastown root directory"),
-    project_dir: Path | None = typer.Option(
+    gt_root: Path = typer.Option(  # noqa: B008
+        Path("/workspace/gt"), help="Gastown root directory"
+    ),
+    project_dir: Path | None = typer.Option(  # noqa: B008
         None, help="Project directory for activity checks (overrides config)"
     ),
 ) -> None:

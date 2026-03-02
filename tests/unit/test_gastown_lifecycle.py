@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
+
 from gasclaw.gastown.lifecycle import start_daemon, start_dolt, start_mayor, stop_all
 
 
@@ -47,12 +49,8 @@ class TestStartDolt:
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: DeadProcess())
-        try:
+        with pytest.raises(RuntimeError, match="exited early"):
             start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
-            assert False, "Expected RuntimeError"
-        except RuntimeError as e:
-            assert "exited early" in str(e)
-            assert "1" in str(e)
 
     def test_raises_timeout_if_never_ready(self, monkeypatch):
         """If dolt never becomes ready, raise TimeoutError."""
@@ -76,11 +74,9 @@ class TestStartDolt:
             "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
         )
-        try:
+        with pytest.raises(TimeoutError) as exc_info:
             start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
-            assert False, "Expected TimeoutError"
-        except TimeoutError as e:
-            assert "not ready" in str(e).lower() or "timeout" in str(e).lower()
+        assert "not ready" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
 
     def test_uses_custom_data_dir(self, monkeypatch):
         """start_dolt passes custom data_dir to dolt command."""
@@ -161,10 +157,8 @@ class TestStartDolt:
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: DeadProcess())
-        try:
+        with pytest.raises(RuntimeError):
             start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
-        except RuntimeError:
-            pass
 
         assert len(terminate_called) == 1
         assert len(wait_called) == 1
@@ -192,10 +186,8 @@ class TestStartDolt:
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
         )
 
-        try:
+        with pytest.raises(TimeoutError):
             start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
-        except TimeoutError:
-            pass
 
         assert len(terminate_called) == 1
 
@@ -228,10 +220,8 @@ class TestStartDolt:
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
         )
 
-        try:
+        with pytest.raises(TimeoutError):
             start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
-        except TimeoutError:
-            pass
 
         assert len(terminate_called) == 1
         assert len(kill_called) == 1
@@ -255,11 +245,9 @@ class TestStartDaemon:
             "run",
             lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("daemon failed")),
         )
-        try:
+        with pytest.raises(RuntimeError) as exc_info:
             start_daemon()
-            assert False, "Expected RuntimeError"
-        except RuntimeError as e:
-            assert "daemon" in str(e).lower() or "failed" in str(e).lower()
+        assert "daemon" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
 
     def test_handles_missing_binary(self, monkeypatch):
         """start_daemon raises FileNotFoundError if gt not installed."""
@@ -268,11 +256,8 @@ class TestStartDaemon:
             raise FileNotFoundError("gt not found")
 
         monkeypatch.setattr(subprocess, "run", raise_not_found)
-        try:
+        with pytest.raises(FileNotFoundError):
             start_daemon()
-            assert False, "Expected FileNotFoundError"
-        except FileNotFoundError:
-            pass
 
 
 class TestStartMayor:
@@ -295,11 +280,9 @@ class TestStartMayor:
             "run",
             lambda *a, **kw: (_ for _ in ()).throw(RuntimeError("mayor failed")),
         )
-        try:
+        with pytest.raises(RuntimeError) as exc_info:
             start_mayor(agent="kimi-claude")
-            assert False, "Expected RuntimeError"
-        except RuntimeError as e:
-            assert "mayor" in str(e).lower() or "failed" in str(e).lower()
+        assert "mayor" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower()
 
     def test_handles_missing_binary(self, monkeypatch):
         """start_mayor raises FileNotFoundError if gt not installed."""
@@ -308,11 +291,8 @@ class TestStartMayor:
             raise FileNotFoundError("gt not found")
 
         monkeypatch.setattr(subprocess, "run", raise_not_found)
-        try:
+        with pytest.raises(FileNotFoundError):
             start_mayor(agent="kimi-claude")
-            assert False, "Expected FileNotFoundError"
-        except FileNotFoundError:
-            pass
 
 
 class TestStopAll:

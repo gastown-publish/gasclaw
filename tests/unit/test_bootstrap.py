@@ -101,9 +101,11 @@ class TestBootstrap:
         assert order.index("mayor") < order.index("notify")
 
     def test_error_propagation(self, config, tmp_path):
-        with patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=RuntimeError("boom")):
-            with pytest.raises(RuntimeError, match="boom"):
-                bootstrap(config, gt_root=tmp_path)
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=RuntimeError("boom")),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            bootstrap(config, gt_root=tmp_path)
 
     def test_rollback_on_dolt_failure(self, config, tmp_path):
         """Rollback stops dolt if it was started before failure."""
