@@ -26,16 +26,16 @@ def apply_updates() -> dict[str, str]:
     results: dict[str, str] = {}
     for name, cmd in _UPDATE_COMMANDS.items():
         try:
-            logger.info(f"Updating {name}...")
+            logger.info("Updating %s...", name)
             result = subprocess.run(cmd, capture_output=True, timeout=120)
             if result.returncode == 0:
                 results[name] = "updated"
-                logger.info(f"{name} updated successfully")
+                logger.info("%s updated successfully", name)
             else:
                 stderr = result.stderr.decode().strip()[:200]
                 results[name] = f"failed: {stderr}"
-                logger.error(f"{name} update failed: {stderr}")
+                logger.error("%s update failed: %s", name, stderr)
         except (OSError, subprocess.TimeoutExpired) as e:
             results[name] = f"error: {e}"
-            logger.error(f"{name} update error: {e}")
+            logger.error("%s update error: %s", name, e)
     return results

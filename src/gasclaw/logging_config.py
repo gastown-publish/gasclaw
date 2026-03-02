@@ -58,7 +58,7 @@ def setup_logging(level: str | None = None, log_file: str | None = None) -> None
 
     # Log the configuration
     logger = logging.getLogger(__name__)
-    logger.debug(f"Logging configured with level={log_level}")
+    logger.debug("Logging configured with level=%s", log_level)
 
 
 def get_logger(name: str) -> logging.Logger:

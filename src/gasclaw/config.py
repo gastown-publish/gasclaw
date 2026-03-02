@@ -36,11 +36,11 @@ class GasclawConfig:
 
         # Validate paths are absolute
         if self.project_dir and not self.project_dir.startswith("/"):
-            logger.warning(f"PROJECT_DIR should be an absolute path, got: {self.project_dir}")
+            logger.warning("PROJECT_DIR should be an absolute path, got: %s", self.project_dir)
 
         # Validate gt_rig_url
         if self.gt_rig_url and not self.gt_rig_url.startswith(("/", "http", "https")):
-            logger.warning(f"GT_RIG_URL should be a path or URL, got: {self.gt_rig_url}")
+            logger.warning("GT_RIG_URL should be a path or URL, got: %s", self.gt_rig_url)
 
 
 def _require_env(name: str) -> str:
@@ -113,5 +113,5 @@ def load_config() -> GasclawConfig:
         ),
     )
 
-    logger.debug(f"Loaded configuration with {len(keys)} Gastown keys")
+    logger.debug("Loaded configuration with %d Gastown keys", len(keys))
     return config

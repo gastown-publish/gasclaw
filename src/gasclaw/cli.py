@@ -63,14 +63,14 @@ def start(
         config = load_config()
         logger.info("Configuration loaded successfully")
     except ValueError as e:
-        logger.error(f"Configuration error: {e}")
+        logger.error("Configuration error: %s", e)
         console.print(f"[red]Config error:[/red] {e}")
         raise typer.Exit(code=1) from None
 
     # Override project_dir if provided via CLI
     if project_dir is not None:
         config.project_dir = str(project_dir)
-        logger.debug(f"Project directory overridden to: {project_dir}")
+        logger.debug("Project directory overridden to: %s", project_dir)
 
     console.print("[bold]Starting gasclaw...[/bold]")
     logger.info("Starting gasclaw bootstrap sequence")
@@ -97,8 +97,13 @@ def start(
 def stop() -> None:
     """Stop all gasclaw services."""
     console.print("Stopping all services...")
-    stop_all()
-    console.print("[green]All services stopped.[/green]")
+    try:
+        stop_all()
+        console.print("[green]All services stopped.[/green]")
+    except Exception as e:
+        logger.exception("Failed to stop services")
+        console.print(f"[red]Error stopping services:[/red] {e}")
+        raise typer.Exit(code=1) from None
 
 
 @app.command()

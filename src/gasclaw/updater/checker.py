@@ -30,14 +30,14 @@ def check_versions() -> dict[str, str]:
             result = subprocess.run(cmd, capture_output=True, timeout=10)
             if result.returncode == 0:
                 versions[name] = result.stdout.decode().strip()
-                logger.debug(f"{name} version: {versions[name]}")
+                logger.debug("%s version: %s", name, versions[name])
             else:
                 versions[name] = "not installed"
-                logger.warning(f"{name} returned non-zero exit code: {result.returncode}")
+                logger.warning("%s returned non-zero exit code: %d", name, result.returncode)
         except FileNotFoundError:
             versions[name] = "not installed"
-            logger.debug(f"{name} not found in PATH")
+            logger.debug("%s not found in PATH", name)
         except subprocess.TimeoutExpired:
             versions[name] = "not installed"
-            logger.warning(f"{name} version check timed out")
+            logger.warning("%s version check timed out", name)
     return versions
