@@ -13,7 +13,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 DEFAULT_FILES = ["README.md", "CLAUDE.md"]
 
 
@@ -69,7 +68,10 @@ def update_file(filepath: Path, old_count: int, new_count: int) -> bool:
         # "from 484 to 485" -> "from 484 to 486" (for PR descriptions)
         (rf"from\s+(\d+)\s+to\s+{old_count}\b", rf"from \1 to {new_count}"),
         # "test count from 484 to 485" pattern
-        (rf"test count from {old_count} to {new_count}", f"test count from {old_count} to {new_count}"),
+        (
+            rf"test count from {old_count} to {new_count}",
+            f"test count from {old_count} to {new_count}",
+        ),
     ]
 
     for pattern, replacement in patterns:
@@ -90,9 +92,7 @@ def main(args: list[str] | None = None) -> int:
     Returns:
         Exit code (0 for success, 1 for failure).
     """
-    parser = argparse.ArgumentParser(
-        description="Update test counts in documentation files"
-    )
+    parser = argparse.ArgumentParser(description="Update test counts in documentation files")
     parser.add_argument(
         "--test-path",
         default="tests/unit",
