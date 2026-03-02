@@ -460,6 +460,30 @@ class TestHealthReportSummary:
         summary = report.summary()
         assert "?" in summary  # Should show ? for unknown values
 
+    def test_summary_with_none_key_pool_values(self):
+        """Summary shows ?/? instead of None/None for None values - Issue #65."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={"total": None, "available": None},
+        )
+        summary = report.summary()
+        # Should show ?/? not None/None
+        assert "None" not in summary
+        assert "?/?" in summary or "Keys: ?/" in summary
+
+    def test_summary_with_partial_none_key_pool(self):
+        """Summary handles partial None values in key_pool."""
+        report = HealthReport(
+            dolt="healthy",
+            agents=["mayor"],
+            key_pool={"total": 5, "available": None},
+        )
+        summary = report.summary()
+        # Should show ?/5 (available is None -> ?, total is 5)
+        assert "None" not in summary
+        assert "?/5" in summary or "?/" in summary
+
     def test_summary_with_none_activity_age(self):
         """Summary handles None last_commit_age in activity."""
         report = HealthReport(
