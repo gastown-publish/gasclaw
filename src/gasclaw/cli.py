@@ -284,12 +284,13 @@ def keys(
         status = pool.status()
         if json_output:
             import json
+
             console.print(json.dumps({"rotated": True, **status}))
         else:
             console.print("[green]Key rotated successfully[/green]")
-            total = status['total']
-            avail = status['available']
-            rl = status['rate_limited']
+            total = status["total"]
+            avail = status["available"]
+            rl = status["rate_limited"]
             console.print(f"Total: {total}, Available: {avail}, Rate-limited: {rl}")
         return
 
@@ -297,6 +298,7 @@ def keys(
     status = pool.status()
     if json_output:
         import json
+
         console.print(json.dumps(status))
     else:
         table = Table(title="Key Pool Status")
