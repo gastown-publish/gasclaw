@@ -76,7 +76,8 @@ class TestStartDolt:
         )
         with pytest.raises(TimeoutError) as exc_info:
             start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
-        assert "not ready" in str(exc_info.value).lower() or "timeout" in str(exc_info.value).lower()
+        msg = str(exc_info.value).lower()
+        assert "not ready" in msg or "timeout" in msg
 
     def test_uses_custom_data_dir(self, monkeypatch):
         """start_dolt passes custom data_dir to dolt command."""
