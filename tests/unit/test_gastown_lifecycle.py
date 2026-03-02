@@ -415,3 +415,126 @@ class TestStopAll:
         assert any("mayor" in s and "stop" in s for s in cmd_strs)
         assert any("daemon" in s and "stop" in s for s in cmd_strs)
         assert any("sql-server" in s and "--stop" in s for s in cmd_strs)
+
+
+class TestStopAllExceptionHandling:
+    """Tests for stop_all() exception handling - Issue #68."""
+
+    def test_all_commands_attempted_on_failure(self, monkeypatch):
+        """All stop commands are attempted even if one fails."""
+        calls = []
+
+        def mock_run(cmd, **kw):
+            calls.append((cmd, kw))
+            # First command succeeds, others fail
+            if "mayor" in cmd:
+                raise RuntimeError("mayor stop failed")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        stop_all()
+
+        # All three commands should have been attempted
+        assert len(calls) == 3
+        assert ["gt", "mayor", "stop"] in [c[0] for c in calls]
+        assert ["gt", "daemon", "stop"] in [c[0] for c in calls]
+        assert ["dolt", "sql-server", "--stop"] in [c[0] for c in calls]
+
+    def test_file_not_found_error_handled(self, monkeypatch, caplog):
+        """FileNotFoundError is handled gracefully."""
+        import logging
+
+        def mock_run(cmd, **kw):
+            raise FileNotFoundError("command not found")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        with caplog.at_level(logging.DEBUG):
+            stop_all()
+
+        # Should complete without raising
+        assert "Command not found" in caplog.text
+
+    def test_timeout_expired_handled(self, monkeypatch, caplog):
+        """TimeoutExpired is handled gracefully."""
+        import logging
+
+        def mock_run(cmd, **kw):
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=30)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        with caplog.at_level(logging.WARNING):
+            stop_all()
+
+        # Should complete without raising
+        assert "Timeout stopping service" in caplog.text
+
+    def test_permission_error_handled(self, monkeypatch, caplog):
+        """PermissionError (OSError) is handled gracefully."""
+        import logging
+
+        def mock_run(cmd, **kw):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        with caplog.at_level(logging.WARNING):
+            stop_all()
+
+        # Should complete without raising
+        assert "Error stopping service" in caplog.text
+
+    def test_runtime_error_handled(self, monkeypatch, caplog):
+        """RuntimeError is handled gracefully."""
+        import logging
+
+        def mock_run(cmd, **kw):
+            raise RuntimeError("unexpected error")
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        with caplog.at_level(logging.WARNING):
+            stop_all()
+
+        # Should complete without raising
+        assert "Error stopping service" in caplog.text
+
+    def test_all_commands_run_with_timeout(self, monkeypatch):
+        """All commands are run with 30 second timeout."""
+        calls = []
+
+        def mock_run(cmd, **kw):
+            calls.append((cmd, kw))
+            return subprocess.CompletedProcess(cmd, 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        stop_all()
+
+        # Check all commands have timeout=30
+        for _, kw in calls:
+            assert kw.get("timeout") == 30
+            assert kw.get("check") is False
+
+    def test_partial_failure_continues(self, monkeypatch):
+        """If one command fails, subsequent commands still run."""
+        calls = []
+
+        def mock_run(cmd, **kw):
+            calls.append((cmd, kw))
+            if "daemon" in cmd:
+                raise RuntimeError("daemon stop failed")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        stop_all()
+
+        # All three commands should have been attempted
+        assert len(calls) == 3
+        # Check order: mayor, daemon, dolt
+        assert "mayor" in calls[0][0]
+        assert "daemon" in calls[1][0]
+        assert "dolt" in calls[2][0]

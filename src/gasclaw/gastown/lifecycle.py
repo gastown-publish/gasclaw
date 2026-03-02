@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import time
 
 __all__ = ["start_dolt", "start_daemon", "start_mayor", "stop_all"]
+
+logger = logging.getLogger(__name__)
 
 
 def start_dolt(
@@ -76,11 +79,23 @@ def start_mayor(*, agent: str = "kimi-claude") -> None:
 
 
 def stop_all() -> None:
-    """Stop all Gastown services (mayor, daemon, dolt)."""
-    try:
-        subprocess.run(["gt", "mayor", "stop"], check=False)
-        subprocess.run(["gt", "daemon", "stop"], check=False)
-        subprocess.run(["dolt", "sql-server", "--stop"], check=False)
-    except OSError:
-        # Binaries not installed or permission denied - services likely not running
-        pass
+    """Stop all Gastown services (mayor, daemon, dolt).
+
+    All stop commands are attempted even if one fails. Exceptions are logged
+    but not raised to ensure best-effort shutdown.
+    """
+    commands = [
+        ["gt", "mayor", "stop"],
+        ["gt", "daemon", "stop"],
+        ["dolt", "sql-server", "--stop"],
+    ]
+
+    for cmd in commands:
+        try:
+            subprocess.run(cmd, check=False, timeout=30)
+        except FileNotFoundError:
+            logger.debug("Command not found: %s", cmd[0])
+        except subprocess.TimeoutExpired:
+            logger.warning("Timeout stopping service: %s", cmd)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Error stopping service %s: %s", cmd, e)
