@@ -265,9 +265,10 @@ class TestKeyPoolEdgeCases:
         assert pool1._key_hash("k1") == pool2._key_hash("k1")
 
     def test_mark_nonexistent_key_rate_limited(self, tmp_path):
-        """Marking a key not in pool raises ValueError."""
+        """Marking a key not in pool raises ValueError with key hash."""
         pool = KeyPool(["k1"], state_dir=tmp_path)
-        with pytest.raises(ValueError, match="Key does not belong"):
+        expected_hash = pool._key_hash("nonexistent-key")
+        with pytest.raises(ValueError, match=f"Key {expected_hash} does not belong"):
             pool.mark_rate_limited("nonexistent-key")
 
     def test_clear_cooldown_removes_rate_limit(self, tmp_path):
@@ -294,10 +295,11 @@ class TestKeyPoolEdgeCases:
         assert result is False
 
     def test_clear_cooldown_raises_for_invalid_key(self, tmp_path):
-        """clear_cooldown raises ValueError for key not in pool."""
+        """clear_cooldown raises ValueError with key hash for key not in pool."""
         pool = KeyPool(["k1"], state_dir=tmp_path)
+        expected_hash = pool._key_hash("nonexistent-key")
 
-        with pytest.raises(ValueError, match="Key does not belong"):
+        with pytest.raises(ValueError, match=f"Key {expected_hash} does not belong"):
             pool.clear_cooldown("nonexistent-key")
 
     def test_state_file_is_json(self, tmp_path):

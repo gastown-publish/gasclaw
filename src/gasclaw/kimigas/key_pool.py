@@ -114,7 +114,7 @@ class KeyPool:
             ValueError: If the key does not belong to this pool.
         """
         if key not in self._keys:
-            raise ValueError("Key does not belong to this pool")
+            raise ValueError(f"Key {self._key_hash(key)} does not belong to this pool")
 
         state = self._load_state()
         rate_limited = state.get("rate_limited", {})
@@ -136,7 +136,7 @@ class KeyPool:
             ValueError: If the key does not belong to this pool.
         """
         if key not in self._keys:
-            raise ValueError("Key does not belong to this pool")
+            raise ValueError(f"Key {self._key_hash(key)} does not belong to this pool")
 
         state = self._load_state()
         rate_limited = state.get("rate_limited", {})
