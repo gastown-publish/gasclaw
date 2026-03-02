@@ -317,3 +317,47 @@ class TestKeyPoolEdgeCases:
         assert "rate_limited" in state
         assert isinstance(state["last_used"], dict)
         assert isinstance(state["rate_limited"], dict)
+
+
+class TestKeyPoolValidateKey:
+    """Direct tests for the _validate_key helper method."""
+
+    def test_validate_key_succeeds_for_valid_key(self, tmp_path):
+        """_validate_key succeeds silently for keys in the pool."""
+        pool = KeyPool(["k1", "k2", "k3"], state_dir=tmp_path)
+        # Should not raise for keys in the pool
+        pool._validate_key("k1")
+        pool._validate_key("k2")
+        pool._validate_key("k3")
+
+    def test_validate_key_raises_for_key_not_in_pool(self, tmp_path):
+        """_validate_key raises ValueError with key hash for invalid keys."""
+        pool = KeyPool(["k1", "k2"], state_dir=tmp_path)
+        expected_hash = pool._key_hash("k3")
+
+        with pytest.raises(ValueError, match=f"Key {expected_hash} does not belong"):
+            pool._validate_key("k3")
+
+    def test_validate_key_raises_for_empty_string_when_not_in_pool(self, tmp_path):
+        """_validate_key raises ValueError for empty string if not in pool."""
+        pool = KeyPool(["k1"], state_dir=tmp_path)
+        expected_hash = pool._key_hash("")
+
+        with pytest.raises(ValueError, match=f"Key {expected_hash} does not belong"):
+            pool._validate_key("")
+
+    def test_validate_key_error_includes_partial_hash(self, tmp_path):
+        """Error message includes truncated SHA-256 hash for security."""
+        pool = KeyPool(["valid-key"], state_dir=tmp_path)
+        foreign_key = "foreign-key-not-in-pool"
+        expected_hash = pool._key_hash(foreign_key)
+
+        # Verify hash is truncated to 12 chars (SHA-256[:12])
+        assert len(expected_hash) == 12
+
+        with pytest.raises(ValueError) as exc_info:
+            pool._validate_key(foreign_key)
+
+        assert expected_hash in str(exc_info.value)
+        # Full key should NOT be in error message (security)
+        assert foreign_key not in str(exc_info.value)
