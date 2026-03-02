@@ -484,3 +484,68 @@ class TestMonitorLoop:
 
         # Verify sleep was called with the config interval
         m_sleep.assert_called_with(42)
+
+    def test_keyboard_interrupt_logs_info(self, config, monkeypatch, caplog):
+        """monitor_loop logs info message on KeyboardInterrupt."""
+        import logging
+
+        caplog.set_level(logging.INFO)
+
+        def mock_check(**kw):
+            from gasclaw.health import HealthReport
+
+            return HealthReport(
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
+            )
+
+        def mock_sleep(*a, **kw):
+            raise KeyboardInterrupt
+
+        activity_return = {"compliant": True, "last_commit_age": 100}
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram"),
+            patch("time.sleep", side_effect=mock_sleep),
+        ):
+            monitor_loop(config, interval=1)
+
+        assert "Monitor loop stopped by user" in caplog.text
+
+    def test_compliant_defaults_to_true_when_missing(self, config, monkeypatch):
+        """monitor_loop treats missing 'compliant' key as True."""
+        check_count = 0
+        notify_calls = []
+
+        def mock_check(**kw):
+            nonlocal check_count
+            check_count += 1
+            if check_count >= 2:
+                raise KeyboardInterrupt
+            from gasclaw.health import HealthReport
+
+            return HealthReport(
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
+            )
+
+        # Activity dict without 'compliant' key should default to True
+        activity_return = {"last_commit_age": 100}  # No 'compliant' key
+        with (
+            patch("gasclaw.bootstrap.check_health", side_effect=mock_check),
+            patch("gasclaw.bootstrap.check_agent_activity", return_value=activity_return),
+            patch("gasclaw.bootstrap.notify_telegram") as m_notify,
+            patch("time.sleep"),
+        ):
+            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            monitor_loop(config, interval=1)
+
+        # Should NOT send activity alert since compliant defaults to True
+        assert not any("ACTIVITY ALERT" in msg for msg in notify_calls)
