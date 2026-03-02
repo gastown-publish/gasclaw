@@ -45,8 +45,12 @@ def _parse_keys(raw: str) -> list[str]:
 def _parse_positive_int(value: str, default: int, name: str = "") -> int:
     """Parse a positive integer, returning default if invalid.
 
+    Only decimal integers are supported. Octal (0o), hexadecimal (0x),
+    and binary (0b) prefixes are not recognized - the value is parsed
+    as base-10. Leading zeros are ignored (e.g., "007" becomes 7).
+
     Args:
-        value: The string value to parse.
+        value: The string value to parse (decimal only).
         default: The default to return if parsing fails or value is not positive.
         name: The name of the config variable (for warning messages).
 

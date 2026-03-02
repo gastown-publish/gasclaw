@@ -312,6 +312,33 @@ class TestConfigEdgeCases:
         assert cfg.activity_deadline == 3600  # Default used
         assert "ACTIVITY_DEADLINE" in caplog.text
 
+    def test_octal_notation_parsed_as_decimal(self, monkeypatch, env_vars):
+        """Octal notation is parsed as decimal - Issue #64.
+
+        This is the documented behavior: only decimal integers are supported.
+        Users expecting Unix octal behavior will get decimal interpretation.
+        """
+        for k, v in env_vars(GT_AGENT_COUNT="0777").items():
+            monkeypatch.setenv(k, v)
+
+        cfg = load_config()
+        # int("0777") returns 777, not 511 (which would be octal 0o777)
+        assert cfg.gt_agent_count == 777
+
+    def test_octal_prefix_parsed_as_decimal(self, monkeypatch, env_vars, caplog):
+        """Explicit octal prefix (0o) is parsed as decimal, not octal."""
+        import logging
+
+        for k, v in env_vars(MONITOR_INTERVAL="0o755").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int("0o755") with base 10 raises ValueError
+        assert cfg.monitor_interval == 300  # Default used
+        assert "MONITOR_INTERVAL" in caplog.text
+
 
 class TestParsePositiveIntEdgeCases:
     """Tests for _parse_positive_int function edge cases."""
