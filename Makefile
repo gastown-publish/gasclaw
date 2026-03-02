@@ -17,6 +17,9 @@ test-all:
 lint:
 	ruff check src/ tests/
 
+type-check:
+	python -m mypy src/gasclaw --ignore-missing-imports
+
 format:
 	ruff format src/ tests/
 	ruff check --fix src/ tests/

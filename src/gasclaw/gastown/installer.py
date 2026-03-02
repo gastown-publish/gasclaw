@@ -15,9 +15,9 @@ def _write_kimi_config(account_dir: Path, api_key: str) -> None:
     account_dir.mkdir(parents=True, exist_ok=True)
 
     doc = tomlkit.document()
-    doc.add("default_model", "kimi-code/kimi-for-coding")
-    doc.add("default_thinking", True)
-    doc.add("default_yolo", False)
+    doc.add("default_model", "kimi-code/kimi-for-coding")  # type: ignore[arg-type]
+    doc.add("default_thinking", True)  # type: ignore[arg-type]
+    doc.add("default_yolo", False)  # type: ignore[arg-type]
 
     # Model definition
     models = tomlkit.table(is_super_table=True)

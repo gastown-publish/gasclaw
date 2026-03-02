@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import time
+from typing import Any
 
 from gasclaw.logging_config import get_logger, setup_logging
 from gasclaw.updater.notifier import notify_telegram
@@ -27,7 +28,7 @@ REPO = "gastown-publish/gasclaw"
 
 def run_command(
     cmd: list[str], *, check: bool = True, timeout: int = 120
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """Run a shell command and return the result.
 
     Args:
@@ -44,7 +45,7 @@ def run_command(
     return result
 
 
-def get_open_prs() -> list[dict]:
+def get_open_prs() -> list[dict[str, Any]]:
     """Get list of open PRs from GitHub.
 
     Returns:
@@ -71,13 +72,14 @@ def get_open_prs() -> list[dict]:
 
         import json
 
-        return json.loads(result.stdout)
+        prs: list[dict[str, Any]] = json.loads(result.stdout)
+        return prs
     except Exception as e:
         logger.error("Error getting open PRs: %s", e)
         return []
 
 
-def get_open_issues() -> list[dict]:
+def get_open_issues() -> list[dict[str, Any]]:
     """Get list of open issues from GitHub.
 
     Returns:
@@ -94,7 +96,8 @@ def get_open_issues() -> list[dict]:
 
         import json
 
-        return json.loads(result.stdout)
+        issues: list[dict[str, Any]] = json.loads(result.stdout)
+        return issues
     except Exception as e:
         logger.error("Error getting open issues: %s", e)
         return []
@@ -184,7 +187,7 @@ def fix_on_branch(pr_number: int) -> bool:
     return False
 
 
-def process_open_prs() -> dict:
+def process_open_prs() -> dict[str, Any]:
     """Process all open PRs: test and merge if passing.
 
     Returns:
@@ -218,7 +221,7 @@ def process_open_prs() -> dict:
     return stats
 
 
-def process_open_issues() -> dict:
+def process_open_issues() -> dict[str, Any]:
     """Process open issues by creating fix branches and PRs.
 
     Returns:
@@ -240,7 +243,7 @@ def process_open_issues() -> dict:
     return stats
 
 
-def run_maintenance_cycle() -> dict:
+def run_maintenance_cycle() -> dict[str, Any]:
     """Run a single maintenance cycle.
 
     Returns:

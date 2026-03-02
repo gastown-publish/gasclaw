@@ -41,7 +41,8 @@ class KeyPool:
         state_file = self._state_dir / "key-rotation.json"
         if state_file.is_file():
             try:
-                return json.loads(state_file.read_text())
+                data: dict[str, Any] = json.loads(state_file.read_text())
+                return data
             except (json.JSONDecodeError, OSError):
                 pass
         return {}
