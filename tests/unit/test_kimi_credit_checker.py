@@ -334,3 +334,57 @@ class TestParseAmountEdgeCases:
         assert result.balance is None
         assert result.total_used is None
         assert result.valid is True
+
+    @respx.mock
+    def test_parse_amount_inf_returns_none(self):
+        """_parse_amount handles inf values by returning None."""
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "inf", "total_usage": "Infinity"}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # inf values should be rejected as invalid amounts
+        assert result.balance is None
+        assert result.total_used is None
+        assert result.valid is True
+
+    @respx.mock
+    def test_parse_amount_negative_inf_returns_none(self):
+        """_parse_amount handles -inf values by returning None."""
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "-inf", "total_usage": 0}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # -inf values should be rejected as invalid amounts
+        assert result.balance is None
+        assert result.total_used == 0.0
+        assert result.valid is True
+
+    @respx.mock
+    def test_parse_amount_nan_returns_none(self):
+        """_parse_amount handles nan values by returning None."""
+        respx.get("https://api.kimi.com/v1/users/me/balance").mock(
+            return_value=httpx.Response(
+                200,
+                json={"data": {"available_balance": "nan", "total_usage": "NaN"}},
+            )
+        )
+
+        checker = CreditChecker()
+        result = checker.check_key("sk-test")
+
+        # nan values should be rejected as invalid amounts
+        assert result.balance is None
+        assert result.total_used is None
+        assert result.valid is True
