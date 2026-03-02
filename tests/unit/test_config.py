@@ -287,6 +287,71 @@ class TestParsePositiveIntWarnings:
         assert "GT_AGENT_COUNT" not in caplog.text
 
 
+class TestInternalFunctions:
+    """Direct tests for internal utility functions."""
+
+    def test_require_env_returns_value(self, monkeypatch):
+        """_require_env returns the env value when set (line 49-51)."""
+        from gasclaw.config import _require_env
+
+        monkeypatch.setenv("TEST_VAR", "test_value")
+        result = _require_env("TEST_VAR")
+        assert result == "test_value"
+
+    def test_require_env_strips_whitespace(self, monkeypatch):
+        """_require_env strips whitespace from value (line 48)."""
+        from gasclaw.config import _require_env
+
+        monkeypatch.setenv("TEST_VAR", "  value_with_spaces  ")
+        result = _require_env("TEST_VAR")
+        assert result == "value_with_spaces"
+
+    def test_require_env_raises_on_missing(self, monkeypatch):
+        """_require_env raises ValueError when env var missing (line 50-51)."""
+        from gasclaw.config import _require_env
+
+        monkeypatch.delenv("TEST_VAR_MISSING", raising=False)
+        with pytest.raises(ValueError, match="Required environment variable TEST_VAR_MISSING"):
+            _require_env("TEST_VAR_MISSING")
+
+    def test_require_env_raises_on_empty(self, monkeypatch):
+        """_require_env raises ValueError when env var is empty (line 49-51)."""
+        from gasclaw.config import _require_env
+
+        monkeypatch.setenv("TEST_VAR_EMPTY", "")
+        with pytest.raises(ValueError, match="Required environment variable TEST_VAR_EMPTY"):
+            _require_env("TEST_VAR_EMPTY")
+
+    def test_require_env_raises_on_whitespace_only(self, monkeypatch):
+        """_require_env raises ValueError when env var is whitespace only (line 48-51)."""
+        from gasclaw.config import _require_env
+
+        monkeypatch.setenv("TEST_VAR_WS", "   ")
+        with pytest.raises(ValueError, match="Required environment variable TEST_VAR_WS"):
+            _require_env("TEST_VAR_WS")
+
+    def test_parse_keys_basic(self):
+        """_parse_keys splits colon-separated values (line 55-56)."""
+        from gasclaw.config import _parse_keys
+
+        result = _parse_keys("key1:key2:key3")
+        assert result == ["key1", "key2", "key3"]
+
+    def test_parse_keys_filters_empty(self):
+        """_parse_keys filters empty segments (line 56)."""
+        from gasclaw.config import _parse_keys
+
+        result = _parse_keys("key1::key2:")
+        assert result == ["key1", "key2"]
+
+    def test_parse_keys_strips_whitespace(self):
+        """_parse_keys strips whitespace from keys (line 56)."""
+        from gasclaw.config import _parse_keys
+
+        result = _parse_keys("  key1  :  key2  ")
+        assert result == ["key1", "key2"]
+
+
 class TestConfigEdgeCases:
     """Additional edge case tests for config parsing."""
 
