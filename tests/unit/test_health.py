@@ -52,6 +52,59 @@ class TestCheckHealth:
         assert isinstance(report.agents, list)
 
 
+class TestCheckAgentActivityValidation:
+    """Tests for check_agent_activity() project_dir validation."""
+
+    def test_project_dir_not_exists_returns_error(self, tmp_path):
+        """Non-existent project_dir returns error indicating it doesn't exist."""
+        non_existent_dir = str(tmp_path / "does_not_exist")
+        activity = check_agent_activity(project_dir=non_existent_dir, deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+        assert activity["error"] is not None
+        assert "does not exist" in activity["error"].lower()
+
+    def test_project_dir_is_file_not_directory(self, tmp_path):
+        """project_dir that is a file (not directory) returns error."""
+        file_path = tmp_path / "not_a_directory"
+        file_path.write_text("I am a file")
+        activity = check_agent_activity(project_dir=str(file_path), deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+        assert activity["error"] is not None
+        assert "not a directory" in activity["error"].lower()
+
+    def test_project_dir_not_git_repo_returns_error(self, tmp_path):
+        """Directory without .git returns error indicating it's not a git repo."""
+        non_git_dir = tmp_path / "not_a_git_repo"
+        non_git_dir.mkdir()
+        activity = check_agent_activity(project_dir=str(non_git_dir), deadline_seconds=3600)
+        assert activity["compliant"] is False
+        assert activity["last_commit_age"] is None
+        assert activity["error"] is not None
+        assert "not a git repository" in activity["error"].lower()
+
+    def test_valid_git_repo_returns_success(self, tmp_path, monkeypatch):
+        """Valid git repository returns compliant status."""
+        import time
+
+        git_dir = tmp_path / "valid_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
+        # Mock git log to return current timestamp
+        now_ts = int(time.time())
+        monkeypatch.setattr(
+            subprocess, "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=f"{now_ts}\n".encode()),
+        )
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
+        assert activity["compliant"] is True
+        assert activity["last_commit_age"] is not None
+        assert activity["error"] is None
+
+
 class TestCheckServiceErrorHandling:
     """Tests for _check_service() exception handling."""
 
@@ -77,40 +130,61 @@ class TestCheckServiceErrorHandling:
         result = _check_service(["gt", "daemon", "status"], "daemon")
         assert result == "unhealthy"
 
-    def test_git_error_returns_non_compliant(self, monkeypatch):
+    def test_git_error_returns_non_compliant(self, monkeypatch, tmp_path):
         """Git command failure returns non-compliant activity."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
         monkeypatch.setattr(
             subprocess, "run",
-            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not a git repo"),
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"git error"),
         )
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
         assert activity["compliant"] is False
         assert activity["last_commit_age"] is None
+        assert activity["error"] is not None
 
-    def test_invalid_timestamp_returns_non_compliant(self, monkeypatch):
+    def test_invalid_timestamp_returns_non_compliant(self, monkeypatch, tmp_path):
         """Invalid timestamp in git output returns non-compliant."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
         monkeypatch.setattr(
             subprocess, "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"not-a-number\n"),
         )
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
         assert activity["compliant"] is False
 
-    def test_file_not_found_returns_non_compliant(self, monkeypatch):
+    def test_file_not_found_returns_non_compliant(self, monkeypatch, tmp_path):
         """FileNotFoundError (git not installed) returns non-compliant."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
         def raise_not_found(*a, **kw):
             raise FileNotFoundError("git not found")
         monkeypatch.setattr(subprocess, "run", raise_not_found)
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
         assert activity["compliant"] is False
         assert activity["last_commit_age"] is None
 
-    def test_timeout_returns_non_compliant(self, monkeypatch):
+    def test_timeout_returns_non_compliant(self, monkeypatch, tmp_path):
         """TimeoutExpired returns non-compliant."""
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
         def raise_timeout(*a, **kw):
             raise subprocess.TimeoutExpired(cmd=a[0], timeout=10)
         monkeypatch.setattr(subprocess, "run", raise_timeout)
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=3600)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=3600)
         assert activity["compliant"] is False
         assert activity["last_commit_age"] is None
 
@@ -264,9 +338,15 @@ class TestHealthCheckEdgeCases:
         report = check_health(gateway_port=18789)
         assert report.agents == []
 
-    def test_check_agent_activity_zero_deadline(self, monkeypatch):
+    def test_check_agent_activity_zero_deadline(self, monkeypatch, tmp_path):
         """check_agent_activity with zero deadline requires recent commits."""
         import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
         # Use current timestamp so age is approximately 0
         now_ts = int(time.time())
         monkeypatch.setattr(
@@ -275,14 +355,20 @@ class TestHealthCheckEdgeCases:
                 a[0], 0, stdout=f"{now_ts}\n".encode()
             ),
         )
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=0)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=0)
         # Age should be 0 (or close to it), so 0 <= 0 is True
         assert activity["compliant"] is True
         assert activity["last_commit_age"] <= 1  # Should be very recent
 
-    def test_check_agent_activity_very_large_deadline(self, monkeypatch):
+    def test_check_agent_activity_very_large_deadline(self, monkeypatch, tmp_path):
         """check_agent_activity with very large deadline accepts old commits."""
         import time
+
+        git_dir = tmp_path / "git_repo"
+        git_dir.mkdir()
+        git_dot_git = git_dir / ".git"
+        git_dot_git.mkdir()
+
         old_timestamp = int(time.time()) - 86400  # 1 day ago
         monkeypatch.setattr(
             subprocess, "run",
@@ -290,7 +376,7 @@ class TestHealthCheckEdgeCases:
                 a[0], 0, stdout=f"{old_timestamp}\n".encode()
             ),
         )
-        activity = check_agent_activity(project_dir="/tmp/test", deadline_seconds=100000)
+        activity = check_agent_activity(project_dir=str(git_dir), deadline_seconds=100000)
         assert activity["compliant"] is True
 
     def test_check_health_custom_gateway_port(self, monkeypatch):
