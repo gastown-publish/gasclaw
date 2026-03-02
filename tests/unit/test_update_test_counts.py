@@ -17,12 +17,14 @@ class TestCountTests:
     def test_parses_collected_items_line(self):
         """Test parsing the standard pytest collect output."""
         mock_result = MagicMock()
-        mock_result.stdout = "\n".join([
-            "test_module.py::test_one",
-            "test_module.py::test_two",
-            "",
-            "========================== 2 items collected ==========================",
-        ])
+        mock_result.stdout = "\n".join(
+            [
+                "test_module.py::test_one",
+                "test_module.py::test_two",
+                "",
+                "========================== 2 items collected ==========================",
+            ]
+        )
         mock_result.stderr = ""
 
         with patch("subprocess.run", return_value=mock_result) as mock_run:
@@ -52,9 +54,11 @@ class TestCountTests:
         error = subprocess.CalledProcessError(1, "pytest")
         error.stderr = "collection failed"
 
-        with patch("subprocess.run", side_effect=error):
-            with pytest.raises(subprocess.CalledProcessError):
-                count_tests()
+        with (
+            patch("subprocess.run", side_effect=error),
+            pytest.raises(subprocess.CalledProcessError),
+        ):
+            count_tests()
 
     def test_raises_when_pattern_not_found(self):
         """Test error when test count cannot be parsed."""
@@ -62,9 +66,11 @@ class TestCountTests:
         mock_result.stdout = "some unexpected output"
         mock_result.stderr = ""
 
-        with patch("subprocess.run", return_value=mock_result):
-            with pytest.raises(RuntimeError, match="Could not parse test count"):
-                count_tests()
+        with (
+            patch("subprocess.run", return_value=mock_result),
+            pytest.raises(RuntimeError, match="Could not parse test count"),
+        ):
+            count_tests()
 
 
 class TestUpdateFile:
@@ -128,11 +134,13 @@ class TestMain:
 
     def test_exits_zero_on_success(self):
         """Test successful execution returns 0."""
-        with patch("scripts.update_test_counts.count_tests", return_value=500):
-            with patch("scripts.update_test_counts.update_file", return_value=True):
-                with patch("pathlib.Path.exists", return_value=True):
-                    with patch("pathlib.Path.read_text", return_value="We have 485 tests"):
-                        result = main([])
+        with (
+            patch("scripts.update_test_counts.count_tests", return_value=500),
+            patch("scripts.update_test_counts.update_file", return_value=True),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value="We have 485 tests"),
+        ):
+            result = main([])
 
         assert result == 0
 
@@ -148,11 +156,13 @@ class TestMain:
 
     def test_skips_update_when_count_unchanged(self):
         """Test no updates when test count hasn't changed."""
-        with patch("scripts.update_test_counts.count_tests", return_value=485):
-            with patch("pathlib.Path.exists", return_value=True):
-                with patch("pathlib.Path.read_text", return_value="We have 485 tests"):
-                    with patch("scripts.update_test_counts.update_file") as mock_update:
-                        result = main([])
+        with (
+            patch("scripts.update_test_counts.count_tests", return_value=485),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value="We have 485 tests"),
+            patch("scripts.update_test_counts.update_file") as mock_update,
+        ):
+            result = main([])
 
         assert result == 0
         mock_update.assert_not_called()
@@ -171,22 +181,24 @@ class TestMain:
         custom_file = tmp_path / "custom.md"
         custom_file.write_text("This project has 10 tests.")
 
-        with patch("scripts.update_test_counts.count_tests", return_value=20):
-            with patch("scripts.update_test_counts.DEFAULT_FILES", []):
-                result = main([str(custom_file)])
+        with (
+            patch("scripts.update_test_counts.count_tests", return_value=20),
+            patch("scripts.update_test_counts.DEFAULT_FILES", []),
+        ):
+            result = main([str(custom_file)])
 
         assert result == 0
         assert "20 tests" in custom_file.read_text()
 
     def test_uses_old_count_from_argument(self):
         """Test --old-count argument bypasses auto-detection."""
-        test_file = Path("test.md")
-
-        with patch("scripts.update_test_counts.count_tests", return_value=200):
-            with patch("scripts.update_test_counts.update_file") as mock_update:
-                with patch("pathlib.Path.exists", return_value=True):
-                    with patch("pathlib.Path.read_text", return_value="We have 100 tests"):
-                        main(["--old-count", "150", "test.md"])
+        with (
+            patch("scripts.update_test_counts.count_tests", return_value=200),
+            patch("scripts.update_test_counts.update_file") as mock_update,
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value="We have 100 tests"),
+        ):
+            main(["--old-count", "150", "test.md"])
 
         mock_update.assert_called_once()
         args = mock_update.call_args
@@ -199,10 +211,12 @@ class TestMainEdgeCases:
 
     def test_handles_no_files_found(self):
         """Test behavior when no documentation files exist."""
-        with patch("scripts.update_test_counts.count_tests", return_value=100):
-            with patch("pathlib.Path.exists", return_value=False):
-                with patch("scripts.update_test_counts.update_file") as mock_update:
-                    result = main([])
+        with (
+            patch("scripts.update_test_counts.count_tests", return_value=100),
+            patch("pathlib.Path.exists", return_value=False),
+            patch("scripts.update_test_counts.update_file") as mock_update,
+        ):
+            result = main([])
 
         assert result == 0
         # update_file still gets called, but returns False for missing files
@@ -210,11 +224,13 @@ class TestMainEdgeCases:
 
     def test_falls_back_to_new_count_minus_one(self):
         """Test fallback when old count cannot be detected."""
-        with patch("scripts.update_test_counts.count_tests", return_value=100):
-            with patch("pathlib.Path.exists", return_value=True):
-                with patch("pathlib.Path.read_text", return_value="No test count here"):
-                    with patch("scripts.update_test_counts.update_file") as mock_update:
-                        main([])
+        with (
+            patch("scripts.update_test_counts.count_tests", return_value=100),
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_text", return_value="No test count here"),
+            patch("scripts.update_test_counts.update_file") as mock_update,
+        ):
+            main([])
 
         # Should fall back to new_count - 1 = 99
         mock_update.assert_called()
