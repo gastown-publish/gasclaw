@@ -27,6 +27,7 @@ class GasclawConfig:
     gt_agent_count: int = 6
     monitor_interval: int = 300  # seconds between health checks
     activity_deadline: int = 3600  # seconds — must see a push/PR within this window
+    dolt_port: int = 3307  # Port for dolt SQL server
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
@@ -111,6 +112,7 @@ def load_config() -> GasclawConfig:
         activity_deadline=_parse_positive_int(
             os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"
         ),
+        dolt_port=_parse_positive_int(os.environ.get("DOLT_PORT", "3307"), 3307, "DOLT_PORT"),
     )
 
     logger.debug("Loaded configuration with %d Gastown keys", len(keys))

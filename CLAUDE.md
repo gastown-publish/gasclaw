@@ -93,6 +93,7 @@ All 73 unit tests must pass. Never modify a test to make it pass — fix the cod
 | `GT_AGENT_COUNT` | No | `6` | Number of crew workers |
 | `MONITOR_INTERVAL` | No | `300` | Health check interval (seconds) |
 | `ACTIVITY_DEADLINE` | No | `3600` | Max seconds between commits |
+| `DOLT_PORT` | No | `3307` | Dolt SQL server port |
 
 ## PR Checklist
 

@@ -52,6 +52,42 @@ class TestCheckHealth:
         report = check_health(gateway_port=18789)
         assert report.dolt == "unhealthy"
 
+    def test_custom_dolt_port(self, monkeypatch, respx_mock: respx.MockRouter):
+        """Custom dolt_port is passed to the dolt command."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
+        captured_cmds = []
+
+        def _mock_run(cmd, **kw):
+            captured_cmds.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+
+        monkeypatch.setattr(subprocess, "run", _mock_run)
+        report = check_health(gateway_port=18789, dolt_port=3308)
+        assert report.dolt == "healthy"
+        # Check that dolt command used the custom port
+        dolt_cmds = [c for c in captured_cmds if "dolt" in str(c)]
+        assert len(dolt_cmds) == 1
+        assert "3308" in dolt_cmds[0]
+
+    def test_default_dolt_port(self, monkeypatch, respx_mock: respx.MockRouter):
+        """Default dolt_port is 3307."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+
+        captured_cmds = []
+
+        def _mock_run(cmd, **kw):
+            captured_cmds.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
+
+        monkeypatch.setattr(subprocess, "run", _mock_run)
+        report = check_health(gateway_port=18789)
+        assert report.dolt == "healthy"
+        # Check that dolt command used the default port
+        dolt_cmds = [c for c in captured_cmds if "dolt" in str(c)]
+        assert len(dolt_cmds) == 1
+        assert "3307" in dolt_cmds[0]
+
     def test_agents_listed(self, monkeypatch, respx_mock: respx.MockRouter):
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
         monkeypatch.setattr(
