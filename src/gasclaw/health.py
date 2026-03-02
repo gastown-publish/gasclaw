@@ -35,8 +35,9 @@ class HealthReport:
 
     def summary(self) -> str:
         """Human-readable summary string."""
-        avail = self.key_pool.get("available", "?")
-        total = self.key_pool.get("total", "?")
+        # Handle both missing keys and None values
+        avail = self.key_pool.get("available") or "?"
+        total = self.key_pool.get("total") or "?"
         lines = [
             f"Dolt: {self.dolt}",
             f"Daemon: {self.daemon}",
