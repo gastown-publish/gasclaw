@@ -1,19 +1,16 @@
 """Startup orchestration for gasclaw.
 
-Bootstrap sequence:
- 1. Load config from env vars (already done by caller)
- 2. Setup Kimi accounts
- 3. Write agent config
- 4. Install Gastown
- 5. Start Dolt
- 6. Configure OpenClaw
- 7. Install skills
- 8. Run openclaw doctor
- 9. Start OpenClaw gateway
-10. Start gt daemon
-11. Start Mayor
-12. Send "Gasclaw is up" via Telegram
-13. Enter health monitor loop (foreground)
+Bootstrap sequence (10 steps):
+ 1. Setup Kimi accounts
+ 2. Write agent config
+ 3. Install Gastown
+ 4. Start Dolt
+ 5. Configure OpenClaw
+ 6. Install skills
+ 7. Run openclaw doctor
+ 8. Start gt daemon
+ 9. Start Mayor
+10. Send "Gasclaw is up" via Telegram
 
 Rollback on failure:
 - If bootstrap fails at any step, previously started services are stopped

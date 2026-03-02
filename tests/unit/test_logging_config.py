@@ -97,6 +97,31 @@ class TestFileHandler:
         assert "both handlers test" in captured.err
 
 
+class TestInvalidLogLevel:
+    """Tests for invalid log level handling."""
+
+    def test_warns_and_defaults_to_info_on_invalid_level(self, capsys, monkeypatch):
+        """Invalid log level shows warning and defaults to INFO."""
+        monkeypatch.setenv("GASCLAW_LOGGING_FORCE", "true")
+        setup_logging(level="INVALID")
+
+        captured = capsys.readouterr()
+        assert "Invalid LOG_LEVEL" in captured.err
+        assert "INVALID" in captured.err
+        assert "using INFO" in captured.err
+
+    def test_accepts_valid_levels(self, monkeypatch):
+        """Valid log levels are accepted without warnings."""
+        monkeypatch.setenv("GASCLAW_LOGGING_FORCE", "true")
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+        for level in valid_levels:
+            setup_logging(level=level)
+            # Should not raise and logging should work
+            logger = logging.getLogger(f"test.{level.lower()}")
+            assert logger.isEnabledFor(getattr(logging, level))
+
+
 class TestGetLogger:
     """Tests for get_logger function."""
 
