@@ -319,4 +319,4 @@ def main(args: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover
