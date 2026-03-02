@@ -28,7 +28,7 @@ class GasclawConfig:
     monitor_interval: int = 300  # seconds between health checks
     activity_deadline: int = 3600  # seconds — must see a push/PR within this window
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate configuration after initialization."""
         # Validate telegram_owner_id is numeric
         if self.telegram_owner_id and not self.telegram_owner_id.isdigit():
