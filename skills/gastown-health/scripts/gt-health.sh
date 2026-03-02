@@ -3,12 +3,13 @@
 set -euo pipefail
 
 DEADLINE=${ACTIVITY_DEADLINE:-3600}
+DOLT_PORT=${DOLT_PORT:-3307}
 
 echo "=== Deep Health Check ==="
 echo ""
 
 # Service checks
-for svc in "dolt sql --port 3307 -q 'SELECT 1'" "gt daemon status" "gt mayor status"; do
+for svc in "dolt sql --port ${DOLT_PORT} -q 'SELECT 1'" "gt daemon status" "gt mayor status"; do
     name=$(echo "$svc" | awk '{print $1}')
     echo -n "$name: "
     if eval "$svc" &>/dev/null; then

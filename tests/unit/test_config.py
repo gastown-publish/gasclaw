@@ -83,6 +83,7 @@ class TestLoadConfig:
         assert cfg.gt_agent_count == 6
         assert cfg.monitor_interval == 300
         assert cfg.activity_deadline == 3600
+        assert cfg.dolt_port == 3307
 
     def test_custom_optional_values(self, monkeypatch, env_vars):
         """Optional fields can be overridden."""
@@ -92,6 +93,7 @@ class TestLoadConfig:
             GT_AGENT_COUNT="8",
             MONITOR_INTERVAL="120",
             ACTIVITY_DEADLINE="1800",
+            DOLT_PORT="3308",
         ).items():
             monkeypatch.setenv(k, v)
         cfg = load_config()
@@ -100,6 +102,7 @@ class TestLoadConfig:
         assert cfg.gt_agent_count == 8
         assert cfg.monitor_interval == 120
         assert cfg.activity_deadline == 1800
+        assert cfg.dolt_port == 3308
 
     def test_keys_not_shared_by_default(self, monkeypatch, env_vars):
         """Gastown and OpenClaw keys are separate pools."""
@@ -166,6 +169,20 @@ class TestLoadConfig:
             monkeypatch.setenv(k, v)
         cfg = load_config()
         assert cfg.activity_deadline == 3600
+
+    def test_dolt_port_zero_defaults(self, monkeypatch, env_vars):
+        """Zero dolt_port defaults to 3307."""
+        for k, v in env_vars(DOLT_PORT="0").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.dolt_port == 3307
+
+    def test_dolt_port_negative_defaults(self, monkeypatch, env_vars):
+        """Negative dolt_port defaults to 3307."""
+        for k, v in env_vars(DOLT_PORT="-1").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.dolt_port == 3307
 
 
 class TestGasclawConfig:

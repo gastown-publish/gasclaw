@@ -101,15 +101,16 @@ def _list_agents() -> list[str]:
     return []
 
 
-def check_health(*, gateway_port: int = 18789) -> HealthReport:
+def check_health(*, gateway_port: int = 18789, dolt_port: int = 3307) -> HealthReport:
     """Run all health checks and return a complete report.
 
     Args:
         gateway_port: OpenClaw gateway port for connectivity check.
+        dolt_port: Dolt SQL server port for health check.
     """
     doctor = run_doctor()
     return HealthReport(
-        dolt=_check_service(["dolt", "sql", "--port", "3307", "-q", "SELECT 1"], "dolt"),
+        dolt=_check_service(["dolt", "sql", "--port", str(dolt_port), "-q", "SELECT 1"], "dolt"),
         daemon=_check_service(["gt", "daemon", "status"], "daemon"),
         mayor=_check_service(["gt", "mayor", "status"], "mayor"),
         openclaw=_check_openclaw_gateway(gateway_port),
