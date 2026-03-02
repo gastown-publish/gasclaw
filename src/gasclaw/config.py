@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 
 __all__ = ["GasclawConfig", "load_config"]
@@ -34,6 +35,25 @@ class GasclawConfig:
         # Validate telegram_owner_id is numeric
         if self.telegram_owner_id and not self.telegram_owner_id.isdigit():
             raise ValueError(f"TELEGRAM_OWNER_ID must be numeric, got: {self.telegram_owner_id}")
+
+        # Validate telegram_bot_token format (should be digits:alphanumeric)
+        if self.telegram_bot_token and not re.match(r"^\d+:[\w-]+$", self.telegram_bot_token):
+            raise ValueError(
+                f"TELEGRAM_BOT_TOKEN must be in format 'digits:alphanumeric', "
+                f"got: {self.telegram_bot_token[:10]}..."
+            )
+
+        # Validate Kimi key format (should start with sk-)
+        for i, key in enumerate(self.gastown_kimi_keys):
+            if not key.startswith("sk-"):
+                raise ValueError(
+                    f"GASTOWN_KIMI_KEYS[{i}] must start with 'sk-', got: {key[:10]}..."
+                )
+
+        if self.openclaw_kimi_key and not self.openclaw_kimi_key.startswith("sk-"):
+            raise ValueError(
+                f"OPENCLAW_KIMI_KEY must start with 'sk-', got: {self.openclaw_kimi_key[:10]}..."
+            )
 
         # Validate paths are absolute
         if self.project_dir and not self.project_dir.startswith("/"):
@@ -89,6 +109,40 @@ def _parse_positive_int(value: str, default: int, name: str = "") -> int:
         return default
 
 
+def _parse_port(value: str, default: int, name: str = "") -> int:
+    """Parse a TCP/UDP port number (1-65535), returning default if invalid.
+
+    Unlike _parse_positive_int, this function enforces the valid port range.
+    Invalid values are logged and the default is returned.
+
+    Args:
+        value: The string value to parse.
+        default: The default to return if parsing fails or value is out of range.
+        name: The name of the config variable (for warning messages).
+
+    Returns:
+        The parsed port number, or default if invalid.
+    """
+    try:
+        result = int(value)
+        if result < 1 or result > 65535:
+            if name:
+                logger.warning(
+                    "Invalid %s: %r must be between 1 and 65535, using default %d",
+                    name,
+                    value,
+                    default,
+                )
+            return default
+        return result
+    except (ValueError, TypeError):
+        if name:
+            logger.warning(
+                "Invalid %s: %r is not a valid integer, using default %d", name, value, default
+            )
+        return default
+
+
 def load_config() -> GasclawConfig:
     """Load and validate configuration from environment variables."""
     raw_keys = _require_env("GASTOWN_KIMI_KEYS")
@@ -112,7 +166,7 @@ def load_config() -> GasclawConfig:
         activity_deadline=_parse_positive_int(
             os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"
         ),
-        dolt_port=_parse_positive_int(os.environ.get("DOLT_PORT", "3307"), 3307, "DOLT_PORT"),
+        dolt_port=_parse_port(os.environ.get("DOLT_PORT", "3307"), 3307, "DOLT_PORT"),
     )
 
     logger.debug("Loaded configuration with %d Gastown keys", len(keys))

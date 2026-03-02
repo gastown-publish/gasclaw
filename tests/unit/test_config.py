@@ -54,10 +54,10 @@ class TestLoadConfig:
 
     def test_key_parsing_colon_separated(self, monkeypatch, env_vars):
         """Colon-separated keys are parsed into a list."""
-        for k, v in env_vars(GASTOWN_KIMI_KEYS="a:b:c").items():
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="sk-a:sk-b:sk-c").items():
             monkeypatch.setenv(k, v)
         cfg = load_config()
-        assert cfg.gastown_kimi_keys == ["a", "b", "c"]
+        assert cfg.gastown_kimi_keys == ["sk-a", "sk-b", "sk-c"]
 
     def test_single_key(self, monkeypatch, env_vars):
         """Single key (no colons) becomes a list of one."""
@@ -68,10 +68,10 @@ class TestLoadConfig:
 
     def test_empty_keys_filtered(self, monkeypatch, env_vars):
         """Empty segments from colons are filtered out."""
-        for k, v in env_vars(GASTOWN_KIMI_KEYS="a::b:").items():
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="sk-a::sk-b:").items():
             monkeypatch.setenv(k, v)
         cfg = load_config()
-        assert cfg.gastown_kimi_keys == ["a", "b"]
+        assert cfg.gastown_kimi_keys == ["sk-a", "sk-b"]
 
     def test_defaults(self, monkeypatch, env_vars):
         """Optional fields use defaults."""
@@ -189,9 +189,9 @@ class TestGasclawConfig:
     def test_dataclass_fields(self):
         """GasclawConfig has all expected fields."""
         cfg = GasclawConfig(
-            gastown_kimi_keys=["k1"],
-            openclaw_kimi_key="k2",
-            telegram_bot_token="t",
+            gastown_kimi_keys=["sk-k1"],
+            openclaw_kimi_key="sk-k2",
+            telegram_bot_token="123:token",
             telegram_owner_id="123",
         )
         assert cfg.gt_rig_url == "/project"
@@ -215,7 +215,7 @@ class TestConfigValidation:
         """Numeric TELEGRAM_OWNER_ID is accepted."""
         monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
         monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
-        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:token")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
 
         config = load_config()
@@ -225,7 +225,7 @@ class TestConfigValidation:
         """Relative PROJECT_DIR generates warning."""
         monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
         monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
-        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:token")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("PROJECT_DIR", "relative/path")
 
@@ -238,7 +238,7 @@ class TestConfigValidation:
         """Invalid GT_RIG_URL generates warning."""
         monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
         monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
-        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "token")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:token")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GT_RIG_URL", "invalid::url")
 
@@ -516,17 +516,17 @@ class TestParsePositiveIntEdgeCases:
 
     def test_keys_with_internal_whitespace(self, monkeypatch, env_vars):
         """Keys with internal whitespace have it preserved."""
-        for k, v in env_vars(GASTOWN_KIMI_KEYS="key with spaces:another key").items():
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="sk-key with spaces:sk-another key").items():
             monkeypatch.setenv(k, v)
         cfg = load_config()
-        assert cfg.gastown_kimi_keys == ["key with spaces", "another key"]
+        assert cfg.gastown_kimi_keys == ["sk-key with spaces", "sk-another key"]
 
     def test_keys_with_leading_trailing_whitespace(self, monkeypatch, env_vars):
         """Keys have leading/trailing whitespace stripped."""
-        for k, v in env_vars(GASTOWN_KIMI_KEYS="  key1  :  key2  ").items():
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="  sk-key1  :  sk-key2  ").items():
             monkeypatch.setenv(k, v)
         cfg = load_config()
-        assert cfg.gastown_kimi_keys == ["key1", "key2"]
+        assert cfg.gastown_kimi_keys == ["sk-key1", "sk-key2"]
 
     def test_empty_optional_strings_default(self, monkeypatch, env_vars):
         """Empty optional string values use defaults."""
@@ -535,3 +535,98 @@ class TestParsePositiveIntEdgeCases:
         cfg = load_config()
         assert cfg.gt_rig_url == "/project"
         assert cfg.project_dir == "/project"
+
+
+class TestConfigValidationNew:
+    """Tests for new config validations (key format, port range, token format)."""
+
+    def test_gastown_key_missing_sk_prefix_raises(self, monkeypatch):
+        """GASTOWN_KIMI_KEYS without 'sk-' prefix raises ValueError."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "invalid-key")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-openclaw")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        with pytest.raises(ValueError, match="must start with 'sk-'"):
+            load_config()
+
+    def test_openclaw_key_missing_sk_prefix_raises(self, monkeypatch):
+        """OPENCLAW_KIMI_KEY without 'sk-' prefix raises ValueError."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "invalid-key")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        with pytest.raises(ValueError, match="must start with 'sk-'"):
+            load_config()
+
+    @pytest.mark.parametrize("invalid_port,expected_default", [
+        ("0", 3307),
+        ("65536", 3307),
+        ("100000", 3307),
+        ("-1", 3307),
+    ])
+    def test_dolt_port_out_of_range_defaults(self, monkeypatch, caplog, invalid_port, expected_default):
+        """DOLT_PORT outside 1-65535 range logs warning and uses default."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("DOLT_PORT", invalid_port)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.dolt_port == expected_default
+        assert "DOLT_PORT" in caplog.text
+        assert "must be between 1 and 65535" in caplog.text
+
+    def test_telegram_bot_token_invalid_format_raises(self, monkeypatch):
+        """TELEGRAM_BOT_TOKEN not in digits:alphanumeric format raises ValueError."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "invalid_token_format")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        with pytest.raises(ValueError, match="digits:alphanumeric"):
+            load_config()
+
+    def test_telegram_bot_token_missing_colon_raises(self, monkeypatch):
+        """TELEGRAM_BOT_TOKEN without colon raises ValueError."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        with pytest.raises(ValueError, match="digits:alphanumeric"):
+            load_config()
+
+    def test_valid_config_passes_all_validations(self, monkeypatch):
+        """Valid config with all correct formats loads successfully."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1:sk-key2")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-openclaw-key")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrSTUvwxyz")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "987654321")
+        monkeypatch.setenv("DOLT_PORT", "3308")
+
+        cfg = load_config()
+        assert cfg.gastown_kimi_keys == ["sk-key1", "sk-key2"]
+        assert cfg.openclaw_kimi_key == "sk-openclaw-key"
+        assert cfg.telegram_bot_token == "123456789:ABCdefGHIjklMNOpqrSTUvwxyz"
+        assert cfg.telegram_owner_id == "987654321"
+        assert cfg.dolt_port == 3308
+
+    def test_key_validation_shows_prefix_only_in_error(self, monkeypatch):
+        """Error message truncates key to first 10 chars for security."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "invalid-very-long-key-value")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-openclaw")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        with pytest.raises(ValueError) as exc_info:
+            load_config()
+
+        # Should only show first 10 chars of the key
+        error_msg = str(exc_info.value)
+        assert "invalid-ve" in error_msg
+        assert "..." in error_msg
