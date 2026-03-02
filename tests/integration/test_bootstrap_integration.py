@@ -229,7 +229,7 @@ class TestMonitorLoopIntegration:
             activity_calls.append(kw)
             return {"compliant": True, "last_commit_age": 300}
 
-        monkeypatch.setattr("gasclaw.bootstrap.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr("gasclaw.bootstrap.check_agent_activity", mock_check_activity)
         monkeypatch.setattr("gasclaw.bootstrap.notify_telegram", lambda msg: None)
         monkeypatch.setattr("time.sleep", lambda x: None)
@@ -258,7 +258,7 @@ class TestMonitorLoopIntegration:
                 agents=[],
             )
 
-        monkeypatch.setattr("gasclaw.bootstrap.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr(
             "gasclaw.bootstrap.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
@@ -294,7 +294,7 @@ class TestMonitorLoopIntegration:
                 agents=["mayor"],
             )
 
-        monkeypatch.setattr("gasclaw.bootstrap.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr(
             "gasclaw.bootstrap.check_agent_activity",
             lambda **kw: {"compliant": False, "last_commit_age": 5000},  # Not compliant
@@ -333,7 +333,7 @@ class TestMonitorLoopIntegration:
                 agents=["mayor"],
             )
 
-        monkeypatch.setattr("gasclaw.bootstrap.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr(
             "gasclaw.bootstrap.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
@@ -355,7 +355,7 @@ class TestMonitorLoopIntegration:
                 raise KeyboardInterrupt
 
         monkeypatch.setattr(
-            "gasclaw.bootstrap.check_health",
+            "gasclaw.health.check_health",
             lambda **kw: type(
                 "R",
                 (),
@@ -379,3 +379,4 @@ class TestMonitorLoopIntegration:
         monitor_loop(config, interval=custom_interval)
 
         assert all(s == custom_interval for s in sleep_calls)
+
