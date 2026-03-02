@@ -18,6 +18,16 @@ from gasclaw.migration import (
 class TestDetectGastownSetup:
     """Tests for detect_gastown_setup function."""
 
+    def test_gasclaw_already_configured_returns_early(self, monkeypatch):
+        """Returns early when GASTOWN_KIMI_KEYS already set (covers line 78)."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-existing-key")
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+
+        result = detect_gastown_setup()
+
+        assert result["detected"] is False
+        assert result["reason"] == "gasclaw_config_already_exists"
+
     def test_detects_gastown_env_var(self, monkeypatch):
         """Detects Gastown via KIMI_API_KEY environment variable."""
         monkeypatch.setenv("KIMI_API_KEY", "sk-kimi123")
@@ -456,6 +466,99 @@ class TestMigrate:
         assert result.success is True
         assert result.backup_path is not None
         assert result.backup_path.exists()
+
+    def test_no_backup_when_config_dir_nonexistent(self, tmp_path, monkeypatch):
+        """No backup created when config_dir doesn't exist (covers line 369->373)."""
+        monkeypatch.delenv("KIMI_API_KEY", raising=False)
+        monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
+
+        env_file = tmp_path / ".env"
+
+        # Mock detection to return non-existent config_dir
+        with patch("gasclaw.migration.detect_gastown_setup") as m_detect, \
+             patch("gasclaw.migration.migrate_config") as m_migrate:
+            m_detect.return_value = {
+                "detected": True,
+                "source": "config_file",
+                "config_dir": "/nonexistent/path",  # Non-existent path - triggers line 369->373
+            }
+            m_migrate.return_value = {
+                "success": True,
+                "migrated_keys": ["kimi_api_key"],
+                "gastown_kimi_keys": "sk-from-config",
+                "env_file": str(env_file),
+            }
+            result = migrate(
+                gastown_dir=None,
+                gasclaw_env_file=env_file,
+                dry_run=False,
+                interactive=False,
+            )
+
+        # Should succeed but have no backup path since config_dir doesn't exist
+        assert result.success is True
+        assert result.backup_path is None
+
+
+class TestPromptForMissingConfig:
+    """Tests for _prompt_for_missing_config function."""
+
+    def test_env_vars_skip_prompts(self, monkeypatch):
+        """Uses env vars without prompting when all values set (covers lines 201->207, 207->213)."""
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc-env")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "456")
+
+        from gasclaw.migration import _prompt_for_missing_config
+
+        result = _prompt_for_missing_config(interactive=True)
+
+        assert result["OPENCLAW_KIMI_KEY"] == "sk-oc-env"
+        assert result["TELEGRAM_BOT_TOKEN"] == "123:ABC"
+        assert result["TELEGRAM_OWNER_ID"] == "456"
+
+    def test_interactive_prompt_for_openclaw_key(self, monkeypatch):
+        """Prompts for OPENCLAW_KIMI_KEY when not in env (covers lines 203->207)."""
+        monkeypatch.delenv("OPENCLAW_KIMI_KEY", raising=False)
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "456")
+
+        from gasclaw.migration import _prompt_for_missing_config
+
+        with patch("builtins.input", return_value="sk-oc-prompted"):
+            result = _prompt_for_missing_config(interactive=True)
+
+        assert result["OPENCLAW_KIMI_KEY"] == "sk-oc-prompted"
+
+    def test_interactive_prompt_for_telegram_token(self, monkeypatch):
+        """Prompts for TELEGRAM_BOT_TOKEN when not in env (covers lines 209->213)."""
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "456")
+
+        from gasclaw.migration import _prompt_for_missing_config
+
+        with patch("builtins.input", side_effect=["789:DEF"]) as m_input:
+            result = _prompt_for_missing_config(interactive=True)
+
+        assert result["TELEGRAM_BOT_TOKEN"] == "789:DEF"
+        m_input.assert_called_once()
+
+    def test_interactive_prompt_for_telegram_owner(self, monkeypatch):
+        """Prompts for TELEGRAM_OWNER_ID when not in env (covers line 215->218)."""
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-oc")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:ABC")
+        monkeypatch.delenv("TELEGRAM_OWNER_ID", raising=False)
+
+        from gasclaw.migration import _prompt_for_missing_config
+
+        with patch("builtins.input", return_value="789"):
+            result = _prompt_for_missing_config(interactive=True)
+
+        assert result["TELEGRAM_OWNER_ID"] == "789"
 
 
 class TestMigrationResult:

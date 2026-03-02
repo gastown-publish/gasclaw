@@ -193,6 +193,30 @@ class TestGastownFeed:
 
         assert commits == []
 
+    def test_get_recent_commits_malformed_lines(self, monkeypatch):
+        """get_recent_commits skips malformed lines with wrong part count (covers line 100->97)."""
+
+        def mock_run(*args, **kwargs):
+            class Result:
+                returncode = 0
+                # First line has only 2 parts (not 4), second is valid
+                stdout = (
+                    "hash1|timestamp1|author1\n"
+                    "abc123|2026-03-02 10:00:00 +0000|Test User|Valid message"
+                )
+                stderr = ""
+
+            return Result()
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        feed = GastownFeed()
+        commits = feed.get_recent_commits(limit=2)
+
+        # Should skip malformed line and only return valid one
+        assert len(commits) == 1
+        assert commits[0].description == "Valid message"
+
     def test_get_recent_commits_failure(self, monkeypatch):
         """get_recent_commits handles git failure."""
 
@@ -282,6 +306,48 @@ class TestGastownFeed:
         prs = feed.get_recent_prs()
 
         assert prs == []
+
+    def test_get_recent_prs_empty_stdout(self, monkeypatch):
+        """get_recent_prs returns empty list when stdout is empty (covers line 134->153)."""
+
+        def mock_run(*args, **kwargs):
+            class Result:
+                returncode = 0
+                stdout = ""  # Empty stdout - should trigger early return
+                stderr = ""
+
+            return Result()
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        feed = GastownFeed()
+        prs = feed.get_recent_prs()
+
+        assert prs == []
+
+    def test_get_recent_prs_malformed_lines(self, monkeypatch):
+        """get_recent_prs skips malformed lines with wrong part count (covers line 139->136)."""
+
+        def mock_run(*args, **kwargs):
+            class Result:
+                returncode = 0
+                # First line malformed (only 2 parts), second valid
+                stdout = (
+                    "hash1|timestamp1\n"
+                    "abc123|2026-03-02 10:00:00 +0000|Test User|Merge PR #123"
+                )
+                stderr = ""
+
+            return Result()
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        feed = GastownFeed()
+        prs = feed.get_recent_prs(limit=2)
+
+        # Should skip malformed line
+        assert len(prs) == 1
+        assert prs[0].description == "Merge PR #123"
 
     def test_get_feed_combines_events(self, monkeypatch):
         """get_feed combines commits and PRs."""

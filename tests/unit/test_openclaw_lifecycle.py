@@ -127,6 +127,25 @@ class TestStartOpenclaw:
             assert m_popen.call_args[0][0] == ["openclaw", "gateway", "start", "--port", "9999"]
             m_get.assert_called_with("http://localhost:9999/health", timeout=2)
 
+    def test_connect_error_triggers_retry(self):
+        """ConnectError on first attempt, success on second (covers line 48->54 branch)."""
+        mock_proc = MagicMock()
+        mock_proc.poll.return_value = None
+
+        with (
+            patch("subprocess.Popen", return_value=mock_proc),
+            patch("httpx.get") as m_get,
+            patch("time.sleep"),
+        ):
+            # First call raises ConnectError (enters except block), second succeeds
+            m_get.side_effect = [
+                httpx.ConnectError("Connection refused"),
+                MagicMock(status_code=200),
+            ]
+            start_openclaw(port=18789)
+
+            assert m_get.call_count == 2
+
 
 class TestStopOpenclaw:
     """Tests for stop_openclaw function."""
