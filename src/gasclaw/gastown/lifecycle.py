@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 import time
 
+__all__ = ["start_dolt", "start_daemon", "start_mayor", "stop_all"]
+
 
 def start_dolt(
     *,

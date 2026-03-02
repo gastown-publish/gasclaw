@@ -7,6 +7,8 @@ from pathlib import Path
 
 import tomlkit
 
+__all__ = ["gastown_install", "setup_kimi_accounts"]
+
 
 def _write_kimi_config(account_dir: Path, api_key: str) -> None:
     """Write a single kimi account config.toml."""

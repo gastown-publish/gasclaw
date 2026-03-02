@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+__all__ = ["write_agent_config"]
+
 _CONFIG_TEMPLATE = {
     "type": "town-settings",
     "version": 1,
