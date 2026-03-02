@@ -127,8 +127,16 @@ echo "$TEST_COUNT"
 
 # --- Start OpenClaw gateway (background, for Telegram two-way chat) ---
 echo "Starting OpenClaw gateway..."
-openclaw gateway start 2>&1 || openclaw gateway restart 2>&1 || echo "WARNING: OpenClaw gateway failed to start"
-sleep 3
+openclaw doctor --fix --yes 2>&1 || true
+nohup openclaw gateway run > /tmp/openclaw-gateway.log 2>&1 &
+GATEWAY_PID=$!
+sleep 5
+if kill -0 "$GATEWAY_PID" 2>/dev/null; then
+    echo "OpenClaw gateway running (PID $GATEWAY_PID)"
+else
+    echo "WARNING: OpenClaw gateway failed to start"
+    cat /tmp/openclaw-gateway.log 2>/dev/null || true
+fi
 
 tg_send "🏭 *Gasclaw Maintainer online*
 Tests: ${TEST_COUNT}
