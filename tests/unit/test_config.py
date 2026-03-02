@@ -108,11 +108,12 @@ class TestLoadConfig:
         cfg = load_config()
         assert cfg.openclaw_kimi_key not in cfg.gastown_kimi_keys
 
-    def test_whitespace_only_env_vars_treated_as_missing(self, monkeypatch, env_vars):
-        """Whitespace-only env vars should be treated as missing."""
+    @pytest.mark.parametrize("whitespace", ["", " ", "  ", "\t", "\n", " \t\n "])
+    def test_whitespace_only_env_vars_treated_as_missing(self, monkeypatch, env_vars, whitespace):
+        """Whitespace-only env vars should be treated as missing (spaces, tabs, newlines)."""
         for k, v in env_vars().items():
             monkeypatch.setenv(k, v)
-        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "   ")
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", whitespace)
         with pytest.raises(ValueError, match="GASTOWN_KIMI_KEYS"):
             load_config()
 
