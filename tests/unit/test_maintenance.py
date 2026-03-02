@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -362,8 +362,6 @@ class TestMainBlock:
     @patch("sys.argv", ["maintenance.py"])
     def test_runs_loop_by_default(self, mock_loop):
         """Test __main__ block runs loop by default (lines 297, 301)."""
-        import importlib
-        import gasclaw.maintenance as maint
 
         # Reload to trigger __main__ block (it checks __name__ == "__main__")
         # We can't actually trigger this, but we can verify the loop function
