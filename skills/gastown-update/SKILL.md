@@ -1,8 +1,24 @@
 ---
 name: gastown-update
-description: "Check and apply updates to all Gastown dependencies: gt, Claude Code, OpenClaw, KimiGas, Dolt. Use when: checking for updates, applying updates, maintaining system currency."
+description: Check and apply updates to all Gastown dependencies
 metadata:
-  { "openclaw": { "emoji": "🔄", "os": ["linux"], "requires": { "bins": ["npm", "pip"] } } }
+  openclaw:
+    emoji: 🔄
+    os:
+      - linux
+    requires:
+      bins:
+        - npm
+        - pip
+parameters:
+  check:
+    type: boolean
+    description: Check versions without applying updates
+    required: false
+  apply:
+    type: boolean
+    description: Apply all available updates
+    required: false
 ---
 
 # Gastown Update Manager

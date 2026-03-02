@@ -54,6 +54,45 @@ class TestStartCommand:
         assert len(monitor_calls) == 1
         assert "Starting gasclaw" in result.output
 
+    def test_start_with_project_dir_override(self, config, monkeypatch, tmp_path):
+        """start command overrides project_dir when provided via --project-dir."""
+        monitor_calls = []
+        project_override = tmp_path / "custom_project"
+        project_override.mkdir()
+
+        def mock_bootstrap(cfg, gt_root):
+            pass
+
+        def mock_monitor(cfg):
+            monitor_calls.append(cfg)
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
+        monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
+
+        runner.invoke(
+            app, ["start", "--gt-root", str(tmp_path), "--project-dir", str(project_override)]
+        )
+
+        assert len(monitor_calls) == 1
+        assert monitor_calls[0].project_dir == str(project_override)
+        # KeyboardInterrupt causes exit code 130, which is expected
+
+    def test_start_exits_on_bootstrap_failure(self, config, monkeypatch, tmp_path):
+        """start command exits with code 1 if bootstrap raises an exception."""
+        def mock_bootstrap_fail(cfg, gt_root):
+            raise RuntimeError("dolt connection failed")
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_fail)
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "Bootstrap failed" in result.output
+        assert "dolt connection failed" in result.output
+
 
 class TestStopCommand:
     def test_calls_stop_all(self, monkeypatch):
@@ -84,6 +123,7 @@ class TestStatusCommand:
 
         def raise_valueerror():
             raise ValueError("no config")
+
         monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
         monkeypatch.setattr("gasclaw.cli.load_config", raise_valueerror)
 
@@ -110,11 +150,11 @@ class TestStatusCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr(
             "gasclaw.cli.check_agent_activity",
-            lambda **kw: {"compliant": True, "last_commit_age": 300}
+            lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
         monkeypatch.setattr(
             "gasclaw.cli.KeyPool",
-            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 2}))
+            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 2})),
         )
 
         result = runner.invoke(app, ["status"])
@@ -127,12 +167,10 @@ class TestUpdateCommand:
     def test_shows_versions_and_updates(self, monkeypatch):
         """update command checks versions and applies updates."""
         monkeypatch.setattr(
-            "gasclaw.cli.check_versions",
-            lambda: {"gt": "1.0.0", "claude": "2.0.0"}
+            "gasclaw.cli.check_versions", lambda: {"gt": "1.0.0", "claude": "2.0.0"}
         )
         monkeypatch.setattr(
-            "gasclaw.cli.apply_updates",
-            lambda: {"gt": "updated", "claude": "up-to-date"}
+            "gasclaw.cli.apply_updates", lambda: {"gt": "updated", "claude": "up-to-date"}
         )
 
         result = runner.invoke(app, ["update"])
@@ -141,3 +179,158 @@ class TestUpdateCommand:
         assert "Checking versions" in result.output
         assert "gt:" in result.output
         assert "Applying updates" in result.output
+
+
+class TestVersionCommand:
+    def test_version_flag_shows_version(self):
+        """--version flag displays version and exits."""
+        from gasclaw import __version__
+
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+    def test_version_command_shows_version(self):
+        """version subcommand displays version."""
+        from gasclaw import __version__
+
+        result = runner.invoke(app, ["version"])
+        assert result.exit_code == 0
+        assert __version__ in result.output
+
+
+class TestCLIEdgeCases:
+    def test_help_flag_shows_help(self):
+        """Running with --help shows help text."""
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        assert "Gasclaw" in result.output
+
+    def test_start_help_shows_options(self):
+        """start --help shows available options."""
+        result = runner.invoke(app, ["start", "--help"])
+        assert result.exit_code == 0
+        assert "--gt-root" in result.output
+
+    def test_invalid_command_fails(self):
+        """Invalid command name exits with error."""
+        result = runner.invoke(app, ["invalidcommand"])
+        assert result.exit_code != 0
+        assert "No such command" in result.output or "Error" in result.output
+
+    def test_start_with_invalid_gt_root_type(self):
+        """start with non-path argument handles gracefully."""
+        result = runner.invoke(app, ["start", "--gt-root", ""])
+        # Should not crash, will use default/empty path
+        assert result.exit_code == 1  # Config error expected since env vars not set
+
+    def test_status_shows_unhealthy_services(self, monkeypatch):
+        """status command shows unhealthy services in red."""
+        from gasclaw.health import HealthReport
+
+        def mock_check_health(**kw):
+            return HealthReport(
+                dolt="unhealthy",
+                daemon="healthy",
+                mayor="unhealthy",
+                openclaw="unknown",
+                agents=[],
+            )
+
+        monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
+        monkeypatch.setattr(
+            "gasclaw.cli.load_config", lambda: (_ for _ in ()).throw(ValueError("no config"))
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "unhealthy" in result.output
+        assert "healthy" in result.output
+        assert "unknown" in result.output
+
+    def test_status_shows_non_compliant_activity(self, config, monkeypatch):
+        """status command shows NOT COMPLIANT when activity check fails."""
+        from gasclaw.health import HealthReport
+
+        def mock_check_health(**kw):
+            return HealthReport(
+                dolt="healthy",
+                daemon="healthy",
+                mayor="healthy",
+                openclaw="healthy",
+                agents=["mayor"],
+            )
+
+        monkeypatch.setattr("gasclaw.cli.check_health", mock_check_health)
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr(
+            "gasclaw.cli.check_agent_activity",
+            lambda **kw: {"compliant": False, "last_commit_age": 5000},
+        )
+        monkeypatch.setattr(
+            "gasclaw.cli.KeyPool",
+            MagicMock(return_value=MagicMock(status=lambda: {"total": 2, "available": 1})),
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "NOT COMPLIANT" in result.output or "not compliant" in result.output.lower()
+
+
+class TestMaintainCommand:
+    def test_maintain_once_runs_single_cycle(self, monkeypatch):
+        """maintain --once runs a single maintenance cycle."""
+        cycle_calls = []
+        monkeypatch.setattr(
+            "gasclaw.cli.run_maintenance_cycle", lambda: cycle_calls.append({"prs": {"merged": 1}})
+        )
+
+        result = runner.invoke(app, ["maintain", "--once"])
+
+        assert len(cycle_calls) == 1
+        assert result.exit_code == 0
+        assert "Cycle complete" in result.output
+
+    def test_maintain_once_exits_on_failure(self, monkeypatch):
+        """maintain --once exits with error on failure."""
+        def fail_cycle():
+            raise RuntimeError("API error")
+
+        monkeypatch.setattr("gasclaw.cli.run_maintenance_cycle", fail_cycle)
+
+        result = runner.invoke(app, ["maintain", "--once"])
+
+        assert result.exit_code == 1
+        assert "Maintenance failed" in result.output
+
+    def test_maintain_loop_starts_continuous_loop(self, monkeypatch):
+        """maintain without --once starts continuous loop."""
+        loop_calls = []
+
+        def mock_loop(interval):
+            loop_calls.append(interval)
+            raise KeyboardInterrupt  # Simulate user stop
+
+        monkeypatch.setattr("gasclaw.cli.maintenance_loop", mock_loop)
+
+        result = runner.invoke(app, ["maintain", "--interval", "60"])
+
+        assert len(loop_calls) == 1
+        assert loop_calls[0] == 60
+        assert "stopped" in result.output.lower()
+
+    def test_maintain_default_interval(self, monkeypatch):
+        """maintain uses default interval of 300 seconds."""
+        loop_calls = []
+
+        def mock_loop(interval):
+            loop_calls.append(interval)
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr("gasclaw.cli.maintenance_loop", mock_loop)
+
+        runner.invoke(app, ["maintain"])
+
+        assert loop_calls[0] == 300

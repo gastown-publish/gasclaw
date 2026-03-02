@@ -106,7 +106,6 @@ class TestLoadConfig:
         cfg = load_config()
         assert cfg.openclaw_kimi_key not in cfg.gastown_kimi_keys
 
-
     def test_whitespace_only_env_vars_treated_as_missing(self, monkeypatch, env_vars):
         """Whitespace-only env vars should be treated as missing."""
         for k, v in env_vars().items():
@@ -158,6 +157,13 @@ class TestLoadConfig:
         cfg = load_config()
         assert cfg.activity_deadline == 3600
 
+    def test_activity_deadline_negative_defaults(self, monkeypatch, env_vars):
+        """Negative activity_deadline defaults to 3600."""
+        for k, v in env_vars(ACTIVITY_DEADLINE="-100").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.activity_deadline == 3600
+
 
 class TestGasclawConfig:
     def test_dataclass_fields(self):
@@ -170,3 +176,238 @@ class TestGasclawConfig:
         )
         assert cfg.gt_rig_url == "/project"
         assert cfg.gt_agent_count == 6
+
+
+class TestParsePositiveIntWarnings:
+    """Tests that _parse_positive_int logs warnings for invalid values."""
+
+    def test_invalid_value_logs_warning(self, monkeypatch, env_vars, caplog):
+        """Invalid integer value logs a warning."""
+        import logging
+
+        for k, v in env_vars(GT_AGENT_COUNT="abc").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gt_agent_count == 6  # Default used
+        assert "GT_AGENT_COUNT" in caplog.text
+        assert "abc" in caplog.text
+        assert "not a valid integer" in caplog.text.lower()
+
+    def test_zero_value_logs_warning(self, monkeypatch, env_vars, caplog):
+        """Zero value logs a warning about positive requirement."""
+        import logging
+
+        for k, v in env_vars(MONITOR_INTERVAL="0").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.monitor_interval == 300  # Default used
+        assert "MONITOR_INTERVAL" in caplog.text
+        assert "must be positive" in caplog.text.lower()
+
+    def test_negative_value_logs_warning(self, monkeypatch, env_vars, caplog):
+        """Negative value logs a warning about positive requirement."""
+        import logging
+
+        for k, v in env_vars(ACTIVITY_DEADLINE="-100").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.activity_deadline == 3600  # Default used
+        assert "ACTIVITY_DEADLINE" in caplog.text
+        assert "must be positive" in caplog.text.lower()
+
+    def test_valid_value_no_warning(self, monkeypatch, env_vars, caplog):
+        """Valid value does not log a warning."""
+        import logging
+
+        for k, v in env_vars(GT_AGENT_COUNT="8").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gt_agent_count == 8
+        # Should not have any warnings about GT_AGENT_COUNT
+        assert "GT_AGENT_COUNT" not in caplog.text
+
+
+class TestConfigEdgeCases:
+    """Additional edge case tests for config parsing."""
+
+    def test_float_value_defaults_to_int(self, monkeypatch, env_vars, caplog):
+        """Float value for integer config uses default."""
+        import logging
+
+        for k, v in env_vars(GT_AGENT_COUNT="3.14").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gt_agent_count == 6  # Default used
+        assert "GT_AGENT_COUNT" in caplog.text
+        assert "not a valid integer" in caplog.text.lower()
+
+    def test_leading_zeros_parsed_correctly(self, monkeypatch, env_vars):
+        """Values with leading zeros are parsed as integers."""
+        for k, v in env_vars(GT_AGENT_COUNT="007").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_agent_count == 7
+
+    def test_plus_sign_prefix(self, monkeypatch, env_vars):
+        """Positive numbers with + prefix are accepted."""
+        for k, v in env_vars(GT_AGENT_COUNT="+10").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_agent_count == 10
+
+    def test_whitespace_in_integer_value(self, monkeypatch, env_vars, caplog):
+        """Whitespace around integer values is handled."""
+        import logging
+
+        for k, v in env_vars(GT_AGENT_COUNT="  42  ").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int() handles whitespace, so this should parse correctly
+        assert cfg.gt_agent_count == 42
+        assert "GT_AGENT_COUNT" not in caplog.text
+
+    def test_scientific_notation_defaults(self, monkeypatch, env_vars, caplog):
+        """Scientific notation for integer config uses default."""
+        import logging
+
+        for k, v in env_vars(MONITOR_INTERVAL="1e3").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int("1e3") raises ValueError
+        assert cfg.monitor_interval == 300  # Default used
+        assert "MONITOR_INTERVAL" in caplog.text
+
+    def test_hexadecimal_notation_defaults(self, monkeypatch, env_vars, caplog):
+        """Hexadecimal notation for integer config uses default."""
+        import logging
+
+        for k, v in env_vars(ACTIVITY_DEADLINE="0x100").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int("0x100") with base 10 raises ValueError
+        assert cfg.activity_deadline == 3600  # Default used
+        assert "ACTIVITY_DEADLINE" in caplog.text
+
+    def test_octal_notation_parsed_as_decimal(self, monkeypatch, env_vars):
+        """Octal notation is parsed as decimal - Issue #64.
+
+        This is the documented behavior: only decimal integers are supported.
+        Users expecting Unix octal behavior will get decimal interpretation.
+        """
+        for k, v in env_vars(GT_AGENT_COUNT="0777").items():
+            monkeypatch.setenv(k, v)
+
+        cfg = load_config()
+        # int("0777") returns 777, not 511 (which would be octal 0o777)
+        assert cfg.gt_agent_count == 777
+
+    def test_octal_prefix_parsed_as_decimal(self, monkeypatch, env_vars, caplog):
+        """Explicit octal prefix (0o) is parsed as decimal, not octal."""
+        import logging
+
+        for k, v in env_vars(MONITOR_INTERVAL="0o755").items():
+            monkeypatch.setenv(k, v)
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        # int("0o755") with base 10 raises ValueError
+        assert cfg.monitor_interval == 300  # Default used
+        assert "MONITOR_INTERVAL" in caplog.text
+
+
+class TestParsePositiveIntEdgeCases:
+    """Tests for _parse_positive_int function edge cases."""
+
+    def test_no_name_no_warning_on_invalid(self, monkeypatch, env_vars, caplog):
+        """When name is empty, no warning is logged for invalid values."""
+        import logging
+
+        from gasclaw.config import _parse_positive_int
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int("abc", default=42, name="")
+
+        assert result == 42
+        # Should not log any warning since name is empty
+        assert caplog.text == ""
+
+    def test_no_name_no_warning_on_zero(self, monkeypatch, env_vars, caplog):
+        """When name is empty, no warning is logged for zero/negative values."""
+        import logging
+
+        from gasclaw.config import _parse_positive_int
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int("0", default=100, name="")
+
+        assert result == 100
+        # Should not log any warning since name is empty
+        assert caplog.text == ""
+
+    def test_no_name_returns_default_on_error(self):
+        """Default is returned when parsing fails and name is empty."""
+        from gasclaw.config import _parse_positive_int
+
+        result = _parse_positive_int("invalid", default=99, name="")
+        assert result == 99
+
+    def test_valid_value_with_name(self):
+        """Valid value returns correctly even with name provided."""
+        from gasclaw.config import _parse_positive_int
+
+        result = _parse_positive_int("50", default=10, name="TEST_VAR")
+        assert result == 50
+
+    def test_large_integer_accepted(self, monkeypatch, env_vars):
+        """Very large integers are accepted."""
+        for k, v in env_vars(ACTIVITY_DEADLINE="999999").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.activity_deadline == 999999
+
+    def test_keys_with_internal_whitespace(self, monkeypatch, env_vars):
+        """Keys with internal whitespace have it preserved."""
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="key with spaces:another key").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gastown_kimi_keys == ["key with spaces", "another key"]
+
+    def test_keys_with_leading_trailing_whitespace(self, monkeypatch, env_vars):
+        """Keys have leading/trailing whitespace stripped."""
+        for k, v in env_vars(GASTOWN_KIMI_KEYS="  key1  :  key2  ").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gastown_kimi_keys == ["key1", "key2"]
+
+    def test_empty_optional_strings_default(self, monkeypatch, env_vars):
+        """Empty optional string values use defaults."""
+        for k, v in env_vars(GT_RIG_URL="", PROJECT_DIR="").items():
+            monkeypatch.setenv(k, v)
+        cfg = load_config()
+        assert cfg.gt_rig_url == "/project"
+        assert cfg.project_dir == "/project"
