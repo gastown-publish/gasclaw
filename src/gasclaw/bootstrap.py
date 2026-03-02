@@ -1,6 +1,6 @@
 """Startup orchestration for gasclaw.
 
-Bootstrap sequence (10 steps):
+Bootstrap sequence:
  1. Setup Kimi accounts
  2. Write agent config
  3. Install Gastown
@@ -86,7 +86,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
         logger.info("Installing skills")
         install_skills(skills_src=_SKILLS_DIR, skills_dst=openclaw_dir / "skills")
 
-        # 6.5. Run openclaw doctor to verify config and fix issues
+        # 7. Run openclaw doctor to verify config and fix issues
         logger.info("Running openclaw doctor")
         doctor_result = run_doctor(repair=True)
         if not doctor_result.healthy:
@@ -95,17 +95,17 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
         else:
             logger.info("Openclaw doctor check passed")
 
-        # 7. Start daemon
+        # 8. Start daemon
         logger.info("Starting gt daemon")
         start_daemon()
 
-        # 8. Start mayor
+        # 9. Start mayor
         logger.info("Starting mayor agent")
         start_mayor(agent="kimi-claude")
         services_started = True
         logger.info("All services started successfully")
 
-        # 9. Notify
+        # 10. Notify
         logger.info("Sending startup notification")
         notify_telegram("Gasclaw is up and running.")
 
