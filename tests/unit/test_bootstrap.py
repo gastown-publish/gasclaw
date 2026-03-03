@@ -28,11 +28,6 @@ class TestBootstrap:
             "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
         )
-        monkeypatch.setattr(
-            subprocess,
-            "Popen",
-            lambda *a, **kw: type("P", (), {"pid": 1, "poll": lambda s: None})(),
-        )
 
         from gasclaw.openclaw.doctor import DoctorResult
 
@@ -49,6 +44,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.write_openclaw_config") as m_oc,
             patch("gasclaw.bootstrap.install_skills") as m_skills,
             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor) as m_doctor,
+            patch("gasclaw.bootstrap.start_openclaw") as m_start_oc,
             patch("gasclaw.bootstrap.start_daemon") as m_daemon,
             patch("gasclaw.bootstrap.start_mayor") as m_mayor,
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
@@ -61,6 +57,7 @@ class TestBootstrap:
             m_dolt.assert_called_once()
             m_oc.assert_called_once()
             m_skills.assert_called_once()
+            m_start_oc.assert_called_once()
             m_doctor.assert_called_once()
             m_daemon.assert_called_once()
             m_mayor.assert_called_once()
@@ -72,11 +69,6 @@ class TestBootstrap:
             subprocess,
             "run",
             lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
-        )
-        monkeypatch.setattr(
-            subprocess,
-            "Popen",
-            lambda *a, **kw: type("P", (), {"pid": 1, "poll": lambda s: None})(),
         )
 
         from gasclaw.openclaw.doctor import DoctorResult
@@ -94,6 +86,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.write_openclaw_config") as m_oc,
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor),
+            patch("gasclaw.bootstrap.start_openclaw"),
             patch("gasclaw.bootstrap.start_daemon"),
             patch("gasclaw.bootstrap.start_mayor"),
             patch("gasclaw.bootstrap.notify_telegram"),
@@ -130,6 +123,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=se("openclaw")),
             patch("gasclaw.bootstrap.install_skills", side_effect=se("skills")),
             patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect),
+            patch("gasclaw.bootstrap.start_openclaw", side_effect=se("openclaw_start")),
             patch("gasclaw.bootstrap.start_daemon", side_effect=se("daemon")),
             patch("gasclaw.bootstrap.start_mayor", side_effect=se("mayor")),
             patch("gasclaw.bootstrap.notify_telegram", side_effect=se("notify")),
@@ -189,6 +183,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor") as m_doctor,
+            patch("gasclaw.bootstrap.start_openclaw"),
             patch("gasclaw.bootstrap.start_daemon") as m_daemon,
             patch("gasclaw.bootstrap.stop_all") as m_stop,
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
@@ -221,6 +216,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor") as m_doctor,
+            patch("gasclaw.bootstrap.start_openclaw"),
             patch("gasclaw.bootstrap.start_daemon"),
             patch("gasclaw.bootstrap.start_mayor") as m_mayor,
             patch("gasclaw.bootstrap.stop_all") as m_stop,
@@ -253,6 +249,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor") as m_doctor,
+            patch("gasclaw.bootstrap.start_openclaw"),
             patch("gasclaw.bootstrap.start_daemon"),
             patch("gasclaw.bootstrap.start_mayor") as m_mayor,
             patch("gasclaw.bootstrap.stop_all") as m_stop,
@@ -367,7 +364,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         assert len(notify_calls) >= 1
@@ -400,7 +397,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         assert len(notify_calls) >= 1
@@ -427,11 +424,12 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor),
+            patch("gasclaw.bootstrap.start_openclaw"),
             patch("gasclaw.bootstrap.start_daemon"),
             patch("gasclaw.bootstrap.start_mayor"),
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             bootstrap(config, gt_root=tmp_path)
 
         # Should have "Gasclaw is up" and doctor warning notifications
@@ -466,7 +464,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         # Should have notifications for dolt, daemon, and mayor
@@ -569,7 +567,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         # Should NOT send activity alert since compliant defaults to True

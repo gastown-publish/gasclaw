@@ -31,8 +31,10 @@ from gasclaw.health import check_agent_activity, check_health
 from gasclaw.kimigas.key_pool import KeyPool
 from gasclaw.kimigas.proxy import build_claude_env, write_claude_config
 from gasclaw.logging_config import get_logger
+from gasclaw.openclaw.auth import get_gateway_auth_token
 from gasclaw.openclaw.doctor import run_doctor
 from gasclaw.openclaw.installer import write_openclaw_config
+from gasclaw.openclaw.lifecycle import start_openclaw, stop_openclaw
 from gasclaw.openclaw.skill_manager import install_skills
 from gasclaw.updater.notifier import notify_telegram
 
@@ -90,51 +92,80 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
             kimi_key=config.openclaw_kimi_key,
             bot_token=config.telegram_bot_token,
             owner_id=int(config.telegram_owner_id),
+            gateway_port=config.gateway_port,
             gt_root=str(gt_root),
+            allow_ids=config.telegram_allow_ids,
+            group_ids=config.telegram_group_ids,
+            agent_id=config.agent_id,
+            agent_name=config.agent_name,
+            agent_emoji=config.agent_emoji,
         )
 
         # 6. Install skills
         logger.info("Installing skills")
         install_skills(skills_src=_SKILLS_DIR, skills_dst=openclaw_dir / "skills")
 
-        # 7. Run openclaw doctor to verify config and fix issues
+        # 7. Start OpenClaw gateway
+        logger.info("Starting OpenClaw gateway on port %d", config.gateway_port)
+        start_openclaw(port=config.gateway_port, timeout=30)
+        services_started = True
+        logger.info("OpenClaw gateway started successfully")
+
+        # 8. Read auth token for notifications
+        auth_token = get_gateway_auth_token(openclaw_dir)
+        if not auth_token:
+            logger.warning("No auth token found, notifications may fail")
+
+        # 9. Run openclaw doctor to verify config and fix issues
         logger.info("Running openclaw doctor")
         doctor_result = run_doctor(repair=True)
         if not doctor_result.healthy:
             logger.warning("Openclaw doctor found issues: %s", doctor_result.output[:500])
-            notify_telegram(f"openclaw doctor found issues:\n{doctor_result.output[:500]}")
+            notify_telegram(
+                f"openclaw doctor found issues:\n{doctor_result.output[:500]}",
+                auth_token=auth_token,
+            )
         else:
             logger.info("Openclaw doctor check passed")
 
-        # 8. Start daemon
+        # 10. Start daemon
         logger.info("Starting gt daemon")
         start_daemon()
 
-        # 9. Start mayor
+        # 11. Start mayor
         logger.info("Starting mayor agent")
         start_mayor(agent="kimi-claude")
-        services_started = True
         logger.info("All services started successfully")
 
-        # 10. Notify
+        # 12. Notify
         logger.info("Sending startup notification")
-        notify_telegram("Gasclaw is up and running.")
+        notify_telegram("Gasclaw is up and running.", auth_token=auth_token)
 
     except Exception as e:
         logger.exception("Bootstrap failed at step")
+        # Get auth token if available for error notifications
+        error_token = auth_token if 'auth_token' in vars() else ""
         # Rollback: Stop any services that were started
         if services_started or dolt_started:
             logger.info("Attempting rollback")
-            notify_telegram(f"Bootstrap failed: {e}. Rolling back...")
+            notify_telegram(
+                f"Bootstrap failed: {e}. Rolling back...",
+                auth_token=error_token,
+            )
             try:
                 stop_all()
+                if services_started:
+                    stop_openclaw()
                 logger.info("Rollback completed")
             except Exception as rollback_error:
                 # Log rollback error but raise original exception
                 logger.error("Rollback failed: %s", rollback_error)
-                notify_telegram(f"Rollback error: {rollback_error}")
+                notify_telegram(
+                    f"Rollback error: {rollback_error}",
+                    auth_token=error_token,
+                )
         else:
-            notify_telegram(f"Bootstrap failed: {e}")
+            notify_telegram(f"Bootstrap failed: {e}", auth_token=error_token)
 
         # Re-raise the original exception
         raise RuntimeError(f"Bootstrap failed: {e}") from e

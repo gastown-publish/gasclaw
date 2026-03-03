@@ -1,0 +1,44 @@
+# Gasclaw Configuration File
+# Place this file at /workspace/config/gasclaw.yaml or specify via GASCLAW_CONFIG env var
+#
+# NOTE: Secrets (API keys, tokens) must be set via environment variables:
+#   - GASTOWN_KIMI_KEYS
+#   - OPENCLAW_KIMI_KEY
+#   - TELEGRAM_BOT_TOKEN
+#   - TELEGRAM_OWNER_ID
+#
+# Environment variables always override YAML config values.
+
+# Gastown agent settings
+gastown:
+  agent_count: 6              # Number of crew workers (default: 6)
+  rig_url: "/project"         # Git URL or path for the rig
+
+# File paths
+paths:
+  project_dir: "/project"     # Directory for git activity checks
+
+# Maintenance loop settings
+maintenance:
+  monitor_interval: 300       # Seconds between health checks (default: 300)
+  activity_deadline: 3600     # Max seconds between commits/PRs (default: 3600)
+
+# Service ports
+services:
+  dolt_port: 3307             # Port for dolt SQL server (default: 3307)
+  gateway_port: 18789         # Port for OpenClaw gateway (default: 18789)
+
+# Telegram configuration
+telegram:
+  # User IDs allowed to DM the bot (in addition to TELEGRAM_OWNER_ID)
+  allow_ids:
+    - "123456789"
+  # Group IDs for Telegram group chats
+  group_ids:
+    - "-1001234567890"
+
+# Agent identity customization
+agent:
+  id: "main"                  # Agent ID
+  name: "Gasclaw Overseer"    # Agent display name
+  emoji: "🏭"                  # Agent emoji

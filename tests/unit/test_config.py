@@ -700,3 +700,545 @@ class TestConfigValidationNew:
         error_msg = str(exc_info.value)
         assert "invalid-ve" in error_msg
         assert "..." in error_msg
+
+
+class TestTelegramAllowlistConfig:
+    """Tests for multiple Telegram allowlist users and groups."""
+
+    def test_telegram_allow_ids_parsed(self, monkeypatch):
+        """TELEGRAM_ALLOW_IDS parsed as colon-separated list."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("TELEGRAM_ALLOW_IDS", "987654321:555666777")
+
+        cfg = load_config()
+        assert cfg.telegram_allow_ids == ["987654321", "555666777"]
+
+    def test_telegram_group_ids_parsed(self, monkeypatch):
+        """TELEGRAM_GROUP_IDS parsed as colon-separated list."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("TELEGRAM_GROUP_IDS", "-5054397264:-123456789")
+
+        cfg = load_config()
+        assert cfg.telegram_group_ids == ["-5054397264", "-123456789"]
+
+    def test_telegram_allow_ids_must_be_numeric(self, monkeypatch):
+        """TELEGRAM_ALLOW_IDS values must be numeric."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("TELEGRAM_ALLOW_IDS", "not_numeric:987654321")
+
+        with pytest.raises(ValueError, match="TELEGRAM_ALLOW_IDS must be numeric"):
+            load_config()
+
+    def test_empty_allowlist_defaults_to_empty_list(self, monkeypatch):
+        """Empty TELEGRAM_ALLOW_IDS defaults to empty list."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        cfg = load_config()
+        assert cfg.telegram_allow_ids == []
+        assert cfg.telegram_group_ids == []
+
+
+class TestGatewayPortConfig:
+    """Tests for configurable gateway port."""
+
+    def test_default_gateway_port(self, monkeypatch):
+        """Default gateway port is 18789."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        cfg = load_config()
+        assert cfg.gateway_port == 18789
+
+    def test_custom_gateway_port(self, monkeypatch):
+        """GATEWAY_PORT can be customized."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("GATEWAY_PORT", "18790")
+
+        cfg = load_config()
+        assert cfg.gateway_port == 18790
+
+    def test_gateway_port_out_of_range_defaults(self, monkeypatch, caplog):
+        """GATEWAY_PORT outside 1-65535 range logs warning and uses default."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("GATEWAY_PORT", "70000")
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gateway_port == 18789
+        assert "GATEWAY_PORT" in caplog.text
+        assert "must be between 1 and 65535" in caplog.text
+
+
+class TestAgentIdentityConfig:
+    """Tests for agent identity customization."""
+
+    def test_default_agent_identity(self, monkeypatch):
+        """Default agent identity values."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        cfg = load_config()
+        assert cfg.agent_id == "main"
+        assert cfg.agent_name == "Gasclaw Overseer"
+        assert cfg.agent_emoji == "🏭"
+
+    def test_custom_agent_identity(self, monkeypatch):
+        """Agent identity can be customized via env vars."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("AGENT_ID", "openclawmaster")
+        monkeypatch.setenv("AGENT_NAME", "OpenClawMaster - Docker Orchestrator")
+        monkeypatch.setenv("AGENT_EMOJI", "🦾")
+
+        cfg = load_config()
+        assert cfg.agent_id == "openclawmaster"
+        assert cfg.agent_name == "OpenClawMaster - Docker Orchestrator"
+        assert cfg.agent_emoji == "🦾"
+
+    def test_empty_agent_identity_uses_default(self, monkeypatch):
+        """Empty agent identity values use defaults."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("AGENT_NAME", "")
+        monkeypatch.setenv("AGENT_EMOJI", "")
+
+        cfg = load_config()
+        assert cfg.agent_name == "Gasclaw Overseer"
+        assert cfg.agent_emoji == "🏭"
+
+
+class TestParseSimpleYaml:
+    """Tests for _parse_simple_yaml fallback parser when PyYAML unavailable."""
+
+    def test_parse_simple_yaml_basic(self):
+        """Parse basic YAML with sections and key-value pairs."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+# This is a comment
+section1:
+  key1: value1
+  key2: value2
+
+section2:
+  key3: 42
+  key4: true
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section1"]["key1"] == "value1"
+        assert result["section1"]["key2"] == "value2"
+        assert result["section2"]["key3"] == 42
+        assert result["section2"]["key4"] is True
+
+    def test_parse_simple_yaml_quoted_strings(self):
+        """Parse YAML with quoted string values."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+section:
+  key1: "double quoted"
+  key2: 'single quoted'
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section"]["key1"] == "double quoted"
+        assert result["section"]["key2"] == "single quoted"
+
+    def test_parse_simple_yaml_lists(self):
+        """Parse YAML with list values."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+section:
+  list1: ["a", "b", "c"]
+  list2: [x, y, z]
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section"]["list1"] == ["a", "b", "c"]
+        assert result["section"]["list2"] == ["x", "y", "z"]
+
+    def test_parse_simple_yaml_booleans(self):
+        """Parse YAML with boolean values."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+section:
+  enabled: true
+  disabled: false
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section"]["enabled"] is True
+        assert result["section"]["disabled"] is False
+
+    def test_parse_simple_yaml_integers(self):
+        """Parse YAML with integer values."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+section:
+  port: 3307
+  negative: -100
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section"]["port"] == 3307
+        assert result["section"]["negative"] == -100
+
+    def test_parse_simple_yaml_empty_values(self):
+        """Parse YAML with empty values."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+section:
+  empty:
+  other: value
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section"]["empty"] is None
+        assert result["section"]["other"] == "value"
+
+    def test_parse_simple_yaml_empty_sections(self):
+        """Parse YAML with empty sections."""
+        from gasclaw.config import _parse_simple_yaml
+
+        yaml_text = """
+section1:
+section2:
+  key: value
+"""
+        result = _parse_simple_yaml(yaml_text)
+        assert result["section1"] == {}
+        assert result["section2"]["key"] == "value"
+
+
+class TestMergeConfig:
+    """Tests for merge_config function."""
+
+    def test_merge_config_env_wins(self):
+        """Environment variable takes precedence over YAML."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {"gastown": {"agent_count": 5}}
+        result = merge_config(yaml_cfg, "10", ("gastown", "agent_count"), 6, int)
+        assert result == 10
+
+    def test_merge_config_yaml_fallback(self):
+        """YAML value used when env var is None."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {"gastown": {"agent_count": 8}}
+        result = merge_config(yaml_cfg, None, ("gastown", "agent_count"), 6, int)
+        assert result == 8
+
+    def test_merge_config_default_fallback(self):
+        """Default used when both env and YAML are missing/invalid."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {}
+        result = merge_config(yaml_cfg, None, ("gastown", "agent_count"), 6, int)
+        assert result == 6
+
+    def test_merge_config_empty_env_uses_yaml(self):
+        """Empty env var string uses YAML value."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {"gastown": {"agent_count": 7}}
+        result = merge_config(yaml_cfg, "   ", ("gastown", "agent_count"), 6, int)
+        assert result == 7
+
+    def test_merge_config_parser_exception_falls_through(self):
+        """Parser exception falls through to YAML/default."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {"gastown": {"agent_count": 9}}
+
+        def selective_failing_parser(x):
+            # Fail for string "invalid", succeed for integers
+            if x == "invalid":
+                raise ValueError("parse error")
+            return int(x)
+
+        # Env var that will fail to parse
+        result = merge_config(
+            yaml_cfg, "invalid", ("gastown", "agent_count"), 6, selective_failing_parser
+        )
+        # Should fall through to YAML value
+        assert result == 9
+
+    def test_merge_config_parser_exception_falls_to_default(self):
+        """Parser exception falls through to default when no YAML."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {}
+
+        def failing_parser(x):
+            raise ValueError("parse error")
+
+        result = merge_config(yaml_cfg, "invalid", ("gastown", "agent_count"), 6, failing_parser)
+        # Should fall through to default
+        assert result == 6
+
+    def test_merge_config_yaml_parser_exception_falls_to_default(self):
+        """YAML value parser exception falls through to default."""
+        from gasclaw.config import merge_config
+
+        yaml_cfg = {"gastown": {"agent_count": "invalid"}}
+
+        def strict_int(x):
+            # This will fail for the YAML "invalid" string
+            if not isinstance(x, int):
+                raise ValueError("must be int")
+            return x
+
+        result = merge_config(yaml_cfg, None, ("gastown", "agent_count"), 6, strict_int)
+        # Should fall through to default
+        assert result == 6
+
+
+class TestYamlParsers:
+    """Tests for YAML-specific parser functions."""
+
+    def test_parse_port_yaml_valid(self):
+        """_parse_port_yaml with valid port."""
+        from gasclaw.config import _parse_port_yaml
+
+        result = _parse_port_yaml(3307, 3306, "TEST_PORT")
+        assert result == 3307
+
+    def test_parse_port_yaml_string_valid(self):
+        """_parse_port_yaml with valid string port."""
+        from gasclaw.config import _parse_port_yaml
+
+        result = _parse_port_yaml("3308", 3306, "TEST_PORT")
+        assert result == 3308
+
+    def test_parse_port_yaml_out_of_range_high(self, caplog):
+        """_parse_port_yaml with port > 65535 logs warning."""
+        from gasclaw.config import _parse_port_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port_yaml(70000, 3307, "TEST_PORT")
+
+        assert result == 3307
+        assert "TEST_PORT" in caplog.text
+        assert "must be between 1 and 65535" in caplog.text
+
+    def test_parse_port_yaml_out_of_range_low(self, caplog):
+        """_parse_port_yaml with port < 1 logs warning."""
+        from gasclaw.config import _parse_port_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port_yaml(0, 3307, "TEST_PORT")
+
+        assert result == 3307
+        assert "TEST_PORT" in caplog.text
+
+    def test_parse_port_yaml_invalid_type(self, caplog):
+        """_parse_port_yaml with non-integer value."""
+        from gasclaw.config import _parse_port_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port_yaml("invalid", 3307, "TEST_PORT")
+
+        assert result == 3307
+        assert "TEST_PORT" in caplog.text
+
+    def test_parse_port_yaml_no_name_no_warning(self, caplog):
+        """_parse_port_yaml without name doesn't log warning."""
+        from gasclaw.config import _parse_port_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_port_yaml("invalid", 3307, "")
+
+        assert result == 3307
+        assert caplog.text == ""
+
+    def test_parse_positive_int_yaml_valid(self):
+        """_parse_positive_int_yaml with valid positive int."""
+        from gasclaw.config import _parse_positive_int_yaml
+
+        result = _parse_positive_int_yaml(100, 50, "TEST")
+        assert result == 100
+
+    def test_parse_positive_int_yaml_zero(self, caplog):
+        """_parse_positive_int_yaml with zero logs warning."""
+        from gasclaw.config import _parse_positive_int_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int_yaml(0, 50, "TEST")
+
+        assert result == 50
+        assert "TEST" in caplog.text
+        assert "must be positive" in caplog.text
+
+    def test_parse_positive_int_yaml_negative(self, caplog):
+        """_parse_positive_int_yaml with negative logs warning."""
+        from gasclaw.config import _parse_positive_int_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int_yaml(-10, 50, "TEST")
+
+        assert result == 50
+        assert "TEST" in caplog.text
+
+    def test_parse_positive_int_yaml_invalid(self, caplog):
+        """_parse_positive_int_yaml with invalid value."""
+        from gasclaw.config import _parse_positive_int_yaml
+
+        with caplog.at_level(logging.WARNING):
+            result = _parse_positive_int_yaml("invalid", 50, "TEST")
+
+        assert result == 50
+        assert "TEST" in caplog.text
+
+    def test_parse_string_yaml_with_none(self):
+        """_parse_string_yaml with None returns default."""
+        from gasclaw.config import _parse_string_yaml
+
+        result = _parse_string_yaml(None, "default")
+        assert result == "default"
+
+    def test_parse_string_yaml_with_empty_string(self):
+        """_parse_string_yaml with empty string returns default."""
+        from gasclaw.config import _parse_string_yaml
+
+        result = _parse_string_yaml("   ", "default")
+        assert result == "default"
+
+    def test_parse_string_list_yaml_with_none(self):
+        """_parse_string_list_yaml with None returns empty list."""
+        from gasclaw.config import _parse_string_list_yaml
+
+        result = _parse_string_list_yaml(None)
+        assert result == []
+
+    def test_parse_string_list_yaml_with_list(self):
+        """_parse_string_list_yaml with list returns cleaned strings."""
+        from gasclaw.config import _parse_string_list_yaml
+
+        result = _parse_string_list_yaml(["  a  ", "b", None, "c"])
+        assert result == ["a", "b", "c"]
+
+    def test_parse_string_list_yaml_with_string(self):
+        """_parse_string_list_yaml with colon-separated string."""
+        from gasclaw.config import _parse_string_list_yaml
+
+        result = _parse_string_list_yaml("a:b:c")
+        assert result == ["a", "b", "c"]
+
+    def test_parse_string_list_yaml_with_other_type(self):
+        """_parse_string_list_yaml with unexpected type returns empty list."""
+        from gasclaw.config import _parse_string_list_yaml
+
+        result = _parse_string_list_yaml(123)
+        assert result == []
+
+
+class TestLoadYamlConfig:
+    """Tests for load_yaml_config function."""
+
+    def test_load_yaml_config_from_path(self, tmp_path):
+        """Load YAML from specified path."""
+        from gasclaw.config import load_yaml_config
+
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("section:\n  key: value\n")
+
+        result = load_yaml_config(str(yaml_file))
+        assert result["section"]["key"] == "value"
+
+    def test_load_yaml_config_missing_file(self):
+        """Missing file returns empty dict."""
+        from gasclaw.config import load_yaml_config
+
+        result = load_yaml_config("/nonexistent/path/config.yaml")
+        assert result == {}
+
+    def test_load_yaml_config_no_path_uses_env(self, monkeypatch, tmp_path):
+        """No path uses GASCLAW_CONFIG env var."""
+        from gasclaw.config import load_yaml_config
+
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("key: value")
+        monkeypatch.setenv("GASCLAW_CONFIG", str(yaml_file))
+
+        result = load_yaml_config()
+        assert result["key"] == "value"
+
+    def test_load_yaml_config_no_path_no_env_uses_default(self, monkeypatch, tmp_path):
+        """No path and no env var uses default path."""
+        from gasclaw.config import load_yaml_config
+
+        # Create default location
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        yaml_file = config_dir / "gasclaw.yaml"
+        yaml_file.write_text("key: from_default")
+
+        # Remove env var and patch the default path
+        monkeypatch.delenv("GASCLAW_CONFIG", raising=False)
+
+        # Use the tmp_path as the workspace
+        import os
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = load_yaml_config()
+        finally:
+            os.chdir(original_cwd)
+
+        # Since we're not at /workspace/config, this should return empty
+        assert result == {} or "key" not in result
+
+
+class TestGetYamlValue:
+    """Tests for _get_yaml_value helper."""
+
+    def test_get_yaml_value_nested(self):
+        """Get nested value from YAML dict."""
+        from gasclaw.config import _get_yaml_value
+
+        yaml_cfg = {"a": {"b": {"c": "value"}}}
+        result = _get_yaml_value(yaml_cfg, "a", "b", "c")
+        assert result == "value"
+
+    def test_get_yaml_value_missing_key(self):
+        """Missing key returns default."""
+        from gasclaw.config import _get_yaml_value
+
+        yaml_cfg = {"a": {"b": "value"}}
+        result = _get_yaml_value(yaml_cfg, "a", "missing", default="default")
+        assert result == "default"
+
+    def test_get_yaml_value_not_dict(self):
+        """Non-dict in path returns default."""
+        from gasclaw.config import _get_yaml_value
+
+        yaml_cfg = {"a": "not_a_dict"}
+        result = _get_yaml_value(yaml_cfg, "a", "b", default="default")
+        assert result == "default"

@@ -243,3 +243,79 @@ class TestWriteOpenclawConfig:
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         agent = cfg["agents"]["list"][0]
         assert "bd" in agent["instructions"].lower() or "bead" in agent["instructions"].lower()
+
+    def test_multiple_allow_ids(self, tmp_path):
+        """Multiple allow IDs are included in allowlist."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+            allow_ids=["111", "222"],
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        allow_from = cfg["channels"]["telegram"]["allowFrom"]
+        assert "999" in allow_from
+        assert "111" in allow_from
+        assert "222" in allow_from
+
+    def test_group_ids_add_group_allow_from(self, tmp_path):
+        """Group IDs add groupAllowFrom and groupPolicy."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+            group_ids=["-5054397264", "-123456789"],
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        telegram = cfg["channels"]["telegram"]
+        assert "groupAllowFrom" in telegram
+        assert "-5054397264" in telegram["groupAllowFrom"]
+        assert "-123456789" in telegram["groupAllowFrom"]
+        assert telegram["groupPolicy"] == "allowlist"
+
+    def test_custom_agent_identity(self, tmp_path):
+        """Custom agent identity is written to config."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+            agent_id="openclawmaster",
+            agent_name="OpenClawMaster",
+            agent_emoji="🦾",
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        agent = cfg["agents"]["list"][0]
+        assert agent["id"] == "openclawmaster"
+        assert agent["identity"]["name"] == "OpenClawMaster"
+        assert agent["identity"]["emoji"] == "🦾"
+
+    def test_no_duplicate_owner_in_allowlist(self, tmp_path):
+        """Owner ID is not duplicated when also in allow_ids."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+            allow_ids=["999", "111"],  # 999 is owner
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        allow_from = cfg["channels"]["telegram"]["allowFrom"]
+        # 999 should appear only once
+        assert allow_from.count("999") == 1
+        assert "111" in allow_from
+
+    def test_no_group_config_when_no_group_ids(self, tmp_path):
+        """Group fields are not present when no group_ids provided."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id="999",
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        telegram = cfg["channels"]["telegram"]
+        assert "groupAllowFrom" not in telegram
+        assert "groupPolicy" not in telegram

@@ -32,6 +32,35 @@ class TestStartCommand:
             assert result.exit_code == 1
             assert "Config error" in result.output
 
+    def test_exits_when_port_in_use(self, config, monkeypatch, tmp_path):
+        """start command exits with code 1 if gateway port is in use."""
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: True)
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "already in use" in result.output
+        assert "18789" in result.output
+
+    def test_passes_when_port_available(self, config, monkeypatch, tmp_path):
+        """start command proceeds when gateway port is available."""
+        bootstrap_calls = []
+
+        def mock_bootstrap(cfg, gt_root):
+            bootstrap_calls.append((cfg, gt_root))
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
+        monkeypatch.setattr(
+            "gasclaw.cli.monitor_loop", lambda cfg: (_ for _ in ()).throw(KeyboardInterrupt)
+        )
+
+        runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert len(bootstrap_calls) == 1
+
     def test_calls_bootstrap_and_monitor_loop(self, config, monkeypatch, tmp_path):
         """start command bootstraps and enters monitor loop."""
         bootstrap_calls = []
@@ -47,6 +76,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -71,6 +101,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         runner.invoke(
             app, ["start", "--gt-root", str(tmp_path), "--project-dir", str(project_override)]
@@ -88,6 +119,7 @@ class TestStartCommand:
 
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_fail)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -103,6 +135,7 @@ class TestStartCommand:
 
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_interrupt)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -121,6 +154,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor_interrupt)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -717,3 +751,66 @@ class TestKeysCommand:
         assert result.exit_code == 0
         assert "Key Pool Status" in result.output
         assert "0" in result.output
+
+    def test_migrate_from_openclaw_launcher_success(self, monkeypatch):
+        """migrate --from openclaw-launcher succeeds with warnings."""
+
+        def mock_migrate(*args, **kwargs):
+            return {
+                "success": True,
+                "migrated_keys": ["TELEGRAM_BOT_TOKEN", "OPENCLAW_KIMI_KEY"],
+                "warnings": ["Port changed from 18790 to 18789"],
+            }
+
+        monkeypatch.setattr(
+            "gasclaw.migration.migrate_openclaw_launcher", mock_migrate
+        )
+
+        result = runner.invoke(app, ["migrate", "--from", "openclaw-launcher"])
+
+        assert result.exit_code == 0
+        assert "Migration successful" in result.output
+        assert "Warnings:" in result.output
+        assert "Port changed" in result.output
+
+    def test_migrate_from_openclaw_launcher_failure(self, monkeypatch):
+        """migrate --from openclaw-launcher exits with code 1 on failure."""
+
+        def mock_migrate(*args, **kwargs):
+            return {
+                "success": False,
+                "error": "No openclaw-launcher installation found",
+            }
+
+        monkeypatch.setattr(
+            "gasclaw.migration.migrate_openclaw_launcher", mock_migrate
+        )
+
+        result = runner.invoke(app, ["migrate", "--from", "openclaw-launcher"])
+
+        assert result.exit_code == 1
+        assert "Migration failed" in result.output
+        assert "No openclaw-launcher installation found" in result.output
+
+    def test_migrate_from_openclaw_launcher_dry_run(self, monkeypatch):
+        """migrate --from openclaw-launcher --dry-run shows success without next steps."""
+
+        def mock_migrate(*args, **kwargs):
+            return {
+                "success": True,
+                "migrated_keys": ["TELEGRAM_BOT_TOKEN"],
+                "warnings": [],
+            }
+
+        monkeypatch.setattr(
+            "gasclaw.migration.migrate_openclaw_launcher", mock_migrate
+        )
+
+        result = runner.invoke(
+            app, ["migrate", "--from", "openclaw-launcher", "--dry-run"]
+        )
+
+        assert result.exit_code == 0
+        assert "Migration successful" in result.output
+        # Should not show next steps in dry run
+        assert "Next steps:" not in result.output
