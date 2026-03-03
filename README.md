@@ -2,12 +2,36 @@
 
 Gastown + OpenClaw + KimiGas in one container. A single-container deployment that runs a full Gastown multi-agent workspace, managed by an OpenClaw overseer bot accessible via Telegram. All agents use Kimi K2.5 as their LLM backend.
 
+**OpenClaw is fully embedded — not a separate install.** OpenClaw runs inside the gasclaw container, not as an external dependency. No manual OpenClaw setup required. The single container includes everything: embedded OpenClaw gateway, Gastown agents, Dolt SQL server, and KimiGas key management.
+
+## What's Inside
+
+Gasclaw is a complete, self-contained deployment with all components pre-installed:
+
+| Component | Purpose | Auto-Configured |
+|-----------|---------|-----------------|
+| **OpenClaw (embedded)** | Overseer bot that monitors agents and reports to Telegram | Yes — embedded gateway, auto-generated `openclaw.json` |
+| **Gastown** | Multi-agent workspace with Mayor, Crew workers, and services | Yes — installed via `gt` CLI |
+| **Dolt** | Version-controlled SQL database for agent memory | Yes — runs on port 3307 |
+| **KimiGas** | Key pool management with LRU rotation for rate limiting | Yes — separate pools for Gastown and OpenClaw |
+| **Node.js** | Runtime for OpenClaw | Pre-installed in container |
+| **Go** | Runtime for Gastown `gt` CLI | Pre-installed in container |
+
+On first startup, the bootstrap sequence automatically:
+1. Configures OpenClaw with your Telegram bot token and Kimi API key
+2. Installs OpenClaw skills (health, keys, update, agents)
+3. Runs the OpenClaw doctor to verify setup
+4. Configures and starts Gastown services
+
 ## Architecture
+
+> **Note:** OpenClaw is fully embedded in the container — it is not a separate installation. The OpenClaw gateway runs inside the same container as all other components.
 
 ```
 ┌─────────────────────── Docker Container ───────────────────────┐
 │                                                                 │
-│  OpenClaw Gateway (port 18789) — THE OVERSEER                  │
+│  OpenClaw Gateway (port 18789) — THE OVERSEER (embedded)       │
+│    ├── Auto-configured with Telegram token and Kimi key        │
 │    ├── Telegram channel → human                                │
 │    ├── Kimi K2.5 (own key pool, separate from Gastown)         │
 │    └── Skills: health, keys, update, agents                    │
