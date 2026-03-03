@@ -1,38 +1,33 @@
 # Gasclaw
 
-Gastown + OpenClaw + KimiGas in one container. A single-container deployment that runs a full Gastown multi-agent workspace, managed by an OpenClaw overseer bot accessible via Telegram. All agents use Kimi K2.5 as their LLM backend.
+Gastown + OpenClaw + KimiGas in one container. A single-container deployment that runs a full Gastown multi-agent workspace, managed by an OpenClaw overseer bot accessible via Telegram. All agents use Kimi K2.5 as their LLM backend through Claude Code's agentic interface.
 
-**OpenClaw is fully embedded — not a separate install.** OpenClaw runs inside the gasclaw container, not as an external dependency. No manual OpenClaw setup required. The single container includes everything: embedded OpenClaw gateway, Gastown agents, Dolt SQL server, and KimiGas key management.
+**OpenClaw is fully embedded — not a separate install.** The single container includes everything: embedded OpenClaw gateway, Gastown agents ([steveyegge/gastown](https://github.com/steveyegge/gastown)), Dolt SQL server, and KimiGas key management.
 
 ## What's Inside
 
-Gasclaw is a complete, self-contained deployment with all components pre-installed:
-
 | Component | Purpose | Auto-Configured |
 |-----------|---------|-----------------|
+| **Gastown** | Multi-agent workspace with Mayor, Crew workers, and services | Yes — installed via `gt` CLI (Go) |
 | **OpenClaw (embedded)** | Overseer bot that monitors agents and reports to Telegram | Yes — embedded gateway, auto-generated `openclaw.json` |
-| **Gastown** | Multi-agent workspace with Mayor, Crew workers, and services | Yes — installed via `gt` CLI |
 | **Dolt** | Version-controlled SQL database for agent memory | Yes — runs on port 3307 |
 | **KimiGas** | Key pool management with LRU rotation for rate limiting | Yes — separate pools for Gastown and OpenClaw |
-| **Node.js** | Runtime for OpenClaw | Pre-installed in container |
-| **Go** | Runtime for Gastown `gt` CLI | Pre-installed in container |
+| **Beads** | Git-backed issue tracking for agents | Yes — `bd` CLI from [steveyegge/beads](https://github.com/steveyegge/beads) |
 
 On first startup, the bootstrap sequence automatically:
-1. Configures OpenClaw with your Telegram bot token and Kimi API key
-2. Installs OpenClaw skills (health, keys, update, agents)
-3. Runs the OpenClaw doctor to verify setup
-4. Configures and starts Gastown services
+1. Configures Kimi as the Claude Code backend (`ANTHROPIC_BASE_URL`)
+2. Writes Claude config for headless operation (permission bypass via config file)
+3. Installs and configures Gastown workspace
+4. Configures OpenClaw with Telegram (open DM/group policy, no @mention required)
+5. Starts all services with automatic rollback on failure
 
 ## Architecture
-
-> **Note:** OpenClaw is fully embedded in the container — it is not a separate installation. The OpenClaw gateway runs inside the same container as all other components.
 
 ```
 ┌─────────────────────── Docker Container ───────────────────────┐
 │                                                                 │
 │  OpenClaw Gateway (port 18789) — THE OVERSEER (embedded)       │
-│    ├── Auto-configured with Telegram token and Kimi key        │
-│    ├── Telegram channel → human                                │
+│    ├── Telegram channel (open DM + group policy)               │
 │    ├── Kimi K2.5 (own key pool, separate from Gastown)         │
 │    └── Skills: health, keys, update, agents                    │
 │                                                                 │
@@ -66,21 +61,11 @@ docker compose up -d
 
 ## Platform Support
 
-Gasclaw runs on Linux and macOS (including Apple Silicon) via Docker:
-
-- **Linux (amd64/arm64)**: Native Docker support
-- **macOS Intel (amd64)**: Docker Desktop
-- **macOS Apple Silicon (arm64)**: Docker Desktop with native ARM64 support
-
-The Docker image is multi-platform and automatically selects the correct architecture:
-
-```bash
-# Build for your current platform
-docker compose up -d
-
-# Build for specific platform
-docker compose build --build-arg TARGETARCH=arm64
-```
+| Platform | Status |
+|----------|--------|
+| Linux amd64/arm64 | Supported |
+| macOS Intel (Docker Desktop) | Supported |
+| macOS Apple Silicon (Docker Desktop) | Supported |
 
 ## Environment Variables
 
@@ -89,214 +74,94 @@ docker compose build --build-arg TARGETARCH=arm64
 | `GASTOWN_KIMI_KEYS` | Yes | Colon-separated Kimi API keys for Gastown agents |
 | `OPENCLAW_KIMI_KEY` | Yes | Kimi API key for OpenClaw (separate pool) |
 | `TELEGRAM_BOT_TOKEN` | Yes | Telegram bot token |
-| `TELEGRAM_OWNER_ID` | Yes | Telegram user ID for allowlist |
+| `TELEGRAM_OWNER_ID` | Yes | Telegram user ID (numeric) |
 | `GT_RIG_URL` | No | Git URL or path (default: `/project`) |
 | `GT_AGENT_COUNT` | No | Crew worker count (default: 6) |
 | `MONITOR_INTERVAL` | No | Health check interval in seconds (default: 300) |
 | `ACTIVITY_DEADLINE` | No | Max seconds between commits (default: 3600) |
 | `DOLT_PORT` | No | Dolt SQL server port (default: 3307) |
-| `LOG_LEVEL` | No | Log level: DEBUG, INFO, WARNING, ERROR (default: INFO) |
+| `LOG_LEVEL` | No | DEBUG, INFO, WARNING, ERROR (default: INFO) |
 
-**Key separation:** Gastown and OpenClaw keys are completely separate pools. Keys are never shared unless you explicitly put the same key in both `GASTOWN_KIMI_KEYS` and `OPENCLAW_KIMI_KEY`.
+**Key separation:** Gastown and OpenClaw keys are completely separate pools. Keys are never shared unless explicitly duplicated.
 
 ## Key Management
 
-Gasclaw uses intelligent key pool management via **KimiGas** — an LRU (Least Recently Used) rotation system with automatic rate-limit recovery.
-
-### How It Works
+Gasclaw uses **KimiGas** — an LRU key rotation system with automatic rate-limit recovery.
 
 | Feature | Behavior |
 |---------|----------|
-| **LRU Rotation** | Selects the key that hasn't been used longest, not round-robin |
-| **5-Minute Cooldown** | Rate-limited keys are automatically quarantined for 5 minutes (`RATE_LIMIT_COOLDOWN = 300`) |
-| **Graceful Degradation** | If ALL keys are rate-limited, the pool returns the key closest to cooldown expiry instead of failing |
-| **State Persistence** | Key rotation state survives container restarts via `key-rotation.json` |
-| **Privacy** | Keys are tracked by BLAKE2b hash, never stored in plaintext in state files |
+| **LRU Rotation** | Least-recently-used key selected first |
+| **5-Minute Cooldown** | Rate-limited keys quarantined for 5 minutes |
+| **Graceful Degradation** | If all keys rate-limited, returns key closest to cooldown expiry |
+| **Privacy** | Keys tracked by BLAKE2b hash, never stored in plaintext |
 
-### Key Lifecycle
+Minimum 2-3 keys recommended for uninterrupted service.
 
-```
-Available ──► In Use ──► Rate Limited ──► Cooldown (5 min) ──► Available
-```
+## How Kimi Integration Works
 
-### Recommendations
+Claude Code CLI reads `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY` from the environment. Gasclaw sets these to point at Kimi's API. Permission bypass is handled via a Claude config file (`bypassPermissionsModeAccepted: true`) — no `--dangerously-skip-permissions` flag needed (which is rejected under root).
 
-- **Minimum 2-3 keys** for uninterrupted service during rate limits
-- **Separate pools** — `GASTOWN_KIMI_KEYS` for agents, `OPENCLAW_KIMI_KEY` for the overseer
-- **Monitor status** — Run `gasclaw status` to see pool state
-- **Force rotation** — Use `gasclaw keys --rotate` to mark the current key as rate-limited
+## OpenClaw Telegram
 
-### Why This Matters
-
-Users coming from standalone OpenClaw (single key, no rotation) experience hard rate-limit failures where agents go completely offline. Gasclaw's key pool provides automatic failover and recovery.
-
-## How It Works
-
-When you run `gasclaw start`, a 10-step bootstrap sequence executes:
-
-| Step | Action | What It Does | On Failure |
-|------|--------|--------------|------------|
-| 1 | Setup Kimi accounts | Writes `~/.kimi-accounts/kimi` with API keys | Check `GASTOWN_KIMI_KEYS` env var |
-| 2 | Write agent config | Generates `settings/config.json` for Gastown | Check permissions on settings directory |
-| 3 | Install Gastown | Runs `gt install` and `gt rig add` | Verify `gt` CLI is in PATH |
-| 4 | Start Dolt SQL | Launches Dolt SQL server on port 3307 | Check if port 3307 is already in use |
-| 5 | Configure OpenClaw | Writes `~/.openclaw/openclaw.json` | Check `OPENCLAW_KIMI_KEY` env var |
-| 6 | Install skills | Copies skills to `~/.openclaw/skills/` | Check skills directory exists |
-| 7 | Run doctor | Executes `openclaw doctor --repair` | Check OpenClaw installation |
-| 8 | Start GT daemon | Launches Gastown daemon process | Check daemon logs |
-| 9 | Start Mayor | Launches the Mayor agent | Check mayor logs |
-| 10 | Notify | Sends startup message to Telegram | Verify Telegram bot token |
-
-### Rollback on Failure
-
-If any step fails, gasclaw automatically **rolls back** all previously started services to leave the system in a clean state. This prevents partial startup where some services are running but others aren't.
-
-### Health Monitoring
-
-After bootstrap completes, the health monitor runs continuously to:
-- Check service health every 5 minutes (configurable via `MONITOR_INTERVAL`)
-- Verify activity compliance (git commits/PRs within `ACTIVITY_DEADLINE`)
-- Rotate keys on rate limits
-- Restart failed services
-- Report issues via Telegram
-
-## OpenClaw as Overseer
-
-OpenClaw is the boss. It:
-
-- Monitors all agents every 5 minutes
-- Enforces activity compliance (push/PR every hour)
-- Rotates Gastown keys on rate limits
-- Restarts failed agents
-- Assesses quality of updates, not just quantity
-- Reports to the human via Telegram
+OpenClaw uses its **native Telegram provider** (not polling or wrappers). Default config:
+- `dmPolicy: "open"` — accepts all DMs
+- `groupPolicy: "open"` — accepts all group messages
+- `ackReactionScope: "all"` — responds without requiring @mention
 
 ## Development
 
 ```bash
-# Install
 python -m venv .venv && source .venv/bin/activate
 make dev
 
-# Test
-make test          # Unit tests only (606 tests)
+make test          # 628 unit tests (no API keys needed)
 make test-all      # Include integration tests
-
-# Lint
-make lint
+make lint          # Ruff linting
 ```
+
+## Documentation
+
+Full documentation is in the [`docs/`](docs/) directory:
+
+- [Home](docs/index.md) — Overview and documentation map
+- [Architecture](docs/architecture.md) — System design
+- [Gastown Integration](docs/guides/gastown-integration.md) — Real Gastown CLI setup
+- [Kimi Proxy & Key Rotation](docs/guides/kimi-proxy.md) — KimiGas details
+- [OpenClaw & Telegram](docs/guides/openclaw-telegram.md) — Bot configuration
+- [Docker Deployment](docs/guides/docker-deployment.md) — Container setup
+- [Troubleshooting](docs/troubleshooting.md) — Common issues
+- [Knowledge Base / FAQ](docs/knowledge-base.md) — Lessons learned
 
 ## Project Structure
 
 ```
 src/gasclaw/
-├── cli.py              # typer CLI: start, stop, status, update
-├── config.py           # Env var config loading
-├── bootstrap.py        # Startup orchestration
+├── cli.py              # Typer CLI: start, stop, status, update
+├── config.py           # Env var config (dataclass-based)
+├── bootstrap.py        # 10-step startup orchestration
 ├── health.py           # Health checks + activity compliance
 ├── gastown/
-│   ├── agent_config.py # Write settings/config.json
-│   ├── installer.py    # gt install, kimi accounts
+│   ├── agent_config.py # Write settings/config.json for gt
+│   ├── installer.py    # Kimi account setup + gt install
 │   └── lifecycle.py    # Start/stop dolt, daemon, mayor
 ├── kimigas/
-│   ├── key_pool.py     # LRU key rotation
-│   └── proxy.py        # Claude proxy env builder
+│   ├── key_pool.py     # LRU key rotation with rate-limit cooldown
+│   └── proxy.py        # ANTHROPIC_BASE_URL env + Claude config writer
 ├── openclaw/
-│   ├── installer.py    # Write openclaw.json
-│   └── skill_manager.py# Install skills
+│   ├── installer.py    # Write openclaw.json + Telegram config
+│   └── skill_manager.py# Copy skills to ~/.openclaw/skills/
 └── updater/
-    ├── checker.py      # Version checks
-    ├── applier.py      # Apply updates
+    ├── checker.py      # Version checks (gt, claude, openclaw, dolt)
+    ├── applier.py       # Apply updates
     └── notifier.py     # Telegram notifications
+skills/                 # OpenClaw skills (health, keys, update, agents)
+tests/unit/             # 628 unit tests — all mocked, no API keys needed
+tests/integration/      # Integration tests (needs running services)
 ```
-
-## Adding Skills
-
-Create a new directory in `skills/` with:
-
-```
-skills/my-skill/
-├── SKILL.md           # Skill description (YAML frontmatter + markdown)
-└── scripts/
-    └── my-script.sh   # Executable scripts
-```
-
-Skills are automatically installed to `~/.openclaw/skills/` on startup.
-
-## Troubleshooting
-
-### Bootstrap fails with "dolt process exited early"
-
-**Cause:** Dolt SQL server failed to start, often due to port conflicts or data directory issues.
-
-**Solutions:**
-- Check if port 3307 is already in use: `lsof -i :3307`
-- Clear Dolt data directory: `rm -rf /workspace/gt/.dolt-data`
-- Check Dolt logs for specific errors
-
-### "not a git repository" error in health checks
-
-**Cause:** The `project_dir` path doesn't exist or isn't a git repository.
-
-**Solutions:**
-- Verify `PROJECT_DIR` environment variable points to an existing directory
-- Ensure the directory contains a `.git` subdirectory
-- Run `git init` if needed to initialize a git repository
-
-### Keys exhausted / rate limit errors
-
-**Cause:** All Kimi API keys in the pool are rate-limited.
-
-**Solutions:**
-- Wait 5 minutes for rate-limited keys to cool down
-- Add more keys to `GASTOWN_KIMI_KEYS`
-- Check Kimi dashboard for usage limits
-
-### "Activity compliance" alerts
-
-**Cause:** No git commits or PRs within `ACTIVITY_DEADLINE` seconds (default 1 hour).
-
-**Solutions:**
-- Ensure agents are running: check `gt status`
-- Verify `project_dir` is correct and is a git repo
-- Check agent logs for errors
-- Consider increasing `ACTIVITY_DEADLINE` for low-activity periods
-
-### Services show as "unhealthy"
-
-**Cause:** One or more services (dolt, daemon, mayor) are not responding.
-
-**Solutions:**
-- Check service status: `gasclaw status`
-- View service logs: `gt daemon logs`, `gt mayor logs`
-- Restart services: `gasclaw stop && gasclaw start`
-- Check system resources (memory, disk space)
-
-### Bootstrap rollback messages
-
-If you see "Bootstrap failed: ... Rolling back...", the bootstrap sequence encountered an error and attempted to clean up partial state. Check the specific error message and:
-
-- Review environment variables are set correctly
-- Ensure all binaries (`gt`, `dolt`, `openclaw`) are in PATH
-- Check for port conflicts (3307 for Dolt, 18789 for OpenClaw gateway)
-- Verify network connectivity for external API calls
-
-### Telegram bot not responding
-
-**Cause:** Bot token invalid, network issues, or OpenClaw gateway not running.
-
-**Solutions:**
-- Verify `TELEGRAM_BOT_TOKEN` is correct
-- Check `TELEGRAM_OWNER_ID` matches your Telegram user ID
-- Ensure OpenClaw gateway is running: `curl http://localhost:18789/health`
-- Check firewall rules allow outbound connections to Telegram API
 
 ## Migrating from openclaw-launcher
 
-If you're currently using [openclaw-launcher](https://github.com/gastown-publish/openclaw-launcher), see the [Migration Guide](docs/migrating-from-openclaw-launcher.md) for detailed instructions on:
-
+See the [Migration Guide](docs/migrating-from-openclaw-launcher.md) for details on:
 - Port changes (18790 → 18789)
 - Key separation (single key → dual pool)
-- Session preservation options
-- Clean shutdown and cutover
-- Rollback procedures
+- Session preservation and rollback

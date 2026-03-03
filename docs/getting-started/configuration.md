@@ -35,14 +35,15 @@ export TELEGRAM_BOT_TOKEN="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
 
 ### TELEGRAM_OWNER_ID
 
-Your Telegram user ID (numeric). The bot will only respond to messages from this user.
+Your Telegram user ID (numeric). Used for notifications and as the primary contact.
 
 ```bash
 export TELEGRAM_OWNER_ID="2045995148"
 ```
 
-!!! tip "Finding Your User ID"
-    Message @userinfobot on Telegram to get your user ID.
+With the default `dmPolicy: "open"` config, the bot accepts messages from all users, not just the owner. The owner ID is used for system notifications and as a fallback contact.
+
+**Tip:** Message @userinfobot on Telegram to get your user ID.
 
 ## Optional Variables
 

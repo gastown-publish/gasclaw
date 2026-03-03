@@ -2,18 +2,42 @@
 
 ## Requirements
 
+### For Docker Deployment (Recommended)
+
+- Docker Engine 24+
+- Docker Compose v2
+- 4GB+ RAM
+
+Everything else is pre-installed in the container.
+
+### For Local Development
+
 - Python 3.11+
+- Go 1.24+
+- Node.js 22+
 - Git
 - Dolt
-- Gastown CLI (`gt`)
-- OpenClaw CLI (`openclaw`)
+- Gastown CLI (`gt`) — from [steveyegge/gastown](https://github.com/steveyegge/gastown)
+- Beads CLI (`bd`) — from [steveyegge/beads](https://github.com/steveyegge/beads)
+- OpenClaw CLI — `npm install -g openclaw`
+- Claude Code CLI — `npm install -g @anthropic-ai/claude-code`
 
-## Install Dependencies
+## Docker Installation
+
+```bash
+git clone git@github.com:gastown-publish/gasclaw.git
+cd gasclaw
+cp .env.example .env
+# Edit .env with your keys
+docker compose up -d
+```
+
+## Local Development Setup
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/gastown-publish/gasclaw.git
+git clone git@github.com:gastown-publish/gasclaw.git
 cd gasclaw
 ```
 
@@ -22,47 +46,62 @@ cd gasclaw
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-
-# Install in development mode
 make dev
 ```
 
 ### 3. Install External Tools
 
-Install Dolt, Gastown, and OpenClaw according to their respective documentation.
+**Gastown and Beads (Go):**
+```bash
+go install github.com/steveyegge/gastown/cmd/gt@latest
+go install github.com/steveyegge/beads/cmd/bd@latest
+```
+
+**Dolt:**
+```bash
+# Linux
+curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-amd64.tar.gz | \
+  tar -C /usr/local/bin -xzf - --strip-components=1 dolt-linux-amd64/bin/dolt
+```
+
+**OpenClaw and Claude Code (Node.js):**
+```bash
+npm install -g openclaw @anthropic-ai/claude-code
+```
 
 ## Verify Installation
 
-Run the test suite to verify everything is working:
+Run the test suite:
 
 ```bash
 make test
 ```
 
-You should see all tests passing:
+Expected output:
 
 ```
 ============================= test session starts ==============================
-platform linux -- Python 3.13.12, pytest-9.0.2
-collecting ... collected 408 items
+platform linux -- Python 3.13.x, pytest-9.x.x
+collected 628 items
 
 tests/unit/... ............................................... [100%]
 
-============================== 408 passed in 11s ==============================
+============================== 628 passed in 12s ===============================
 ```
 
-## Development Mode
+All 628 unit tests run with mocked dependencies — no API keys or running services needed.
 
-For development, install additional tools:
+## Development Commands
 
 ```bash
 make dev        # Install dev dependencies
-make lint       # Run ruff linting
-make test       # Run unit tests
-make test-all   # Run all tests including integration
+make test       # Unit tests only (628 tests)
+make test-all   # All tests including integration
+make lint       # Ruff linting
 ```
 
 ## Next Steps
 
 - [Configure environment variables](configuration.md)
 - [Run your first bootstrap](quickstart.md)
+- [Understand the architecture](../architecture.md)

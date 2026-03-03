@@ -4,60 +4,64 @@ This guide will get you up and running with Gasclaw in minutes.
 
 ## Prerequisites
 
-Ensure you have:
-
-1. Installed Gasclaw (`make dev`)
+1. Installed Gasclaw (`make dev` or Docker)
 2. Set all [required environment variables](configuration.md)
 3. Verified installation with `make test`
 
 ## Start Gasclaw
 
-Run the bootstrap sequence:
+### Docker (Production)
+
+```bash
+docker compose up -d
+```
+
+### Local
 
 ```bash
 python -m gasclaw
-```
-
-Or use the CLI:
-
-```bash
+# Or:
 gasclaw start
 ```
 
 ## Bootstrap Sequence
 
-When you start Gasclaw, it runs a 13-step sequence:
+When you start Gasclaw, it runs a 10-step sequence:
 
-1. **Setup Kimi accounts** - Configure API keys for agents
-2. **Write agent config** - Create Gastown configuration
-3. **Install Gastown** - Set up the rig and project
-4. **Start Dolt** - Launch the SQL server
-5. **Configure OpenClaw** - Write overseer configuration
-6. **Install skills** - Copy OpenClaw skills to `~/.openclaw/skills/`
-7. **Run doctor** - Verify system health
-8. **Start OpenClaw gateway** - Launch the overseer
-9. **Start gt daemon** - Launch Gastown daemon
-10. **Start mayor** - Launch the mayor agent
-11. **Send notification** - "Gasclaw is up and running"
-12. **Enter monitor loop** - Continuous health checks
+| Step | Action | What Happens |
+|------|--------|--------------|
+| 1 | Setup Kimi proxy | Init KeyPool, set `ANTHROPIC_BASE_URL`, write Claude config |
+| 2 | Install Gastown | `gt install` + `gt rig add` |
+| 3 | Configure agent | `gt config agent set kimi-claude claude` |
+| 4 | Start Dolt | Launch SQL server on configured port |
+| 5 | Configure OpenClaw | Write `~/.openclaw/openclaw.json` |
+| 6 | Install skills | Copy skills to `~/.openclaw/skills/` |
+| 7 | Run doctor | `openclaw doctor --repair` |
+| 8 | Start daemon | `gt daemon start` |
+| 9 | Start mayor | `gt mayor start --agent kimi-claude` |
+| 10 | Notify | Send "Gasclaw is up" via Telegram |
 
-You'll see output like:
+Example output:
 
 ```
-INFO  Setting up Kimi accounts (3 keys)
-INFO  Writing agent config to /workspace/gt
+INFO  Configuring Kimi proxy for Claude Code (3 keys)
+INFO  ANTHROPIC_BASE_URL set to Kimi backend (key via pool)
 INFO  Installing Gastown with rig_url=/project
+INFO  Configuring Gastown agent
 INFO  Starting Dolt
+INFO  Dolt started successfully
 INFO  Configuring OpenClaw in /root/.openclaw
 INFO  Installing skills
 INFO  Running openclaw doctor
-INFO  Starting OpenClaw gateway
+INFO  Openclaw doctor check passed
 INFO  Starting gt daemon
 INFO  Starting mayor agent
 INFO  All services started successfully
 INFO  Sending startup notification
 INFO  Starting monitor loop with interval=300 seconds
 ```
+
+If any step fails, previously started services are automatically rolled back.
 
 ## Verify It's Working
 
@@ -67,53 +71,54 @@ INFO  Starting monitor loop with interval=300 seconds
 gasclaw status
 ```
 
-### Send a Telegram Message
+### Test Telegram
 
-Send a message to your bot. It should respond if OpenClaw is running correctly.
-
-### Check Logs
-
-View OpenClaw logs:
-
-```bash
-openclaw logs
-```
+Send a message to your bot on Telegram. With the default config (`dmPolicy: "open"`, `ackReactionScope: "all"`), it should respond to any message without requiring @mention.
 
 ### Health Endpoint
-
-Check the gateway health:
 
 ```bash
 curl http://localhost:18789/health
 ```
 
+### Check Logs
+
+```bash
+openclaw logs
+# Or in containers:
+tail -f /workspace/logs/openclaw-gateway.log
+```
+
 ## Stop Gasclaw
 
-Press `Ctrl+C` to stop the monitor loop. The system will shut down gracefully.
-
-Or use:
+Press `Ctrl+C` to stop the monitor loop, or:
 
 ```bash
 gasclaw stop
+```
+
+In Docker:
+
+```bash
+docker compose down
 ```
 
 ## What Happens Next
 
 Once running, Gasclaw will:
 
-1. **Check PRs** - Review and merge open PRs that pass tests
-2. **Fix issues** - Work on open GitHub issues
-3. **Maintain coverage** - Add tests for untested code
-4. **Monitor health** - Watch all services and alert on failures
-5. **Enforce activity** - Ensure code is committed every hour
-
-You'll receive Telegram notifications for all significant events.
+1. **Monitor health** — Check all services every 5 minutes
+2. **Enforce activity** — Alert if no commits within 1 hour
+3. **Rotate keys** — Automatically handle Kimi rate limits
+4. **Report via Telegram** — Notifications for all events
 
 ## Troubleshooting
 
 If something goes wrong:
 
 1. Check logs: `openclaw logs`
-2. Verify env vars: `env | grep -E 'KIMI|TELEGRAM'`
+2. Verify env vars: `env | grep -E 'KIMI|TELEGRAM|ANTHROPIC'`
 3. Run doctor: `openclaw doctor --repair`
-4. See [Troubleshooting](../troubleshooting.md) for common issues
+4. Check gateway: `curl http://localhost:18789/health`
+5. See [Troubleshooting](../troubleshooting.md) for common issues
+6. See [Knowledge Base](../knowledge-base.md) for documented solutions

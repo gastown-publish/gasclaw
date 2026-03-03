@@ -57,8 +57,12 @@ All 628 unit tests must pass. Never modify a test to make it pass — fix the co
 
 ## Architecture Decisions
 
+- **Real Gastown**: Installed from [steveyegge/gastown](https://github.com/steveyegge/gastown) via `go install`, not pip
+- **Kimi K2.5 backend**: All agents use Claude Code CLI with `ANTHROPIC_BASE_URL` pointing to Kimi's API
+- **Permission bypass via config file**: `bypassPermissionsModeAccepted: true` in `.claude.json` — not `--dangerously-skip-permissions` (fails under root)
 - **Separate key pools**: `GASTOWN_KIMI_KEYS` (for agents) and `OPENCLAW_KIMI_KEY` (for overseer) are never shared
 - **OpenClaw is the overseer**: It monitors all agents, enforces activity compliance, rotates keys
+- **OpenClaw native Telegram**: Uses OpenClaw's built-in Telegram provider (not polling/wrappers), with `dmPolicy: "open"` and `ackReactionScope: "all"`
 - **Activity benchmark**: Code must be pushed/PR merged every hour (`ACTIVITY_DEADLINE=3600`)
 - **LRU key rotation**: Ported from kimigas — rate-limited keys cool down for 5 minutes
 - **Health monitor loop**: Runs in foreground after bootstrap, checks every `MONITOR_INTERVAL` seconds

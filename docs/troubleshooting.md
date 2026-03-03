@@ -1,14 +1,14 @@
 # Troubleshooting
 
-Common issues and their solutions.
+Common issues and their solutions, organized by component. This guide is based on real production incidents.
+
+---
 
 ## Bootstrap Failures
 
 ### "GASTOWN_KIMI_KEYS is not set"
 
 **Cause**: Required environment variable missing.
-
-**Solution**:
 
 ```bash
 export GASTOWN_KIMI_KEYS="sk-key1:sk-key2"
@@ -18,13 +18,11 @@ export GASTOWN_KIMI_KEYS="sk-key1:sk-key2"
 
 **Cause**: Owner ID contains non-numeric characters.
 
-**Solution**:
-
 ```bash
 # Correct
 export TELEGRAM_OWNER_ID="2045995148"
 
-# Incorrect
+# Incorrect — will fail validation
 export TELEGRAM_OWNER_ID="@username"
 ```
 
@@ -32,14 +30,12 @@ export TELEGRAM_OWNER_ID="@username"
 
 **Cause**: Port conflict or existing Dolt instance.
 
-**Solution**:
-
 ```bash
 # Check if Dolt is already running
 pgrep -f "dolt sql-server"
 
-# Stop existing Dolt
-dolt sql-server --stop
+# Kill existing Dolt
+pkill -f "dolt sql-server"
 
 # Or use a different port
 export DOLT_PORT=3308
@@ -49,182 +45,289 @@ export DOLT_PORT=3308
 
 **Cause**: OpenClaw CLI not installed or not in PATH.
 
-**Solution**:
-
 ```bash
-# Install OpenClaw
-# (Follow OpenClaw installation instructions)
-
-# Verify
+npm install -g openclaw
 which openclaw
 ```
+
+### Bootstrap rollback messages
+
+If you see "Bootstrap failed: ... Rolling back...", a step failed and Gasclaw is cleaning up. Check:
+
+- Environment variables are set correctly
+- All binaries (`gt`, `dolt`, `openclaw`, `claude`) are in PATH
+- Port 3307 (Dolt) and 18789 (OpenClaw) are available
+- Network connectivity for Telegram API
+
+---
 
 ## Telegram Issues
 
 ### Bot not responding to messages
 
-**Symptoms**: Bot is online but doesn't answer.
+This is the most common issue. Check these in order:
 
-**Diagnosis**:
-
+**1. Is the gateway running?**
 ```bash
-# Check if gateway is accessible
 curl http://localhost:18789/health
-
-# Check owner ID
-echo $TELEGRAM_OWNER_ID  # Should be numeric
-
-# Check OpenClaw logs
-openclaw logs
 ```
 
-**Solutions**:
+**2. Check the OpenClaw config:**
+```bash
+cat ~/.openclaw/openclaw.json | python3 -m json.tool
+```
 
-1. **Verify owner_id is integer**: Check `~/.openclaw/openclaw.json`:
-   ```json
-   {
-     "channels": {
-       "telegram": {
-         "allowFrom": [999999999]  // Must be int, not string
-       }
-     }
-   }
-   ```
+Verify these fields:
+```json
+{
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "open",
+      "allowFrom": ["*"],
+      "groupPolicy": "open"
+    }
+  },
+  "messages": {
+    "ackReactionScope": "all"
+  }
+}
+```
 
-2. **Restart OpenClaw**:
-   ```bash
-   openclaw gateway stop
-   openclaw gateway start
-   ```
+**3. Check the logs:**
+```bash
+openclaw logs
+# Or in containers:
+tail -f /workspace/logs/openclaw-gateway.log
+```
 
-3. **Verify bot token**:
-   ```bash
-   curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
-   ```
+**4. Verify the bot token:**
+```bash
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe"
+```
+
+**5. Restart the gateway:**
+```bash
+openclaw gateway stop
+openclaw gateway start
+```
+
+### Bot requires @mention in groups
+
+**Cause**: `ackReactionScope` is not set to `"all"`.
+
+**Fix**:
+```bash
+openclaw config set messages.ackReactionScope all
+```
+
+Or in `openclaw.json`:
+```json
+{
+  "messages": { "ackReactionScope": "all" }
+}
+```
+
+### Bot only responds to owner
+
+**Cause**: `dmPolicy` is set to `"allowlist"` with only the owner's ID.
+
+**Fix**: Change to open policy:
+```json
+{
+  "dmPolicy": "open",
+  "allowFrom": ["*"]
+}
+```
+
+When setting `dmPolicy: "open"`, OpenClaw **requires** `allowFrom: ["*"]`.
+
+### groupPolicy "owner" doesn't work
+
+**Cause**: `"owner"` is not a valid value for `groupPolicy`.
+
+**Valid values**: `"open"`, `"disabled"`, `"allowlist"`. Invalid values are silently ignored.
+
+**Fix**:
+```json
+{
+  "groupPolicy": "open"
+}
+```
+
+### Config changes lost after restart
+
+**Cause**: The container's entrypoint script rewrites `openclaw.json` on every startup.
+
+**Fix**: Edit the source files:
+1. `src/gasclaw/openclaw/installer.py` — Python module
+2. `maintainer/entrypoint.sh` step 9 — Docker entrypoint
+
+Manual `openclaw config set` changes will be overwritten on next container restart.
 
 ### Not receiving notifications
 
 **Cause**: Gateway not running or wrong chat ID.
 
-**Solution**:
-
 ```bash
 # Check gateway health
 curl http://localhost:18789/health
 
-# Verify chat ID matches owner ID
-# They should be the same for DMs
+# Test sending a message directly
+curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  -d chat_id="${TELEGRAM_OWNER_ID}" \
+  -d text="Test message"
 ```
+
+---
 
 ## Key and Rate Limiting
 
-### "Rate limit exceeded"
+### "Rate limit exceeded" / HTTP 429
 
-**Symptoms**: API calls return 429 errors.
+**Cause**: API key hit Kimi's rate limit.
 
-**Solution**:
+The KeyPool automatically quarantines rate-limited keys for 5 minutes. Options:
 
-1. Wait 5 minutes for cooldown
-2. Add more keys to `GASTOWN_KIMI_KEYS`
-3. Check key pool status via Telegram: `/keys`
+1. **Wait** — the key will be available again in ~5 minutes
+2. **Add more keys** to `GASTOWN_KIMI_KEYS` for better distribution
+3. **Check pool status** via Telegram: `/keys` or `gasclaw status`
 
 ### "No keys available"
 
 **Cause**: All keys are rate-limited or invalid.
 
-**Solution**:
+The pool will still return the key closest to cooldown expiry (graceful degradation). To fix permanently:
 
 ```bash
-# Check key validity
+# Verify key validity
 curl https://api.kimi.com/coding/v1/models \
   -H "Authorization: Bearer sk-your-key"
 
-# Update keys
-export GASTOWN_KIMI_KEYS="sk-newkey1:sk-newkey2"
+# Add more keys
+export GASTOWN_KIMI_KEYS="sk-key1:sk-key2:sk-key3:sk-newkey4"
 ```
+
+### Claude prompts for API key
+
+**Cause**: `CLAUDE_CONFIG_DIR` not set or config file missing.
+
+The fix is in `write_claude_config()` during bootstrap. Verify:
+
+```bash
+cat $CLAUDE_CONFIG_DIR/.claude.json
+# Should show: bypassPermissionsModeAccepted: true
+```
+
+---
+
+## Container Issues
+
+### Container crash loop
+
+**Cause**: `set -euo pipefail` in entrypoint means any command failure kills the container.
+
+**Diagnosis**:
+```bash
+docker logs <container_id> --tail 50
+```
+
+**Most common cause**: File permission errors.
+
+```bash
+# Fix permissions
+docker exec -u root <container_id> chown -R 1000:1000 /workspace/
+```
+
+### UID mismatch on volumes
+
+**Cause**: Bind-mounted volumes have host UIDs that don't match the container user.
+
+```bash
+# Check current ownership
+docker exec <container_id> ls -la /workspace/
+
+# Fix
+docker exec -u root <container_id> chown -R 1000:1000 /workspace/
+```
+
+### Dolt won't stop
+
+**Cause**: `dolt sql-server --stop` is unreliable in containers.
+
+Gasclaw uses `pkill -f "dolt sql-server"` instead.
+
+```bash
+pkill -f "dolt sql-server"
+```
+
+---
 
 ## Activity Compliance
 
 ### "ACTIVITY ALERT: No commits"
 
-**Cause**: No git activity within `ACTIVITY_DEADLINE`.
+**Cause**: No git activity within `ACTIVITY_DEADLINE` (default: 3600s).
 
-**Solution**:
-
-This is working as intended. The alert reminds you to push code. To resolve:
+This is working as intended. The alert reminds you that agents haven't pushed code. To resolve:
 
 ```bash
-# Make a commit
-git add .
-git commit -m "activity: keepalive"
-git push
-```
+# Check if agents are running
+gt agents
 
-To adjust the deadline:
+# Check agent logs
+cat /workspace/gt/daemon.log
 
-```bash
+# Adjust deadline if needed
 export ACTIVITY_DEADLINE=7200  # 2 hours
 ```
+
+---
 
 ## Health Check Failures
 
 ### SERVICE DOWN: dolt
 
-**Diagnosis**:
-
 ```bash
 dolt sql --port 3307 -q "SELECT 1"
-echo $?  # Should be 0
-```
-
-**Solution**:
-
-```bash
-# Restart Dolt
-dolt sql-server --stop
-dolt sql-server --port 3307 &
+# If fails, restart:
+pkill -f "dolt sql-server"
+nohup dolt sql-server --port 3307 &
 ```
 
 ### SERVICE DOWN: daemon
 
-**Solution**:
-
 ```bash
-# Restart daemon
 gt daemon stop
 gt daemon start
 ```
 
 ### SERVICE DOWN: mayor
 
-**Solution**:
-
 ```bash
-# Restart mayor
 gt mayor stop
 gt mayor start --agent kimi-claude
 ```
 
 ### SERVICE DOWN: openclaw
 
-**Solution**:
-
 ```bash
-# Restart gateway
 openclaw gateway stop
 openclaw gateway start
 ```
 
+---
+
 ## Debugging
 
-### Enable Debug Logging
+### Enable debug logging
 
 ```bash
 export LOG_LEVEL=DEBUG
 python -m gasclaw
 ```
 
-### Check Configuration
+### Check configuration
 
 ```python
 python -c "
@@ -236,24 +339,34 @@ print(f'Interval: {config.monitor_interval}')
 "
 ```
 
-### Run Doctor
+### Run doctor
 
 ```bash
 openclaw doctor --repair
 ```
 
-### Test Telegram
+### Test Telegram manually
 
 ```bash
 curl "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TELEGRAM_OWNER_ID}" \
-  -d text="Test message"
+  -d text="Test message from Gasclaw"
 ```
+
+### Check all processes
+
+```bash
+ps aux | grep -E "dolt|gt|openclaw|claude"
+```
+
+---
 
 ## Getting Help
 
 If issues persist:
 
-1. Check logs: `openclaw logs`, `gt logs`
+1. Check logs: `openclaw logs`, `cat /workspace/gt/daemon.log`
 2. Run tests: `make test`
-3. File an issue with logs and config (redact secrets)
+3. Run doctor: `openclaw doctor --repair`
+4. Check the [Knowledge Base](knowledge-base.md) for documented solutions
+5. File an issue with logs and config (redact secrets)
