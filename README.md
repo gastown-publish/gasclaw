@@ -290,3 +290,13 @@ If you see "Bootstrap failed: ... Rolling back...", the bootstrap sequence encou
 - Check `TELEGRAM_OWNER_ID` matches your Telegram user ID
 - Ensure OpenClaw gateway is running: `curl http://localhost:18789/health`
 - Check firewall rules allow outbound connections to Telegram API
+
+## Migrating from openclaw-launcher
+
+If you're currently using [openclaw-launcher](https://github.com/gastown-publish/openclaw-launcher), see the [Migration Guide](docs/migrating-from-openclaw-launcher.md) for detailed instructions on:
+
+- Port changes (18790 → 18789)
+- Key separation (single key → dual pool)
+- Session preservation options
+- Clean shutdown and cutover
+- Rollback procedures
