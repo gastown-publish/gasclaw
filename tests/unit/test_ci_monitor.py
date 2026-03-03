@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -319,3 +320,129 @@ class TestCheckCIFailures:
         assert mock_save.called
         saved = mock_save.call_args[0][0]
         assert len(saved) == 100  # Max history size
+
+
+class TestCIFailureDataclass:
+    """Tests for CIFailure dataclass methods."""
+
+    def test_unique_id(self):
+        """Test unique_id method generates correct identifier."""
+        failure = CIFailure(
+            run_id="12345",
+            workflow_name="Test Workflow",
+            url="https://github.com/org/repo/actions/runs/12345",
+            started_at="2026-03-03T10:00:00Z"
+        )
+        assert failure.unique_id() == "Test Workflow:12345"
+
+    def test_unique_id_with_special_chars(self):
+        """Test unique_id with special characters in workflow name."""
+        failure = CIFailure(
+            run_id="99999",
+            workflow_name="Build / Test & Deploy",
+            url="https://github.com/org/repo/actions/runs/99999",
+            started_at="2026-03-03T10:00:00Z"
+        )
+        assert failure.unique_id() == "Build / Test & Deploy:99999"
+
+
+class TestSaveSeenFailuresErrors:
+    """Tests for save_seen_failures error handling."""
+
+    def test_save_seen_failures_ioerror(self, tmp_path, caplog):
+        """Test IOError handling when saving fails."""
+        from unittest.mock import patch
+
+        state_file = tmp_path / "ci_failures.json"
+
+        # Mock open to raise IOError
+        with patch("builtins.open", side_effect=IOError("Permission denied")):
+            with caplog.at_level(logging.WARNING):
+                save_seen_failures({"12345"}, str(state_file))
+
+        assert "Failed to save seen failures" in caplog.text
+        assert "Permission denied" in caplog.text
+
+
+class TestCheckCIFailuresNotification:
+    """Tests for notification handling in check_ci_failures."""
+
+    def test_notification_success(self):
+        """Test successful notification callback."""
+        failures = [
+            CIFailure(
+                run_id="12345",
+                workflow_name="Test Workflow",
+                url="https://github.com/org/repo/actions/runs/12345",
+                started_at="2026-03-03T10:00:00Z"
+            )
+        ]
+
+        notifications = []
+
+        def mock_send_notification(msg):
+            notifications.append(msg)
+
+        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
+            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
+                with patch("gasclaw.ci_monitor.save_seen_failures"):
+                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
+                        result = check_ci_failures(
+                            "gastown-publish/gasclaw",
+                            send_notification=mock_send_notification
+                        )
+
+        assert result["new"] == 1
+        assert len(notifications) == 1
+        assert "Test Workflow" in notifications[0]
+
+    def test_notification_failure(self, caplog):
+        """Test notification callback exception handling."""
+        failures = [
+            CIFailure(
+                run_id="12345",
+                workflow_name="Test Workflow",
+                url="https://github.com/org/repo/actions/runs/12345",
+                started_at="2026-03-03T10:00:00Z"
+            )
+        ]
+
+        def failing_notification(msg):
+            raise Exception("Notification service down")
+
+        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
+            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
+                with patch("gasclaw.ci_monitor.save_seen_failures"):
+                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
+                        with caplog.at_level(logging.WARNING):
+                            result = check_ci_failures(
+                                "gastown-publish/gasclaw",
+                                send_notification=failing_notification
+                            )
+
+        assert result["new"] == 1
+        assert "Failed to send notification" in caplog.text
+        assert "Notification service down" in caplog.text
+
+    def test_no_notification_callback(self):
+        """Test that None callback doesn't cause issues."""
+        failures = [
+            CIFailure(
+                run_id="12345",
+                workflow_name="Test Workflow",
+                url="https://github.com/org/repo/actions/runs/12345",
+                started_at="2026-03-03T10:00:00Z"
+            )
+        ]
+
+        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
+            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
+                with patch("gasclaw.ci_monitor.save_seen_failures"):
+                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
+                        result = check_ci_failures(
+                            "gastown-publish/gasclaw",
+                            send_notification=None
+                        )
+
+        assert result["new"] == 1
+        # No notification sent, but no error either
