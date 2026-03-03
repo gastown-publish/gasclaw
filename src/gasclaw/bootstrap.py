@@ -2,8 +2,8 @@
 
 Bootstrap sequence:
  1. Setup Kimi accounts
- 2. Write agent config
- 3. Install Gastown
+ 2. Install Gastown (gt install + gt rig add)
+ 3. Configure agent (gt config agent set + default-agent)
  4. Start Dolt
  5. Configure OpenClaw
  6. Install skills
@@ -19,14 +19,17 @@ and a failure notification is sent.
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
 from gasclaw.config import GasclawConfig
-from gasclaw.gastown.agent_config import write_agent_config
+from gasclaw.gastown.agent_config import configure_agent
 from gasclaw.gastown.installer import gastown_install, setup_kimi_accounts
 from gasclaw.gastown.lifecycle import start_daemon, start_dolt, start_mayor, stop_all
 from gasclaw.health import check_agent_activity, check_health
+from gasclaw.kimigas.key_pool import KeyPool
+from gasclaw.kimigas.proxy import build_claude_env, write_claude_config
 from gasclaw.logging_config import get_logger
 from gasclaw.openclaw.doctor import run_doctor
 from gasclaw.openclaw.installer import write_openclaw_config
@@ -54,17 +57,24 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
     services_started = False
 
     try:
-        # 1. Setup Kimi accounts for Gastown agents
-        logger.info("Setting up Kimi accounts (%d keys)", len(config.gastown_kimi_keys))
+        # 1. Setup Kimi proxy: Claude Code UI talks to Kimi backend
+        key_count = len(config.gastown_kimi_keys)
+        logger.info("Configuring Kimi proxy for Claude Code (%d keys)", key_count)
         setup_kimi_accounts(config.gastown_kimi_keys)
+        pool = KeyPool(config.gastown_kimi_keys)
+        active_key = pool.get_key()
+        kimi_env = build_claude_env(active_key)
+        os.environ.update(kimi_env)
+        write_claude_config(active_key, config_dir=kimi_env["CLAUDE_CONFIG_DIR"])
+        logger.info("ANTHROPIC_BASE_URL set to Kimi backend (key via pool)")
 
-        # 2. Write agent config
-        logger.info("Writing agent config to %s", gt_root)
-        write_agent_config(gt_root)
-
-        # 3. Install Gastown
+        # 2. Install Gastown (HQ must exist before configuring agents)
         logger.info("Installing Gastown with rig_url=%s", config.gt_rig_url)
         gastown_install(gt_root=gt_root, rig_url=config.gt_rig_url)
+
+        # 3. Configure agent: Claude Code CLI backed by Kimi
+        logger.info("Configuring Gastown agent")
+        configure_agent()
 
         # 4. Start Dolt
         logger.info("Starting Dolt")

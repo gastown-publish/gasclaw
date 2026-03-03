@@ -59,7 +59,6 @@ class TestBootstrapIntegration:
         gt_root = tmp_path / "gt"
         gt_root.mkdir()
 
-        # Track all the calls to verify integration
         calls = {
             "kimi_accounts": False,
             "agent_config": False,
@@ -75,57 +74,36 @@ class TestBootstrapIntegration:
 
         mock_doctor = DoctorResult(healthy=True, returncode=0, output="All checks passed")
 
-        with patch("gasclaw.bootstrap.setup_kimi_accounts") as m_kimi:
-            m_kimi.side_effect = lambda keys: calls.update({"kimi_accounts": True})
-            with patch("gasclaw.bootstrap.write_agent_config") as m_agent:
-                m_agent.side_effect = lambda path: calls.update({"agent_config": True})
-                with patch("gasclaw.bootstrap.gastown_install") as m_install:
-                    m_install.side_effect = lambda **kw: calls.update({"gastown_install": True})
-                    with patch("gasclaw.bootstrap.start_dolt") as m_dolt:
-                        m_dolt.side_effect = lambda: calls.update({"dolt_start": True})
-                        with patch("gasclaw.bootstrap.write_openclaw_config") as m_oc:
-                            m_oc.side_effect = lambda **kw: calls.update({"openclaw_config": True})
-                            with patch("gasclaw.bootstrap.install_skills") as m_skills:
-                                m_skills.side_effect = lambda **kw: calls.update(
-                                    {"skills_install": True}
-                                )
-                                with patch(
-                                    "gasclaw.bootstrap.run_doctor", return_value=mock_doctor
-                                ) as m_doctor:
+        def doctor_side_effect(**kw):
+            calls.update({"doctor": True})
+            return mock_doctor
 
-                                    def doctor_side_effect(**kw):
-                                        calls.update({"doctor": True})
-                                        return mock_doctor
+        with (
+            patch("gasclaw.bootstrap.setup_kimi_accounts",
+                  side_effect=lambda keys: calls.update({"kimi_accounts": True})),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
+            patch("gasclaw.bootstrap.gastown_install",
+                  side_effect=lambda **kw: calls.update({"gastown_install": True})),
+            patch("gasclaw.bootstrap.configure_agent",
+                  side_effect=lambda: calls.update({"agent_config": True})),
+            patch("gasclaw.bootstrap.start_dolt",
+                  side_effect=lambda: calls.update({"dolt_start": True})),
+            patch("gasclaw.bootstrap.write_openclaw_config",
+                  side_effect=lambda **kw: calls.update({"openclaw_config": True})),
+            patch("gasclaw.bootstrap.install_skills",
+                  side_effect=lambda **kw: calls.update({"skills_install": True})),
+            patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect),
+            patch("gasclaw.bootstrap.start_daemon",
+                  side_effect=lambda: calls.update({"daemon_start": True})),
+            patch("gasclaw.bootstrap.start_mayor",
+                  side_effect=lambda **kw: calls.update({"mayor_start": True})),
+            patch("gasclaw.bootstrap.notify_telegram",
+                  side_effect=lambda msg: calls.update({"telegram_notify": True})),
+        ):
+            bootstrap(config, gt_root=gt_root)
 
-                                    m_doctor.side_effect = doctor_side_effect
-                                    with patch("gasclaw.bootstrap.start_daemon") as m_daemon:
-                                        m_daemon.side_effect = lambda: calls.update(
-                                            {"daemon_start": True}
-                                        )
-                                        with patch("gasclaw.bootstrap.start_mayor") as m_mayor:
-                                            m_mayor.side_effect = lambda **kw: calls.update(
-                                                {"mayor_start": True}
-                                            )
-                                            with respx.mock:
-                                                # Mock Telegram gateway
-                                                respx.post(
-                                                    "http://localhost:18789/api/message"
-                                                ).mock(
-                                                    return_value=Response(200, json={"ok": True})
-                                                )
-                                                with patch(
-                                                    "gasclaw.bootstrap.notify_telegram"
-                                                ) as m_notify:
-
-                                                    def notify_side_effect(msg):
-                                                        calls.update({"telegram_notify": True})
-
-                                                    m_notify.side_effect = notify_side_effect
-
-                                                    # Run bootstrap
-                                                    bootstrap(config, gt_root=gt_root)
-
-        # Verify all subsystems were called
         assert all(calls.values()), f"Not all subsystems called: {calls}"
 
     def test_bootstrap_with_doctor_issues(self, config, tmp_path):
@@ -140,8 +118,11 @@ class TestBootstrapIntegration:
 
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
             patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.start_dolt"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
@@ -176,8 +157,11 @@ class TestBootstrapIntegration:
 
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=track_call("kimi")),
-            patch("gasclaw.bootstrap.write_agent_config", side_effect=track_call("agent_config")),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
             patch("gasclaw.bootstrap.gastown_install", side_effect=track_call("install")),
+            patch("gasclaw.bootstrap.configure_agent", side_effect=track_call("agent_config")),
             patch("gasclaw.bootstrap.start_dolt", side_effect=track_call("dolt")),
             patch(
                 "gasclaw.bootstrap.write_openclaw_config", side_effect=track_call("openclaw_config")
@@ -195,7 +179,8 @@ class TestBootstrapIntegration:
 
         # Verify critical ordering constraints
         assert call_order.index("kimi") < call_order.index("install")
-        assert call_order.index("install") < call_order.index("dolt")
+        assert call_order.index("install") < call_order.index("agent_config")
+        assert call_order.index("agent_config") < call_order.index("dolt")
         assert call_order.index("dolt") < call_order.index("daemon")
         assert call_order.index("skills") < call_order.index("doctor")
         assert call_order.index("doctor") < call_order.index("daemon")

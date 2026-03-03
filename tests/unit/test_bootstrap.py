@@ -40,8 +40,11 @@ class TestBootstrap:
 
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts") as m_kimi,
-            patch("gasclaw.bootstrap.write_agent_config") as m_agent,
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
             patch("gasclaw.bootstrap.gastown_install") as m_install,
+            patch("gasclaw.bootstrap.configure_agent") as m_agent,
             patch("gasclaw.bootstrap.start_dolt") as m_dolt,
             patch("gasclaw.bootstrap.write_openclaw_config") as m_oc,
             patch("gasclaw.bootstrap.install_skills") as m_skills,
@@ -82,8 +85,11 @@ class TestBootstrap:
 
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
             patch("gasclaw.bootstrap.gastown_install"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.start_dolt"),
             patch("gasclaw.bootstrap.write_openclaw_config") as m_oc,
             patch("gasclaw.bootstrap.install_skills"),
@@ -115,8 +121,11 @@ class TestBootstrap:
 
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts", side_effect=se("kimi")),
-            patch("gasclaw.bootstrap.write_agent_config", side_effect=se("agent_config")),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
             patch("gasclaw.bootstrap.gastown_install", side_effect=se("install")),
+            patch("gasclaw.bootstrap.configure_agent", side_effect=se("agent_config")),
             patch("gasclaw.bootstrap.start_dolt", side_effect=se("dolt")),
             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=se("openclaw")),
             patch("gasclaw.bootstrap.install_skills", side_effect=se("skills")),
@@ -129,7 +138,8 @@ class TestBootstrap:
 
         # Verify critical ordering
         assert order.index("kimi") < order.index("install")
-        assert order.index("install") < order.index("dolt")
+        assert order.index("install") < order.index("agent_config")
+        assert order.index("agent_config") < order.index("dolt")
         assert order.index("skills") < order.index("doctor")
         assert order.index("doctor") < order.index("daemon")
         assert order.index("dolt") < order.index("daemon")
@@ -147,7 +157,10 @@ class TestBootstrap:
         """Rollback stops dolt if it was started before failure."""
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt") as m_dolt,
             patch("gasclaw.bootstrap.stop_all") as m_stop,
@@ -167,7 +180,10 @@ class TestBootstrap:
         """Rollback stops all services if daemon fails to start."""
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
@@ -196,7 +212,10 @@ class TestBootstrap:
         """Rollback stops all services if mayor fails to start."""
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
@@ -225,7 +244,10 @@ class TestBootstrap:
         """Rollback errors are caught and notified but original exception is raised."""
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
@@ -396,7 +418,10 @@ class TestMonitorLoop:
 
         with (
             patch("gasclaw.bootstrap.setup_kimi_accounts"),
-            patch("gasclaw.bootstrap.write_agent_config"),
+            patch("gasclaw.bootstrap.build_claude_env",
+                  return_value={"CLAUDE_CONFIG_DIR": "/tmp/c"}),
+            patch("gasclaw.bootstrap.write_claude_config"),
+            patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
             patch("gasclaw.bootstrap.write_openclaw_config"),

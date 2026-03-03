@@ -2,62 +2,113 @@
 
 from __future__ import annotations
 
-import json
+import subprocess
 
-from gasclaw.gastown.agent_config import write_agent_config
+import pytest
+
+from gasclaw.gastown.agent_config import configure_agent
 
 
-class TestWriteAgentConfig:
-    def test_creates_config_file(self, tmp_path):
-        write_agent_config(tmp_path)
-        cfg_file = tmp_path / "settings" / "config.json"
-        assert cfg_file.exists()
+class TestConfigureAgent:
+    def test_sets_agent_command(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: calls.append((a, kw)) or subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent()
+        cmd_strs = [" ".join(str(x) for x in c[0][0]) for c in calls]
+        assert any("config" in s and "agent" in s and "set" in s for s in cmd_strs)
 
-    def test_config_format(self, tmp_path):
-        write_agent_config(tmp_path)
-        cfg = json.loads((tmp_path / "settings" / "config.json").read_text())
-        assert cfg["type"] == "town-settings"
-        assert cfg["version"] == 1
-        assert cfg["default_agent"] == "kimi-claude"
+    def test_sets_default_agent(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: calls.append((a, kw)) or subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent()
+        cmd_strs = [" ".join(str(x) for x in c[0][0]) for c in calls]
+        assert any("default-agent" in s for s in cmd_strs)
 
-    def test_agent_definition(self, tmp_path):
-        write_agent_config(tmp_path)
-        cfg = json.loads((tmp_path / "settings" / "config.json").read_text())
-        agent = cfg["agents"]["kimi-claude"]
-        assert agent["command"] == "kimigas"
-        assert agent["args"] == ["run", "claude", "--yolo"]
+    def test_default_agent_name_is_kimi_claude(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent()
+        set_cmd = [c for c in calls if "set" in c]
+        assert any("kimi-claude" in c for c in set_cmd)
+        default_cmd = [c for c in calls if "default-agent" in c]
+        assert any("kimi-claude" in c for c in default_cmd)
 
-    def test_creates_settings_dir(self, tmp_path):
-        write_agent_config(tmp_path)
-        assert (tmp_path / "settings").is_dir()
+    def test_default_command_uses_claude(self, monkeypatch):
+        """Default agent command is plain claude (permissions via config file)."""
+        calls = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent()
+        set_cmd = [c for c in calls if "set" in c]
+        assert len(set_cmd) == 1
+        assert set_cmd[0][-1] == "claude"
 
-    def test_idempotent(self, tmp_path):
-        write_agent_config(tmp_path)
-        write_agent_config(tmp_path)
-        cfg = json.loads((tmp_path / "settings" / "config.json").read_text())
-        assert cfg["default_agent"] == "kimi-claude"
+    def test_custom_agent_name(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent(agent_name="custom-agent", agent_command="claude --model kimi")
+        cmd_strs = [" ".join(str(x) for x in c) for c in calls]
+        assert any("custom-agent" in s for s in cmd_strs)
+        assert any("claude --model kimi" in s for s in cmd_strs)
 
-    def test_returns_config_path(self, tmp_path):
-        """Function returns the path to the written config file."""
-        result = write_agent_config(tmp_path)
-        assert result == tmp_path / "settings" / "config.json"
-        assert result.exists()
+    def test_idempotent(self, monkeypatch):
+        """Running configure_agent twice does not raise."""
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent()
+        configure_agent()
 
-    def test_overwrites_existing_config(self, tmp_path):
-        """Overwrites existing config file with fresh content."""
-        settings_dir = tmp_path / "settings"
-        settings_dir.mkdir()
-        config_file = settings_dir / "config.json"
-        config_file.write_text('{"old": "content"}')
+    def test_runs_two_commands(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: calls.append(a[0]) or subprocess.CompletedProcess(a[0], 0),
+        )
+        configure_agent()
+        assert len(calls) == 2
 
-        write_agent_config(tmp_path)
+    def test_check_true_passed(self, monkeypatch):
+        """Both subprocess calls use check=True."""
+        checks = []
 
-        cfg = json.loads(config_file.read_text())
-        assert cfg["type"] == "town-settings"
-        assert "old" not in cfg
+        def mock_run(*a, **kw):
+            checks.append(kw.get("check", False))
+            return subprocess.CompletedProcess(a[0], 0)
 
-    def test_creates_nested_directories(self, tmp_path):
-        """Creates nested directories if needed."""
-        deep_path = tmp_path / "a" / "b" / "c" / "gt"
-        write_agent_config(deep_path)
-        assert (deep_path / "settings" / "config.json").exists()
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        configure_agent()
+        assert all(checks)
+
+    def test_agent_set_failure_raises(self, monkeypatch):
+        def mock_run(*a, **kw):
+            cmd = a[0]
+            if "set" in cmd:
+                raise subprocess.CalledProcessError(1, cmd)
+            return subprocess.CompletedProcess(cmd, 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        with pytest.raises(subprocess.CalledProcessError):
+            configure_agent()
