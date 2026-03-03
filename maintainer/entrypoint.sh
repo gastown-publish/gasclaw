@@ -58,7 +58,41 @@ export ANTHROPIC_BASE_URL="${KIMI_BASE_URL}"
 export ANTHROPIC_API_KEY="${KIMI_API_KEY}"
 export DISABLE_COST_WARNINGS=true
 
-# --- 5. Claude Code config (isolated, API key auth) ---
+# --- 5. Setup Gastown Workspace (inside container) ---
+echo "Setting up Gastown workspace..."
+export GT_HOME="/workspace/gt"
+mkdir -p "$GT_HOME"
+cd "$GT_HOME"
+
+# Initialize git if needed
+if [ ! -d "$GT_HOME/.git" ]; then
+    git init
+    git config user.email "gasclaw@gastown.dev"
+    git config user.name "Gasclaw"
+fi
+
+# Start Dolt SQL server
+mkdir -p "$GT_HOME/.dolt-data"
+if ! dolt sql -q "SELECT 1" > /dev/null 2>&1; then
+    nohup dolt sql-server --port 3307 --data-dir "$GT_HOME/.dolt-data" \
+        --max-connections 100 > "$GT_HOME/.dolt-data/dolt.log" 2>&1 &
+    for i in {1..10}; do
+        sleep 1
+        dolt sql -q "SELECT 1" > /dev/null 2>&1 && break
+    done
+fi
+
+# Start gt daemon if not running
+if ! pgrep -f "gt daemon run" > /dev/null 2>&1; then
+    nohup gt daemon run > "$GT_HOME/daemon.log" 2>&1 &
+    sleep 2
+fi
+
+# Create basic beads
+mkdir -p "$GT_HOME/beads_hq" "$GT_HOME/beads_deacon"
+echo "  Gastown ready at $GT_HOME"
+
+# --- 6. Claude Code config (isolated, API key auth) ---
 export CLAUDE_CONFIG_DIR="$HOME/.claude-config"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 echo '{}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
@@ -73,7 +107,7 @@ cat > "$CLAUDE_CONFIG_DIR/.claude.json" <<CJSON
 }
 CJSON
 
-# --- 6. Helper: send Telegram message to all configured targets ---
+# --- 7. Helper: send Telegram message to all configured targets ---
 # Reads group IDs from /workspace/config/gasclaw.yaml at call time
 tg_send() {
     local msg="$1"
@@ -104,14 +138,14 @@ for g in tg.get('notify_groups', []):
     done <<< "$targets"
 }
 
-# --- 7. Run openclaw doctor FIRST (before writing our config) ---
+# --- 8. Run openclaw doctor FIRST (before writing our config) ---
 echo "Running OpenClaw doctor..."
 OPENCLAW_DIR="$HOME/.openclaw"
 mkdir -p "$OPENCLAW_DIR/agents/main/agent"
 mkdir -p "$OPENCLAW_DIR/agents/main/sessions"
 openclaw doctor --fix --yes 2>&1 || true
 
-# --- 8. Write OpenClaw config AFTER doctor (so doctor can't strip it) ---
+# --- 9. Write OpenClaw config AFTER doctor (so doctor can't strip it) ---
 echo "Writing OpenClaw config..."
 
 # Create agent workspace on bind mount (persists across restarts)
@@ -231,7 +265,7 @@ with open(cfg_path, "w") as f:
 print("OpenClaw config written (models.json + openclaw.json — workspace-based context)")
 PYEOF
 
-# --- 9. Install skills ---
+# --- 10. Install skills ---
 echo "Installing OpenClaw skills..."
 OPENCLAW_SKILLS="$OPENCLAW_DIR/skills"
 mkdir -p "$OPENCLAW_SKILLS"
@@ -241,7 +275,7 @@ if [ -d /opt/maintainer-skills ]; then
     echo "Installed skills: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | tr '\n' ' ')"
 fi
 
-# --- 10. Clone/update repo ---
+# --- 11. Clone/update repo ---
 echo "Cloning gasclaw..."
 if [ -d /workspace/gasclaw/.git ]; then
     cd /workspace/gasclaw && git pull origin main 2>&1 || true
@@ -250,7 +284,7 @@ else
     cd /workspace/gasclaw
 fi
 
-# --- 11. Dev setup (venv persists on bind mount) ---
+# --- 12. Dev setup (venv persists on bind mount) ---
 echo "Setting up dev environment..."
 if [ ! -d .venv ]; then
     python3 -m venv .venv
@@ -260,13 +294,13 @@ pip install --upgrade pip --timeout 120 --retries 5 -q
 pip install --timeout 120 --retries 5 -q -e .
 pip install --timeout 120 --retries 5 -q pytest pytest-asyncio respx
 
-# --- 12. Run tests (non-fatal — bot can fix failures) ---
+# --- 13. Run tests (non-fatal — bot can fix failures) ---
 echo "Running tests..."
 python -m pytest tests/unit -v 2>&1 | tee /workspace/logs/test-results.log | tail -3 || true
 TEST_COUNT=$(tail -1 /workspace/logs/test-results.log 2>/dev/null || echo "unknown")
 echo "Tests: $TEST_COUNT"
 
-# --- 13. Start OpenClaw gateway ---
+# --- 14. Start OpenClaw gateway ---
 echo "Starting OpenClaw gateway..."
 nohup openclaw gateway run > /workspace/logs/openclaw-gateway.log 2>&1 &
 GATEWAY_PID=$!
@@ -279,7 +313,7 @@ else
     cat /workspace/logs/openclaw-gateway.log 2>/dev/null | tail -10 || true
 fi
 
-# --- 14. Startup notification ---
+# --- 15. Startup notification ---
 tg_send "🏭 *Gasclaw Maintainer online*
 Tests: ${TEST_COUNT}
 Skills: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | wc -l) installed
@@ -287,7 +321,7 @@ Config: /workspace/config/gasclaw.yaml
 Maintenance interval: ${MAINTENANCE_INTERVAL}s
 Ready to work."
 
-# --- 15. Graceful shutdown ---
+# --- 16. Graceful shutdown ---
 cleanup() {
     echo "Shutting down..."
     [ -f /workspace/state/claude.pid ] && kill "$(cat /workspace/state/claude.pid)" 2>/dev/null || true
@@ -297,7 +331,7 @@ cleanup() {
 }
 trap cleanup SIGTERM SIGINT
 
-# --- 16. Maintenance loop ---
+# --- 17. Maintenance loop ---
 echo ""
 echo "Starting maintenance loop (interval=${MAINTENANCE_INTERVAL}s)..."
 

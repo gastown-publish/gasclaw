@@ -17,4 +17,6 @@ services:
       - ./skills:/opt/maintainer-skills:ro
       - ./agent-soul.md:/opt/agent-soul.md:ro
       - ./agent-bootstrap.md:/opt/agent-bootstrap.md:ro
+      # Mount gt CLI from host (built locally since GitHub release doesn't exist)
+      - /home/villa/go/bin/gt:/usr/local/bin/gt:ro
     restart: unless-stopped

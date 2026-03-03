@@ -33,6 +33,15 @@ telegram:
   # Group chat IDs for sending notifications (startup, cycle reports)
   notify_groups:
     - "-1003759869133"      # gasclaw group (supergroup)
+  # Forum topic thread IDs for routing notifications
+  # (find thread IDs by creating topics in the group)
+  topics:
+    group_id: "-1003759869133"
+    pull_request: 44         # PR created/merged/failed
+    issue: 52                # issue opened/closed/fixed
+    discussion: 60           # general updates, startup, cycle reports
+    gastown: 114             # gastown status updates (every 15 min)
+  status_interval: 900       # seconds between status updates (15 min)
 
 logging:
   level: "INFO"

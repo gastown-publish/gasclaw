@@ -23,6 +23,18 @@ RUN npm install -g @anthropic-ai/claude-code openclaw
 # PyYAML for config loader
 RUN pip install --no-cache-dir pyyaml
 
+# Gastown CLI (gt) - copy from host or install
+COPY --from=golang:1.23-bookworm /usr/local/go /usr/local/go
+ENV PATH=$PATH:/usr/local/go/bin:/usr/local/bin
+# Install dolt for gastown
+RUN curl -fsSL -o /tmp/dolt.tar.gz "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-amd64.tar.gz" && \
+    tar -xzf /tmp/dolt.tar.gz -C /tmp && \
+    cp /tmp/dolt-linux-amd64/bin/dolt /usr/local/bin/dolt && \
+    chmod +x /usr/local/bin/dolt && \
+    rm -rf /tmp/dolt.tar.gz /tmp/dolt-linux-amd64
+
+# Note: gt CLI is bind-mounted from host via docker-compose.yml
+
 # --- Light layers ---
 
 # Non-root user setup
