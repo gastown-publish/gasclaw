@@ -244,13 +244,14 @@ print(f"Telegram DM users: {user_allow}, group users: {group_user_allow}")
 tg_channel = {
     "enabled": True,
     "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
-    "dmPolicy": "allowlist",
-    "allowFrom": user_allow,
+    "dmPolicy": "open",
+    "allowFrom": ["*"],
     "groupPolicy": "open",
     "streaming": "off",
 }
 
 config["channels"] = {"telegram": tg_channel}
+config["messages"] = {"ackReactionScope": "all"}
 config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
 config["gateway"] = config.get("gateway", {})
 config["gateway"]["port"] = int(os.environ.get("GATEWAY_PORT", "18789"))

@@ -91,11 +91,14 @@ def write_openclaw_config(
             "telegram": {
                 "enabled": True,
                 "botToken": bot_token,
-                "dmPolicy": "allowlist",
-                "allowFrom": [str(owner_id)],
+                "dmPolicy": "open",
+                "allowFrom": ["*"],
                 "groupPolicy": "open",
                 "streaming": "off",
             },
+        },
+        "messages": {
+            "ackReactionScope": "all",
         },
         "commands": {
             "native": "auto",

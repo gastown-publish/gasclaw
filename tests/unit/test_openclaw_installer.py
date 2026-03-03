@@ -36,10 +36,11 @@ class TestWriteOpenclawConfig:
             owner_id="999",
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
-        # Check that telegram config has bot token and owner
-        cfg_str = json.dumps(cfg)
-        assert "123:ABC" in cfg_str
-        assert "999" in cfg_str
+        tg = cfg["channels"]["telegram"]
+        assert tg["botToken"] == "123:ABC"
+        assert tg["dmPolicy"] == "open"
+        assert tg["groupPolicy"] == "open"
+        assert tg["allowFrom"] == ["*"]
 
     def test_gateway_port(self, tmp_path):
         write_openclaw_config(
@@ -169,8 +170,8 @@ class TestWriteOpenclawConfig:
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         assert cfg["env"]["MOONSHOT_API_KEY"] == "sk-secret-key"
 
-    def test_owner_id_in_allowlist(self, tmp_path):
-        """Owner ID is in the allowlist."""
+    def test_open_dm_policy(self, tmp_path):
+        """DM policy should be open with wildcard allowFrom."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
@@ -178,20 +179,20 @@ class TestWriteOpenclawConfig:
             owner_id="555666777",
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
-        assert "555666777" in cfg["channels"]["telegram"]["allowFrom"]
+        tg = cfg["channels"]["telegram"]
+        assert tg["dmPolicy"] == "open"
+        assert tg["allowFrom"] == ["*"]
 
-    def test_owner_id_as_integer(self, tmp_path):
-        """Owner ID should be stored as integer for Telegram API compatibility."""
+    def test_ack_reaction_scope_all(self, tmp_path):
+        """ackReactionScope should be all so bot responds without @mention."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
             bot_token="123:ABC",
-            owner_id=999888777,  # Integer type
+            owner_id=999888777,
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
-        allow_from = cfg["channels"]["telegram"]["allowFrom"]
-        assert "999888777" in allow_from
-        assert isinstance(allow_from[0], str)
+        assert cfg["messages"]["ackReactionScope"] == "all"
 
     def test_new_token_when_config_corrupted(self, tmp_path):
         """New token generated when existing config is corrupted."""
