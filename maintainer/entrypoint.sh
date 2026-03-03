@@ -231,6 +231,82 @@ with open(cfg_path, "w") as f:
 print("OpenClaw config written (models.json + openclaw.json — workspace-based context)")
 PYEOF
 
+# --- 8.5. Check bot admin status in groups (warn if not admin) ---
+python3 << 'ADMINCHECK'
+import os, json, urllib.request, urllib.error
+
+def check_bot_admin():
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        return
+
+    # Only check for group/supergroup chat IDs (negative numbers)
+    try:
+        cid = int(chat_id)
+        if cid > 0:
+            return  # DM, no admin check needed
+    except ValueError:
+        return
+
+    # Get bot info
+    try:
+        url = f"https://api.telegram.org/bot{token}/getMe"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read())
+            if not data.get("ok"):
+                print(f"Warning: Could not get bot info: {data}")
+                return
+            bot_id = data["result"]["id"]
+            bot_username = data["result"].get("username", "unknown")
+    except Exception as e:
+        print(f"Warning: Failed to get bot info: {e}")
+        return
+
+    # Check admin status in the group
+    try:
+        url = f"https://api.telegram.org/bot{token}/getChatMember?chat_id={chat_id}&user_id={bot_id}"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read())
+            if not data.get("ok"):
+                print(f"Warning: Could not check admin status: {data}")
+                return
+
+            status = data["result"].get("status", "")
+            is_admin = status in ["administrator", "creator"]
+
+            if is_admin:
+                print(f"Bot @{bot_username} is admin in group {chat_id}")
+            else:
+                warning_msg = f"""⚠️ *Bot Admin Check Failed*
+
+Bot @{bot_username} is *NOT* an admin in this group (status: {status}).
+
+The bot requires admin rights to:
+• Receive messages in forum topics
+• Create forum topics automatically
+• Moderate the group
+
+Please promote the bot to administrator to ensure full functionality."""
+                # Send warning to the group
+                send_url = f"https://api.telegram.org/bot{token}/sendMessage"
+                payload = json.dumps({
+                    "chat_id": chat_id,
+                    "parse_mode": "Markdown",
+                    "text": warning_msg
+                }).encode()
+                req = urllib.request.Request(send_url, data=payload, headers={"Content-Type": "application/json"})
+                try:
+                    urllib.request.urlopen(req, timeout=10)
+                except Exception as e:
+                    print(f"Warning: Failed to send admin check message: {e}")
+                print(f"WARNING: Bot is not admin in group {chat_id} (status: {status})")
+    except Exception as e:
+        print(f"Warning: Failed to check admin status: {e}")
+
+check_bot_admin()
+ADMINCHECK
+
 # --- 9. Install skills ---
 echo "Installing OpenClaw skills..."
 OPENCLAW_SKILLS="$OPENCLAW_DIR/skills"
@@ -238,7 +314,7 @@ mkdir -p "$OPENCLAW_SKILLS"
 if [ -d /opt/maintainer-skills ]; then
     cp -r /opt/maintainer-skills/* "$OPENCLAW_SKILLS/" 2>/dev/null || true
     find "$OPENCLAW_SKILLS" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
-    echo "Installed skills: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | tr '\n' ' ')"
+    echo "Installed skills: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | wc -l) skills"
 fi
 
 # --- 10. Clone/update repo ---
