@@ -22,20 +22,24 @@ def write_openclaw_config(
     kimi_key: str,
     bot_token: str,
     owner_id: int,
+    group_id: str = "",
+    topic_ids: dict[str, str] | None = None,
     gateway_port: int = 18789,
     gt_root: str = "/workspace/gt",
 ) -> Path:
     """Write ~/.openclaw/openclaw.json with full configuration.
 
     Uses beads (bd) for memory/state instead of file-based memory.
-    The workspace points to the Gastown rig's .beads directory so
-    OpenClaw tracks all state through Dolt-backed beads.
+    Supports Telegram forum topics to keep different message types
+    in separate threads (Status, Maintenance, Alerts, PRs, Chat).
 
     Args:
         openclaw_dir: Path to the openclaw config directory.
         kimi_key: Kimi API key for OpenClaw's own LLM.
         bot_token: Telegram bot token.
         owner_id: Telegram user ID for allowlist.
+        group_id: Telegram group/supergroup chat ID.
+        topic_ids: Mapping of topic names to thread IDs.
         gateway_port: Gateway port (default 18789).
         gt_root: Gastown root directory (for bead workspace).
 
@@ -46,15 +50,45 @@ def write_openclaw_config(
     openclaw_dir.mkdir(parents=True, exist_ok=True)
 
     config_path = openclaw_dir / "openclaw.json"
+    topics = topic_ids or {}
 
-    # Preserve existing auth token to avoid breaking client integrations
     auth_token = _generate_auth_token()
     if config_path.exists():
         try:
             existing = json.loads(config_path.read_text())
-            auth_token = existing.get("gateway", {}).get("auth", {}).get("token", auth_token)
+            auth_token = (
+                existing.get("gateway", {}).get("auth", {}).get("token", auth_token)
+            )
         except (json.JSONDecodeError, OSError):
             pass
+
+    owner_str = str(owner_id)
+
+    # Build per-topic config with General disabled
+    group_topics: dict = {"1": {"enabled": False}}
+    topic_prompts = {
+        "status": "STATUS topic. Post system health, dashboards, service status.",
+        "maintenance": "MAINTENANCE topic. Post cycle reports, config changes, update logs.",
+        "alerts": "ALERTS topic. Only urgent: service down, test failures, security.",
+        "prs": "PRs & ISSUES topic. PR reviews, merges, issue updates, releases.",
+        "chat": "CHAT topic. Conversations with the owner. Answer questions here.",
+    }
+    for name, prompt in topic_prompts.items():
+        tid = topics.get(name, "")
+        if tid:
+            group_topics[tid] = {
+                "requireMention": False,
+                "systemPrompt": prompt,
+            }
+
+    # Build groups config
+    groups_cfg: dict = {}
+    if group_id:
+        groups_cfg[group_id] = {
+            "requireMention": False,
+            "groupPolicy": "open",
+            "topics": group_topics,
+        }
 
     config = {
         "agents": {
@@ -76,14 +110,6 @@ def write_openclaw_config(
                         "name": "Gasclaw Overseer",
                         "emoji": "🏭",
                     },
-                    "instructions": (
-                        "You use beads (bd CLI) for ALL memory and state tracking. "
-                        "Never use plain markdown memory files. "
-                        "Use 'bd create' to record tasks, decisions, and state. "
-                        "Use 'bd list' and 'bd search' to recall past context. "
-                        "Use 'bd close' when tasks are done. "
-                        "Beads are backed by Dolt SQL and survive restarts."
-                    ),
                 }
             ],
         },
@@ -91,15 +117,17 @@ def write_openclaw_config(
             "telegram": {
                 "enabled": True,
                 "botToken": bot_token,
-                "dmPolicy": "open",
-                "allowFrom": ["*"],
-                "groupPolicy": "open",
-                "groups": {"*": {"requireMention": False}},
+                "dmPolicy": "allowlist",
+                "allowFrom": [owner_str],
+                "groupPolicy": "allowlist",
+                "groupAllowFrom": [owner_str],
+                "groups": groups_cfg,
                 "streaming": "off",
             },
         },
         "messages": {
-            "ackReactionScope": "all",
+            "ackReactionScope": "none",
+            "ackReaction": "",
         },
         "commands": {
             "native": "auto",
