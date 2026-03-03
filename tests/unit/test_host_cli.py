@@ -63,6 +63,28 @@ class TestContainerDetection:
 
         assert _is_inside_container() is False
 
+    def test_is_inside_container_permission_error(self, monkeypatch):
+        """Test detection when cgroup file has permission error."""
+        def mock_read_text(self):
+            if str(self) == "/proc/self/cgroup":
+                raise PermissionError("Permission denied")
+            raise FileNotFoundError
+
+        monkeypatch.setattr(Path, "exists", lambda p: False)
+        monkeypatch.setattr(Path, "read_text", mock_read_text)
+
+        assert _is_inside_container() is False
+
+    def test_is_inside_container_file_not_found(self, monkeypatch):
+        """Test detection when cgroup file doesn't exist."""
+        def mock_read_text(self):
+            raise FileNotFoundError()
+
+        monkeypatch.setattr(Path, "exists", lambda p: False)
+        monkeypatch.setattr(Path, "read_text", mock_read_text)
+
+        assert _is_inside_container() is False
+
 
 class TestDockerCommands:
     """Test Docker command execution utilities."""
@@ -359,6 +381,90 @@ class TestStartCommand:
         assert result.exit_code == 0
         assert "already running" in result.output
 
+    def test_start_success_detached(self, tmp_path, monkeypatch):
+        """Test successful start in detached mode."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        # Create compose file
+        (tmp_path / "docker-compose.yml").write_text("services:")
+
+        result = runner.invoke(app, ["start", "-p", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "started successfully" in result.output
+
+    def test_start_success_with_build(self, tmp_path, monkeypatch):
+        """Test successful start with --build flag."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        compose_calls = []
+
+        def mock_run_compose(*args, **kwargs):
+            compose_calls.append(args)
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            mock_run_compose,
+        )
+
+        # Create compose file
+        (tmp_path / "docker-compose.yml").write_text("services:")
+
+        result = runner.invoke(app, ["start", "-p", str(tmp_path), "--build"])
+
+        assert result.exit_code == 0
+        assert any("--build" in str(c) for c in compose_calls)
+
+    def test_start_failure(self, tmp_path, monkeypatch):
+        """Test start when docker compose fails."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "Docker compose failed"
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        # Create compose file
+        (tmp_path / "docker-compose.yml").write_text("services:")
+
+        result = runner.invoke(app, ["start", "-p", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "Failed to start" in result.output
+
 
 class TestStopCommand:
     """Test the stop command."""
@@ -405,6 +511,155 @@ class TestStopCommand:
 
         assert result.exit_code == 0
 
+    def test_stop_not_running_with_remove(self, monkeypatch):
+        """Test stop when container not running but remove requested."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["stop", "--remove"])
+
+        assert result.exit_code == 0
+        assert "Container removed" in result.output
+
+    def test_stop_not_running_without_remove(self, monkeypatch):
+        """Test stop when container not running and remove not requested."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+
+        result = runner.invoke(app, ["stop"])
+
+        assert result.exit_code == 0
+        assert "not running" in result.output
+
+    def test_stop_with_compose_down(self, monkeypatch):
+        """Test stop using docker compose down (remove)."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        compose_calls = []
+
+        def mock_run_compose(*args, **kwargs):
+            compose_calls.append(args)
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            mock_run_compose,
+        )
+
+        result = runner.invoke(app, ["stop", "--remove"])
+
+        assert result.exit_code == 0
+        assert any("down" in str(c) for c in compose_calls)
+
+    def test_stop_fallback_to_docker_stop(self, monkeypatch):
+        """Test stop falls back to direct docker stop when compose fails."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        compose_result = MagicMock()
+        compose_result.returncode = 1
+        compose_result.stderr = "Compose failed"
+
+        docker_result = MagicMock()
+        docker_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            lambda *args, **kwargs: compose_result,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: docker_result,
+        )
+
+        result = runner.invoke(app, ["stop"])
+
+        assert result.exit_code == 0
+
+    def test_stop_fallback_failure(self, monkeypatch):
+        """Test stop when both compose and docker stop fail."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        compose_result = MagicMock()
+        compose_result.returncode = 1
+        compose_result.stderr = "Compose failed"
+
+        docker_result = MagicMock()
+        docker_result.returncode = 1
+        docker_result.stderr = "Docker stop failed"
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            lambda *args, **kwargs: compose_result,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: docker_result,
+        )
+
+        result = runner.invoke(app, ["stop"])
+
+        assert result.exit_code == 1
+        assert "Failed to stop" in result.output
+
 
 class TestStatusCommand:
     """Test the status command."""
@@ -439,6 +694,68 @@ class TestStatusCommand:
         monkeypatch.setattr(
             "gasclaw.host_cli._get_container_status",
             lambda: {"exists": "false", "status": "not_found"},
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+
+    def test_status_unknown_health(self, monkeypatch):
+        """Test status with unknown health state."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_container_status",
+            lambda: {
+                "exists": "true",
+                "status": "running",
+                "health": "unknown",
+                "image": "gasclaw:latest",
+            },
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "unknown" in result.output
+
+    def test_status_unhealthy(self, monkeypatch):
+        """Test status with unhealthy container."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_container_status",
+            lambda: {
+                "exists": "true",
+                "status": "running",
+                "health": "unhealthy",
+                "image": "gasclaw:latest",
+            },
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "unhealthy" in result.output
+
+    def test_status_exited(self, monkeypatch):
+        """Test status with exited container."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_container_status",
+            lambda: {
+                "exists": "true",
+                "status": "exited",
+                "health": "unknown",
+                "image": "gasclaw:latest",
+            },
         )
 
         result = runner.invoke(app, ["status"])
@@ -679,6 +996,65 @@ class TestMaintenanceCommand:
         result = runner.invoke(app, ["maintenance", "status"])
 
         assert result.exit_code == 0
+
+    def test_maintenance_status_with_invalid_json(self, monkeypatch):
+        """Test maintenance status with invalid JSON in info file."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        call_count = [0]
+
+        def mock_run_docker(*args, **kwargs):
+            call_count[0] += 1
+            mock_result = MagicMock()
+            if call_count[0] == 1:
+                mock_result.returncode = 1  # Not paused
+            else:
+                mock_result.returncode = 0  # Info file exists
+                mock_result.stdout = "invalid json"
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+
+        result = runner.invoke(app, ["maintenance", "status"])
+
+        assert result.exit_code == 0
+
+    def test_maintenance_status_action_success(self, monkeypatch):
+        """Test maintenance status action explicitly (success path)."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        def mock_run_docker(*args, **kwargs):
+            mock_result = MagicMock()
+            # First call checks if paused (returns 1 = not paused = active)
+            # Second call reads info file (returns 1 = no info file)
+            mock_result.returncode = 1
+            mock_result.stdout = ""
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+
+        result = runner.invoke(app, ["maintenance", "status"])
+
+        assert result.exit_code == 0
+        assert "ACTIVE" in result.output or "Status" in result.output
 
     def test_maintenance_trigger_success(self, monkeypatch):
         """Test maintenance trigger success."""
@@ -947,6 +1323,14 @@ class TestVersionCommand:
         result = runner.invoke(app, ["version"])
 
         assert result.exit_code == 0
+
+    def test_main_function(self, monkeypatch):
+        """Test main() entry point."""
+        from gasclaw.host_cli import main
+
+        # Just ensure main() doesn't error - it calls app() which we can't easily mock
+        # But we can verify it's callable
+        assert callable(main)
 
 
 class TestRestartCommand:
