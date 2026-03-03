@@ -99,6 +99,37 @@ docker compose build --build-arg TARGETARCH=arm64
 
 **Key separation:** Gastown and OpenClaw keys are completely separate pools. Keys are never shared unless you explicitly put the same key in both `GASTOWN_KIMI_KEYS` and `OPENCLAW_KIMI_KEY`.
 
+## Key Management
+
+Gasclaw uses intelligent key pool management via **KimiGas** — an LRU (Least Recently Used) rotation system with automatic rate-limit recovery.
+
+### How It Works
+
+| Feature | Behavior |
+|---------|----------|
+| **LRU Rotation** | Selects the key that hasn't been used longest, not round-robin |
+| **5-Minute Cooldown** | Rate-limited keys are automatically quarantined for 5 minutes (`RATE_LIMIT_COOLDOWN = 300`) |
+| **Graceful Degradation** | If ALL keys are rate-limited, the pool returns the key closest to cooldown expiry instead of failing |
+| **State Persistence** | Key rotation state survives container restarts via `key-rotation.json` |
+| **Privacy** | Keys are tracked by BLAKE2b hash, never stored in plaintext in state files |
+
+### Key Lifecycle
+
+```
+Available ──► In Use ──► Rate Limited ──► Cooldown (5 min) ──► Available
+```
+
+### Recommendations
+
+- **Minimum 2-3 keys** for uninterrupted service during rate limits
+- **Separate pools** — `GASTOWN_KIMI_KEYS` for agents, `OPENCLAW_KIMI_KEY` for the overseer
+- **Monitor status** — Run `gasclaw status` to see pool state
+- **Force rotation** — Use `gasclaw keys --rotate` to mark the current key as rate-limited
+
+### Why This Matters
+
+Users coming from standalone OpenClaw (single key, no rotation) experience hard rate-limit failures where agents go completely offline. Gasclaw's key pool provides automatic failover and recovery.
+
 ## OpenClaw as Overseer
 
 OpenClaw is the boss. It:
