@@ -179,23 +179,71 @@ def migrate(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Detect and report only, don't modify anything"
     ),
+    from_source: str = typer.Option(
+        "auto", "--from", help="Source to migrate from: auto, gastown, openclaw-launcher"
+    ),
     gastown_dir: Path | None = typer.Option(
         None, help="Path to Gastown config directory (default: ~/.gt or ~/.gastown)"
+    ),
+    openclaw_dir: Path | None = typer.Option(
+        None, help="Path to OpenClaw config directory (default: ~/.openclaw)"
     ),
     env_file: Path | None = typer.Option(
         None, help="Path for gasclaw .env file (default: /workspace/.env)"
     ),
 ) -> None:
-    """Migrate from Gastown to gasclaw.
+    """Migrate from Gastown or openclaw-launcher to gasclaw.
 
-    Detects existing Gastown installation and migrates configuration
-    to gasclaw format. Creates a backup of the original configuration.
+    Detects existing installation and migrates configuration to gasclaw format.
+    Creates a backup of the original configuration.
 
     Examples:
-        gasclaw migrate              # Run migration interactively
-        gasclaw migrate --dry-run    # Preview what would be migrated
+        gasclaw migrate                          # Auto-detect source
+        gasclaw migrate --from gastown           # Migrate from Gastown
+        gasclaw migrate --from openclaw-launcher # Migrate from openclaw-launcher
+        gasclaw migrate --dry-run                # Preview what would be migrated
 
     """
+    from gasclaw.migration import (
+        detect_gastown_setup,
+        detect_openclaw_launcher_setup,
+        migrate_openclaw_launcher,
+    )
+
+    if from_source == "openclaw-launcher":
+        console.print("[bold]Checking for openclaw-launcher installation...[/bold]")
+        result = migrate_openclaw_launcher(
+            openclaw_dir=openclaw_dir,
+            env_file=env_file,
+            interactive=True,
+        )
+
+        if result["success"]:
+            console.print("[green]✅ Migration successful[/green]")
+            if result.get("migrated_keys"):
+                console.print(f"   Migrated: {', '.join(result['migrated_keys'])}")
+            if result.get("warnings"):
+                console.print("\n[yellow]Warnings:[/yellow]")
+                for warning in result["warnings"]:
+                    console.print(f"   ⚠️  {warning}")
+            if not dry_run and env_file:
+                console.print(f"\n   Config file: {env_file}")
+        else:
+            console.print("[red]❌ Migration failed[/red]")
+            if result.get("error"):
+                console.print(f"   Error: {result['error']}")
+            raise typer.Exit(code=1)
+
+        if not dry_run:
+            console.print("\n[green]Migration complete![/green]")
+            console.print("\nNext steps:")
+            console.print("  1. Review the generated .env file")
+            console.print("  2. Stop any running openclaw-launcher containers")
+            console.print("  3. Ensure OPENCLAW_HOME env var is unset")
+            console.print("  4. Run 'gasclaw start' to begin using gasclaw")
+        return
+
+    # Default: Gastown migration
     console.print("[bold]Checking for Gastown installation...[/bold]")
 
     result = run_migration(
