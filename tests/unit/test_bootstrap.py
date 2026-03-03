@@ -345,7 +345,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         assert len(notify_calls) >= 1
@@ -378,7 +378,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         assert len(notify_calls) >= 1
@@ -406,7 +406,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.start_mayor"),
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             bootstrap(config, gt_root=tmp_path)
 
         # Should have "Gasclaw is up" and doctor warning notifications
@@ -441,7 +441,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         # Should have notifications for dolt, daemon, and mayor
@@ -544,7 +544,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.notify_telegram") as m_notify,
             patch("time.sleep"),
         ):
-            m_notify.side_effect = lambda msg: notify_calls.append(msg)
+            m_notify.side_effect = lambda msg, **kwargs: notify_calls.append(msg)
             monitor_loop(config, interval=1)
 
         # Should NOT send activity alert since compliant defaults to True
