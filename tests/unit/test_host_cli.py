@@ -1466,3 +1466,49 @@ class TestUpdateCommand:
         assert result.exit_code == 0
         # Should call docker pull
         assert any("pull" in str(c) for c in docker_calls)
+
+    def test_host_callback_inside_container(self, monkeypatch):
+        """Test host callback exits when running inside container."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        # Mock _is_inside_container to return True
+        monkeypatch.setattr(
+            "gasclaw.host_cli._is_inside_container",
+            lambda: True,
+        )
+
+        # Invoke any command that would trigger the callback
+        result = runner.invoke(app, ["version"])
+
+        assert result.exit_code == 1
+        assert "inside a Docker container" in result.output
+
+
+class TestMaintenanceStatusCoverage:
+    """Additional tests for maintenance status coverage."""
+
+    def test_maintenance_status_nonzero_returncode(self, monkeypatch):
+        """Test maintenance status when docker exec returns non-zero (indicates active)."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1  # Non-zero means active/not paused
+        mock_result.stderr = ""
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["maintenance", "status"])
+
+        assert result.exit_code == 0
+        assert "ACTIVE" in result.output
