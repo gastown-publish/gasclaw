@@ -11,6 +11,8 @@ from gasclaw.kimigas.key_pool import RATE_LIMIT_COOLDOWN, KeyPool
 
 
 class TestKeyPoolSingleKey:
+    """Tests for KeyPool with a single key."""
+
     def test_single_key_always_selected(self, tmp_path):
         pool = KeyPool(["sk-only"], state_dir=tmp_path)
         assert pool.get_key() == "sk-only"
@@ -22,6 +24,8 @@ class TestKeyPoolSingleKey:
 
 
 class TestKeyPoolMultiKey:
+    """Tests for KeyPool with multiple keys and LRU rotation."""
+
     def test_rotates_lru(self, tmp_path):
         """Keys rotate in LRU order."""
         pool = KeyPool(["k1", "k2", "k3"], state_dir=tmp_path)
@@ -40,6 +44,8 @@ class TestKeyPoolMultiKey:
 
 
 class TestKeyPoolRateLimit:
+    """Tests for rate limiting and cooldown behavior."""
+
     def test_rate_limited_key_skipped(self, tmp_path):
         pool = KeyPool(["k1", "k2"], state_dir=tmp_path)
         pool.get_key()  # k1
@@ -108,6 +114,8 @@ class TestKeyPoolRateLimit:
 
 
 class TestKeyPoolStatePersistence:
+    """Tests for state persistence across KeyPool instances."""
+
     def test_state_persists_across_instances(self, tmp_path):
         pool1 = KeyPool(["k1", "k2"], state_dir=tmp_path)
         pool1.get_key()  # k1 used
@@ -127,6 +135,8 @@ class TestKeyPoolStatePersistence:
 
 
 class TestKeyPoolStatus:
+    """Tests for the status() method reporting."""
+
     def test_status_report(self, tmp_path):
         pool = KeyPool(["k1", "k2", "k3"], state_dir=tmp_path)
         pool.get_key()  # use k1
@@ -177,6 +187,8 @@ class TestKeyPoolStatus:
 
 
 class TestKeyPoolAtomicWrite:
+    """Tests for atomic state file writing and cleanup."""
+
     def test_state_file_written_atomically(self, tmp_path):
         """State file is written using atomic rename to avoid corruption."""
         pool = KeyPool(["k1"], state_dir=tmp_path)
@@ -239,6 +251,8 @@ class TestKeyPoolAtomicWrite:
 
 
 class TestKeyPoolEdgeCases:
+    """Tests for edge cases and error handling."""
+
     def test_creates_state_dir_if_not_exists(self, tmp_path):
         """State directory is created if it doesn't exist."""
         nested_dir = tmp_path / "nested" / "state"
