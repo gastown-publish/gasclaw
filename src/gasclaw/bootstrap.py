@@ -141,7 +141,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
         logger.info("Sending startup notification")
         notify_telegram("Gasclaw is up and running.", auth_token=auth_token)
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.exception("Bootstrap failed at step")
         # Get auth token if available for error notifications
         error_token = auth_token if 'auth_token' in vars() else ""
@@ -157,7 +157,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
                 if services_started:
                     stop_openclaw()
                 logger.info("Rollback completed")
-            except Exception as rollback_error:
+            except Exception as rollback_error:  # noqa: BLE001
                 # Log rollback error but raise original exception
                 logger.error("Rollback failed: %s", rollback_error)
                 notify_telegram(

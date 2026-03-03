@@ -55,7 +55,7 @@ def start_openclaw(
             time.sleep(1)
 
         raise TimeoutError(f"OpenClaw not ready after {timeout}s on port {port}")
-    except Exception:
+    except Exception:  # noqa: BLE001
         # Clean up subprocess on any failure
         proc.terminate()
         try:
