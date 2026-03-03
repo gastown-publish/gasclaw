@@ -50,6 +50,10 @@ RUN go install github.com/steveyegge/gastown/cmd/gt@latest
 # Beads (bd) — git-backed issue tracking required by Gastown
 RUN go install github.com/steveyegge/beads/cmd/bd@latest
 
+# AIS — tmux-based AI session manager (primary execution layer)
+RUN curl -sL https://raw.githubusercontent.com/gastown-publish/ais/main/bin/ais \
+    -o /usr/local/bin/ais && chmod +x /usr/local/bin/ais
+
 # Install gasclaw
 WORKDIR /opt/gasclaw
 COPY pyproject.toml .

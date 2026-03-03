@@ -32,7 +32,7 @@ src/gasclaw/
     ├── checker.py      # Check versions of gt, claude, openclaw, dolt
     ├── applier.py      # Run update commands
     └── notifier.py     # POST to OpenClaw gateway
-skills/                 # OpenClaw skills (4: health, keys, update, agents)
+skills/                 # OpenClaw skills (5: health, keys, update, agents, ais-orchestrator)
 tests/unit/             # 628 unit tests — all mocked, no API keys needed
 tests/integration/      # Integration tests (optional, needs services)
 ```
@@ -56,6 +56,7 @@ tests/integration/      # Integration tests (optional, needs services)
    - `reference/beads-cli.md` — `bd` CLI for state tracking
    - `reference/dolt-sql.md` — Dolt SQL server management
    - `reference/kimi-proxy.md` — Kimi K2.5 proxy and key rotation
+   - `reference/ais-cli.md` — AIS tmux session manager (primary execution layer)
 2. **Validate after every change** — run `bash scripts/validate-openclaw-config.sh`
 3. **Test end-to-end** — send a real message, check logs, verify the change works
 4. **Never mix concerns** — e.g., `allowFrom` is for DM user IDs only, group config is under `groups`
@@ -83,6 +84,7 @@ All 628 unit tests must pass. Never modify a test to make it pass — fix the co
 - **Activity benchmark**: Code must be pushed/PR merged every hour (`ACTIVITY_DEADLINE=3600`)
 - **LRU key rotation**: Ported from kimigas — rate-limited keys cool down for 5 minutes
 - **Health monitor loop**: Runs in foreground after bootstrap, checks every `MONITOR_INTERVAL` seconds
+- **AIS is the primary execution layer**: All agents and tasks run in tmux via `ais` CLI ([gastown-publish/ais](https://github.com/gastown-publish/ais)). Use `ais create/inspect/inject/kill` for everything.
 
 ## Common Tasks
 

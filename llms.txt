@@ -32,6 +32,7 @@ Gasclaw runs a Gastown multi-agent workspace managed by an OpenClaw overseer bot
 ```
 
 Components:
+- AIS (ais CLI): PRIMARY EXECUTION LAYER — all agents run in tmux via ais
 - Gastown (gt CLI): Multi-agent workspace — Mayor, Crew, Daemon, Deacon, Witness, Refinery
 - OpenClaw: Overseer — Telegram bot, monitoring, compliance, skill system
 - KimiGas: LRU key rotation with 5-min rate-limit cooldown
@@ -178,6 +179,42 @@ Dolt: pkill -f "dolt sql-server" (not dolt sql-server --stop — unreliable)
 - Never modify a test to make it pass — fix the code
 - Branch naming: fix/, feat/, test/, docs/, refactor/
 - Commit format: <type>: <description>
+
+## AIS — Primary Execution Layer (tmux)
+
+Source: https://github.com/gastown-publish/ais
+
+EVERYTHING runs in tmux via ais. Never run agents outside ais.
+
+Key commands:
+- ais create <name> -a claude|kimi -A <account> [--yolo] [-c "cmd"] [-d dir]
+- ais ls — list all sessions
+- ais inspect <name> -n 100 — capture last 100 lines
+- ais inspect <name> --rate-limit — check for rate limits
+- ais inject <name> "text" — send command to session
+- ais watch <name> -i 5 — live tail every 5s
+- ais kill <name> — graceful shutdown
+- ais kill --all — kill everything
+- ais accounts — list configured accounts
+- ais status <name> — machine-readable JSON status
+- ais logs <name> -o file.log — save full scrollback
+
+Account setup:
+- Claude: ~/.claude-accounts/<id>/ (CLAUDE_CONFIG_DIR)
+- Kimi: ~/.kimi-accounts/<id>/ (KIMI_SHARE_DIR)
+
+Log trail at ~/.ais/logs/<name>/: events.log, snapshots.log, status.json, prompt.txt
+
+Prompt rules for sub-agents:
+1. One task, one agent
+2. Be specific about what (name the files)
+3. Set boundaries (which dirs to touch)
+4. Define done ("Print TASK COMPLETE: <summary>")
+5. Give context (paste errors, don't say "run tests to see")
+6. Match agent to task (Opus=complex, Sonnet=fixes, Kimi=free boilerplate)
+
+Rate limit recovery: kill session, respawn with different account.
+Rotation: Claude cc1→cc2→cc3→cc1, Kimi 1→2→3→1.
 
 ## Validation
 
