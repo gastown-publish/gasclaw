@@ -1,0 +1,199 @@
+# Gasclaw
+
+> Single-container deployment: Gastown + OpenClaw + KimiGas
+
+Gasclaw runs a Gastown multi-agent workspace managed by an OpenClaw overseer bot on Telegram. All agents use Kimi K2.5 as their LLM backend through Claude Code's agentic interface.
+
+## Links
+
+- Repo: https://github.com/gastown-publish/gasclaw
+- Gastown: https://github.com/steveyegge/gastown
+- Gastown Docs: https://docs.gt.villamarket.ai
+- OpenClaw: https://github.com/gastown-publish/openclaw-launcher
+- Kimi CLI: https://github.com/MoonshotAI/kimi-cli
+- Kimi Docs: https://moonshotai.github.io/kimi-cli/en/
+- AIS: https://github.com/gastown-publish/ais
+- KimiGas: https://github.com/gastown-publish/kimigas
+- Beads: https://github.com/steveyegge/beads
+- Gastown Monitor: https://github.com/gastown-publish/gastown-monitor
+- N-Skills: https://github.com/gastown-publish/n-skills
+- Wiki: https://github.com/gastown-publish/gasclaw/wiki
+
+## Architecture
+
+```
+┌──────────────── Docker Container ────────────────┐
+│  OpenClaw Gateway (port 18789) ← Telegram        │
+│  Gastown HQ — Mayor + Crew (Claude Code / Kimi)  │
+│  Dolt SQL (port 3307) — agent state via beads    │
+│  KimiGas — LRU key rotation with cooldown        │
+│  /project ← volume mount (your repo)             │
+└──────────────────────────────────────────────────┘
+```
+
+Components:
+- Gastown (gt CLI): Multi-agent workspace — Mayor, Crew, Daemon, Deacon, Witness, Refinery
+- OpenClaw: Overseer — Telegram bot, monitoring, compliance, skill system
+- KimiGas: LRU key rotation with 5-min rate-limit cooldown
+- Dolt: Version-controlled SQL for agent state
+- Beads (bd CLI): Git-backed issue tracking
+
+## Environment Variables
+
+Required:
+- GASTOWN_KIMI_KEYS: Colon-separated Kimi API keys for Gastown agents (sk-xxx:sk-yyy)
+- OPENCLAW_KIMI_KEY: Kimi API key for OpenClaw overseer (separate pool, never shared)
+- TELEGRAM_BOT_TOKEN: Telegram bot token from @BotFather
+- TELEGRAM_OWNER_ID: Numeric Telegram user ID
+
+Optional:
+- GT_RIG_URL: Git URL or path for rig (default: /project)
+- GT_AGENT_COUNT: Number of crew workers (default: 6)
+- MONITOR_INTERVAL: Health check interval in seconds (default: 300)
+- ACTIVITY_DEADLINE: Max seconds between commits (default: 3600)
+- DOLT_PORT: Dolt SQL server port (default: 3307)
+- LOG_LEVEL: DEBUG, INFO, WARNING, ERROR (default: INFO)
+
+## Quick Start
+
+```bash
+git clone git@github.com:gastown-publish/gasclaw.git && cd gasclaw
+cp .env.example .env   # Add your keys
+docker compose up -d
+```
+
+Development:
+```bash
+python -m venv .venv && source .venv/bin/activate
+make dev && make test   # 628 unit tests, no API keys needed
+```
+
+## Project Structure
+
+```
+src/gasclaw/
+├── cli.py           # Typer CLI: start, stop, status, update
+├── config.py        # Env var config (dataclass, no pydantic)
+├── bootstrap.py     # 10-step startup orchestration
+├── health.py        # Health checks + activity compliance
+├── gastown/
+│   ├── agent_config.py  # Write settings/config.json for gt
+│   ├── installer.py     # Kimi account setup + gt install
+│   └── lifecycle.py     # Start/stop dolt, daemon, mayor
+├── kimigas/
+│   ├── key_pool.py      # LRU key rotation with rate-limit cooldown
+│   └── proxy.py         # ANTHROPIC_BASE_URL env builder + Claude config
+├── openclaw/
+│   ├── installer.py     # Write openclaw.json + Telegram config
+│   ├── skill_manager.py # Copy skills to ~/.openclaw/skills/
+│   └── doctor.py        # Config verification
+└── updater/
+    ├── checker.py       # Check versions of gt, claude, openclaw, dolt
+    ├── applier.py       # Run update commands
+    └── notifier.py      # POST to OpenClaw gateway / Telegram
+reference/               # Distilled dependency docs for agents
+scripts/                 # Validation scripts
+skills/                  # OpenClaw skills (health, keys, update, agents)
+tests/unit/              # 628 unit tests (all mocked)
+```
+
+## Bootstrap Sequence (10 steps)
+
+1. Setup Kimi proxy — init KeyPool, set ANTHROPIC_BASE_URL, write Claude config
+2. Install Gastown — gt install + gt rig add (cwd must be gt root)
+3. Configure agent — gt config agent set kimi-claude claude
+4. Start Dolt — SQL server on configured port
+5. Configure OpenClaw — write ~/.openclaw/openclaw.json
+6. Install skills — copy to ~/.openclaw/skills/
+7. Run doctor — openclaw doctor --repair
+8. Start daemon — gt daemon start
+9. Start mayor — gt mayor start --agent kimi-claude
+10. Notify — send "Gasclaw is up" via Telegram
+
+Rollback on failure: previously started services are stopped automatically.
+
+## Kimi Proxy
+
+Claude Code reads these env vars:
+- ANTHROPIC_BASE_URL=https://api.kimi.com/coding/
+- ANTHROPIC_API_KEY=<kimi-key>
+- CLAUDE_CONFIG_DIR=~/.claude-kimigas
+- DISABLE_COST_WARNINGS=true
+
+Permission bypass via ~/.claude-kimigas/.claude.json:
+- bypassPermissionsModeAccepted: true
+- customApiKeyResponses.approved: [last-20-chars-of-key]
+- hasCompletedOnboarding: true
+
+Do NOT use --dangerously-skip-permissions (rejected under root).
+
+Key rotation: LRU with 5-min cooldown. BLAKE2b hash tracking. Separate pools for agents vs overseer.
+
+## OpenClaw Telegram Config
+
+Critical fields in ~/.openclaw/openclaw.json:
+- channels.telegram.dmPolicy: "open" (requires allowFrom: ["*"])
+- channels.telegram.groupPolicy: "open" (NOT "owner" — invalid, silently ignored)
+- channels.telegram.groups.*.requireMention: false (default is true — bot won't reply without this)
+- messages.ackReactionScope: "all" (controls emoji only, NOT replies)
+- channels.telegram.streaming: "off" (recommended for Telegram)
+
+Common mistakes:
+- ackReactionScope controls reactions, NOT whether bot replies
+- requireMention defaults to true — must explicitly set false for group auto-reply
+- allowFrom is for DM user IDs only, never group chat IDs
+- groupPolicy only accepts: open, disabled, allowlist
+- entrypoint.sh overwrites openclaw.json on container restart
+
+## Gastown CLI Reference
+
+Install: go install github.com/steveyegge/gastown/cmd/gt@latest (NOT pip install gastown)
+Beads: go install github.com/steveyegge/beads/cmd/bd@latest
+
+Key commands:
+- gt install — init workspace
+- gt rig add <url> — register project (must run from gt root dir)
+- gt config agent set <name> <cmd> — register agent
+- gt agents — list running agents (NOT gt status --agents)
+- gt daemon start/stop/status — daemon lifecycle
+- gt mayor start --agent <name> — start mayor
+
+Dolt: pkill -f "dolt sql-server" (not dolt sql-server --stop — unreliable)
+
+## Health Checks
+
+| Service | Method | Healthy |
+|---------|--------|---------|
+| Dolt | dolt sql -q "SELECT 1" | Query succeeds |
+| Daemon | gt daemon status | Running |
+| Mayor | gt mayor status | Running |
+| OpenClaw | GET localhost:18789/health | HTTP 200 |
+| Activity | git log --since=<deadline> | Commits exist |
+
+## Development
+
+- TDD: write test first, then implementation
+- All subprocess/httpx calls mocked in unit tests
+- No API keys needed for unit tests
+- Never modify a test to make it pass — fix the code
+- Branch naming: fix/, feat/, test/, docs/, refactor/
+- Commit format: <type>: <description>
+
+## Validation
+
+```bash
+make test                              # 628 unit tests
+make lint                              # Ruff linting
+bash scripts/validate-openclaw-config.sh  # OpenClaw config validation
+openclaw doctor --repair               # Health check + fix
+openclaw channels status --probe       # Telegram probe
+```
+
+## Config Change Rules
+
+1. Read official docs FIRST — never guess config values
+2. Validate after every change — run validation script
+3. Test end-to-end — send a real message, check logs
+4. Never mix concerns — allowFrom is DM only, groups config is separate
+5. Check logs — openclaw logs or tail gateway log
+6. Invalid values are silently ignored — only testing reveals problems
