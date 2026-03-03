@@ -700,3 +700,135 @@ class TestConfigValidationNew:
         error_msg = str(exc_info.value)
         assert "invalid-ve" in error_msg
         assert "..." in error_msg
+
+
+class TestTelegramAllowlistConfig:
+    """Tests for multiple Telegram allowlist users and groups."""
+
+    def test_telegram_allow_ids_parsed(self, monkeypatch):
+        """TELEGRAM_ALLOW_IDS parsed as colon-separated list."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("TELEGRAM_ALLOW_IDS", "987654321:555666777")
+
+        cfg = load_config()
+        assert cfg.telegram_allow_ids == ["987654321", "555666777"]
+
+    def test_telegram_group_ids_parsed(self, monkeypatch):
+        """TELEGRAM_GROUP_IDS parsed as colon-separated list."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("TELEGRAM_GROUP_IDS", "-5054397264:-123456789")
+
+        cfg = load_config()
+        assert cfg.telegram_group_ids == ["-5054397264", "-123456789"]
+
+    def test_telegram_allow_ids_must_be_numeric(self, monkeypatch):
+        """TELEGRAM_ALLOW_IDS values must be numeric."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("TELEGRAM_ALLOW_IDS", "not_numeric:987654321")
+
+        with pytest.raises(ValueError, match="TELEGRAM_ALLOW_IDS must be numeric"):
+            load_config()
+
+    def test_empty_allowlist_defaults_to_empty_list(self, monkeypatch):
+        """Empty TELEGRAM_ALLOW_IDS defaults to empty list."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        cfg = load_config()
+        assert cfg.telegram_allow_ids == []
+        assert cfg.telegram_group_ids == []
+
+
+class TestGatewayPortConfig:
+    """Tests for configurable gateway port."""
+
+    def test_default_gateway_port(self, monkeypatch):
+        """Default gateway port is 18789."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        cfg = load_config()
+        assert cfg.gateway_port == 18789
+
+    def test_custom_gateway_port(self, monkeypatch):
+        """GATEWAY_PORT can be customized."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("GATEWAY_PORT", "18790")
+
+        cfg = load_config()
+        assert cfg.gateway_port == 18790
+
+    def test_gateway_port_out_of_range_defaults(self, monkeypatch, caplog):
+        """GATEWAY_PORT outside 1-65535 range logs warning and uses default."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("GATEWAY_PORT", "70000")
+
+        with caplog.at_level(logging.WARNING):
+            cfg = load_config()
+
+        assert cfg.gateway_port == 18789
+        assert "GATEWAY_PORT" in caplog.text
+        assert "must be between 1 and 65535" in caplog.text
+
+
+class TestAgentIdentityConfig:
+    """Tests for agent identity customization."""
+
+    def test_default_agent_identity(self, monkeypatch):
+        """Default agent identity values."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+
+        cfg = load_config()
+        assert cfg.agent_id == "main"
+        assert cfg.agent_name == "Gasclaw Overseer"
+        assert cfg.agent_emoji == "🏭"
+
+    def test_custom_agent_identity(self, monkeypatch):
+        """Agent identity can be customized via env vars."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("AGENT_ID", "openclawmaster")
+        monkeypatch.setenv("AGENT_NAME", "OpenClawMaster - Docker Orchestrator")
+        monkeypatch.setenv("AGENT_EMOJI", "🦾")
+
+        cfg = load_config()
+        assert cfg.agent_id == "openclawmaster"
+        assert cfg.agent_name == "OpenClawMaster - Docker Orchestrator"
+        assert cfg.agent_emoji == "🦾"
+
+    def test_empty_agent_identity_uses_default(self, monkeypatch):
+        """Empty agent identity values use defaults."""
+        monkeypatch.setenv("GASTOWN_KIMI_KEYS", "sk-key1")
+        monkeypatch.setenv("OPENCLAW_KIMI_KEY", "sk-key2")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC-DEF")
+        monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456789")
+        monkeypatch.setenv("AGENT_NAME", "")
+        monkeypatch.setenv("AGENT_EMOJI", "")
+
+        cfg = load_config()
+        assert cfg.agent_name == "Gasclaw Overseer"
+        assert cfg.agent_emoji == "🏭"

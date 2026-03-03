@@ -29,12 +29,38 @@ class GasclawConfig:
     monitor_interval: int = 300  # seconds between health checks
     activity_deadline: int = 3600  # seconds — must see a push/PR within this window
     dolt_port: int = 3307  # Port for dolt SQL server
+    gateway_port: int = 18789  # Port for OpenClaw gateway
+
+    # Telegram allowlists (parsed from colon-separated env vars)
+    telegram_allow_ids: list[str] = None  # type: ignore[assignment]
+    telegram_group_ids: list[str] = None  # type: ignore[assignment]
+
+    # Agent identity customization
+    agent_id: str = "main"
+    agent_name: str = "Gasclaw Overseer"
+    agent_emoji: str = "🏭"
 
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
+        # Initialize empty lists for optional allowlists
+        if self.telegram_allow_ids is None:
+            self.telegram_allow_ids = []
+        if self.telegram_group_ids is None:
+            self.telegram_group_ids = []
+
         # Validate telegram_owner_id is numeric
         if self.telegram_owner_id and not self.telegram_owner_id.isdigit():
             raise ValueError(f"TELEGRAM_OWNER_ID must be numeric, got: {self.telegram_owner_id}")
+
+        # Validate additional allowlist IDs are numeric
+        for uid in self.telegram_allow_ids:
+            if not uid.isdigit():
+                raise ValueError(f"TELEGRAM_ALLOW_IDS must be numeric, got: {uid}")
+
+        # Validate group IDs are numeric (can be negative for groups)
+        for gid in self.telegram_group_ids:
+            if not gid.lstrip("-").isdigit():
+                raise ValueError(f"TELEGRAM_GROUP_IDS must be numeric, got: {gid}")
 
         # Validate telegram_bot_token format (should be digits:alphanumeric)
         if self.telegram_bot_token and not re.match(r"^\d+:[\w-]+$", self.telegram_bot_token):
@@ -75,6 +101,11 @@ def _require_env(name: str) -> str:
 def _parse_keys(raw: str) -> list[str]:
     """Parse colon-separated keys, filtering empty segments."""
     return [k.strip() for k in raw.split(":") if k.strip()]
+
+
+def _parse_ids(raw: str) -> list[str]:
+    """Parse colon-separated IDs, filtering empty segments."""
+    return [id.strip() for id in raw.split(":") if id.strip()]
 
 
 def _parse_positive_int(value: str, default: int, name: str = "") -> int:
@@ -152,6 +183,10 @@ def load_config() -> GasclawConfig:
     if not keys:
         raise ValueError("GASTOWN_KIMI_KEYS contains no valid keys")
 
+    # Parse additional Telegram allowlists (colon-separated)
+    telegram_allow_ids = _parse_ids(os.environ.get("TELEGRAM_ALLOW_IDS", ""))
+    telegram_group_ids = _parse_ids(os.environ.get("TELEGRAM_GROUP_IDS", ""))
+
     config = GasclawConfig(
         gastown_kimi_keys=keys,
         openclaw_kimi_key=_require_env("OPENCLAW_KIMI_KEY"),
@@ -169,6 +204,14 @@ def load_config() -> GasclawConfig:
             os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"
         ),
         dolt_port=_parse_port(os.environ.get("DOLT_PORT", "3307"), 3307, "DOLT_PORT"),
+        gateway_port=_parse_port(
+            os.environ.get("GATEWAY_PORT", "18789"), 18789, "GATEWAY_PORT"
+        ),
+        telegram_allow_ids=telegram_allow_ids,
+        telegram_group_ids=telegram_group_ids,
+        agent_id=os.environ.get("AGENT_ID", "main").strip() or "main",
+        agent_name=os.environ.get("AGENT_NAME", "Gasclaw Overseer").strip() or "Gasclaw Overseer",
+        agent_emoji=os.environ.get("AGENT_EMOJI", "🏭").strip() or "🏭",
     )
 
     logger.debug("Loaded configuration with %d Gastown keys", len(keys))

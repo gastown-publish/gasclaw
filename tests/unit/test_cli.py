@@ -32,6 +32,35 @@ class TestStartCommand:
             assert result.exit_code == 1
             assert "Config error" in result.output
 
+    def test_exits_when_port_in_use(self, config, monkeypatch, tmp_path):
+        """start command exits with code 1 if gateway port is in use."""
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: True)
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "already in use" in result.output
+        assert "18789" in result.output
+
+    def test_passes_when_port_available(self, config, monkeypatch, tmp_path):
+        """start command proceeds when gateway port is available."""
+        bootstrap_calls = []
+
+        def mock_bootstrap(cfg, gt_root):
+            bootstrap_calls.append((cfg, gt_root))
+
+        monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
+        monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
+        monkeypatch.setattr(
+            "gasclaw.cli.monitor_loop", lambda cfg: (_ for _ in ()).throw(KeyboardInterrupt)
+        )
+
+        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+
+        assert len(bootstrap_calls) == 1
+
     def test_calls_bootstrap_and_monitor_loop(self, config, monkeypatch, tmp_path):
         """start command bootstraps and enters monitor loop."""
         bootstrap_calls = []
@@ -47,6 +76,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -71,6 +101,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         runner.invoke(
             app, ["start", "--gt-root", str(tmp_path), "--project-dir", str(project_override)]
@@ -88,6 +119,7 @@ class TestStartCommand:
 
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_fail)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -103,6 +135,7 @@ class TestStartCommand:
 
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap_interrupt)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
@@ -121,6 +154,7 @@ class TestStartCommand:
         monkeypatch.setattr("gasclaw.cli.load_config", lambda: config)
         monkeypatch.setattr("gasclaw.cli.bootstrap", mock_bootstrap)
         monkeypatch.setattr("gasclaw.cli.monitor_loop", mock_monitor_interrupt)
+        monkeypatch.setattr("gasclaw.cli._is_port_in_use", lambda port: False)
 
         result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
