@@ -210,6 +210,7 @@ print(f"Telegram DM users: {user_allow}, group users: {group_user_allow}")
 tg_channel = {
     "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
     "dmPolicy": "allowlist",
+    "groupPolicy": "allowlist",
     "allowFrom": user_allow,
 }
 if group_user_allow:
