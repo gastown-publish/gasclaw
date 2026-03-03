@@ -984,7 +984,9 @@ class TestMergeConfig:
             return int(x)
 
         # Env var that will fail to parse
-        result = merge_config(yaml_cfg, "invalid", ("gastown", "agent_count"), 6, selective_failing_parser)
+        result = merge_config(
+            yaml_cfg, "invalid", ("gastown", "agent_count"), 6, selective_failing_parser
+        )
         # Should fall through to YAML value
         assert result == 9
 

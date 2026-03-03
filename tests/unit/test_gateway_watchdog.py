@@ -4,15 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
-import signal
 import sys
-import tempfile
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 # Load watchdog module from maintainer/scripts
 _scripts_path = Path(__file__).parent.parent.parent / "maintainer" / "scripts"
@@ -161,11 +156,13 @@ class TestGatewayWatchdog:
 
         watchdog = GatewayWatchdog(state_file=str(tmp_path / "state.json"))
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "read_text", return_value="12345"):
-                with patch("os.kill") as mock_kill:
-                    mock_kill.return_value = None  # Process exists
-                    assert watchdog._check_gateway_health() is True
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value="12345"),
+            patch("os.kill") as mock_kill,
+        ):
+            mock_kill.return_value = None  # Process exists
+            assert watchdog._check_gateway_health() is True
 
     def test_check_gateway_health_with_dead_process(self, tmp_path):
         """Watchdog detects dead gateway process."""
@@ -174,10 +171,12 @@ class TestGatewayWatchdog:
 
         watchdog = GatewayWatchdog(state_file=str(tmp_path / "state.json"))
 
-        with patch.object(Path, "exists", return_value=True):
-            with patch.object(Path, "read_text", return_value="99999"):
-                with patch("os.kill", side_effect=ProcessLookupError):
-                    assert watchdog._check_gateway_health() is False
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", return_value="99999"),
+            patch("os.kill", side_effect=ProcessLookupError),
+        ):
+            assert watchdog._check_gateway_health() is False
 
     def test_run_cycle_updates_timestamp_on_new_message(self, tmp_path):
         """Watchdog cycle updates timestamp when message found."""
@@ -208,12 +207,14 @@ class TestGatewayWatchdog:
             stale_threshold=300,
         )
 
-        with patch.object(watchdog, "_check_gateway_health", return_value=True):
-            with patch.object(watchdog, "_check_for_new_messages", return_value=False):
-                with patch.object(watchdog, "_restart_gateway", return_value=True) as mock_restart:
-                    watchdog.run_cycle()
+        with (
+            patch.object(watchdog, "_check_gateway_health", return_value=True),
+            patch.object(watchdog, "_check_for_new_messages", return_value=False),
+            patch.object(watchdog, "_restart_gateway", return_value=True) as mock_restart,
+        ):
+            watchdog.run_cycle()
 
-                    mock_restart.assert_called_once()
+            mock_restart.assert_called_once()
 
 
 class TestSendTelegramNotification:

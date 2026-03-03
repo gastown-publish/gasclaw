@@ -4,11 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from gasclaw.ci_monitor import (
     CIFailure,
@@ -252,11 +248,13 @@ class TestCheckCIFailures:
             )
         ]
 
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
-                with patch("gasclaw.ci_monitor.save_seen_failures") as mock_save:
-                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
-                        result = check_ci_failures("gastown-publish/gasclaw")
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()),
+            patch("gasclaw.ci_monitor.save_seen_failures") as mock_save,
+            patch("gasclaw.ci_monitor.create_failure_issue", return_value=True),
+        ):
+            result = check_ci_failures("gastown-publish/gasclaw")
 
         assert result["checked"] == 1
         assert result["new"] == 1
@@ -274,11 +272,13 @@ class TestCheckCIFailures:
             )
         ]
 
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value={"12345"}):
-                with patch("gasclaw.ci_monitor.save_seen_failures") as mock_save:
-                    with patch("gasclaw.ci_monitor.create_failure_issue") as mock_create:
-                        result = check_ci_failures("gastown-publish/gasclaw")
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value={"12345"}),
+            patch("gasclaw.ci_monitor.save_seen_failures") as mock_save,
+            patch("gasclaw.ci_monitor.create_failure_issue") as mock_create,
+        ):
+            result = check_ci_failures("gastown-publish/gasclaw")
 
         assert result["checked"] == 1
         assert result["new"] == 0
@@ -289,9 +289,11 @@ class TestCheckCIFailures:
 
     def test_check_ci_failures_no_failures(self):
         """Handle no failures case."""
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=[]):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
-                result = check_ci_failures("gastown-publish/gasclaw")
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=[]),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()),
+        ):
+            result = check_ci_failures("gastown-publish/gasclaw")
 
         assert result["checked"] == 0
         assert result["new"] == 0
@@ -310,11 +312,13 @@ class TestCheckCIFailures:
             )
         ]
 
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set(old_ids)):
-                with patch("gasclaw.ci_monitor.save_seen_failures") as mock_save:
-                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
-                        check_ci_failures("gastown-publish/gasclaw")
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value=set(old_ids)),
+            patch("gasclaw.ci_monitor.save_seen_failures") as mock_save,
+            patch("gasclaw.ci_monitor.create_failure_issue", return_value=True),
+        ):
+            check_ci_failures("gastown-publish/gasclaw")
 
         # Check that save was called with limited set
         assert mock_save.called
@@ -356,9 +360,11 @@ class TestSaveSeenFailuresErrors:
         state_file = tmp_path / "ci_failures.json"
 
         # Mock open to raise IOError
-        with patch("builtins.open", side_effect=IOError("Permission denied")):
-            with caplog.at_level(logging.WARNING):
-                save_seen_failures({"12345"}, str(state_file))
+        with (
+            patch("builtins.open", side_effect=OSError("Permission denied")),
+            caplog.at_level(logging.WARNING),
+        ):
+            save_seen_failures({"12345"}, str(state_file))
 
         assert "Failed to save seen failures" in caplog.text
         assert "Permission denied" in caplog.text
@@ -383,14 +389,16 @@ class TestCheckCIFailuresNotification:
         def mock_send_notification(msg):
             notifications.append(msg)
 
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
-                with patch("gasclaw.ci_monitor.save_seen_failures"):
-                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
-                        result = check_ci_failures(
-                            "gastown-publish/gasclaw",
-                            send_notification=mock_send_notification
-                        )
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()),
+            patch("gasclaw.ci_monitor.save_seen_failures"),
+            patch("gasclaw.ci_monitor.create_failure_issue", return_value=True),
+        ):
+            result = check_ci_failures(
+                "gastown-publish/gasclaw",
+                send_notification=mock_send_notification
+            )
 
         assert result["new"] == 1
         assert len(notifications) == 1
@@ -410,15 +418,17 @@ class TestCheckCIFailuresNotification:
         def failing_notification(msg):
             raise Exception("Notification service down")
 
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
-                with patch("gasclaw.ci_monitor.save_seen_failures"):
-                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
-                        with caplog.at_level(logging.WARNING):
-                            result = check_ci_failures(
-                                "gastown-publish/gasclaw",
-                                send_notification=failing_notification
-                            )
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()),
+            patch("gasclaw.ci_monitor.save_seen_failures"),
+            patch("gasclaw.ci_monitor.create_failure_issue", return_value=True),
+            caplog.at_level(logging.WARNING),
+        ):
+            result = check_ci_failures(
+                "gastown-publish/gasclaw",
+                send_notification=failing_notification
+            )
 
         assert result["new"] == 1
         assert "Failed to send notification" in caplog.text
@@ -435,12 +445,14 @@ class TestCheckCIFailuresNotification:
             )
         ]
 
-        with patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures):
-            with patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()):
-                with patch("gasclaw.ci_monitor.save_seen_failures"):
-                    with patch("gasclaw.ci_monitor.create_failure_issue", return_value=True):
-                        result = check_ci_failures(
-                            "gastown-publish/gasclaw",
+        with (
+            patch("gasclaw.ci_monitor.get_failed_workflows", return_value=failures),
+            patch("gasclaw.ci_monitor.load_seen_failures", return_value=set()),
+            patch("gasclaw.ci_monitor.save_seen_failures"),
+            patch("gasclaw.ci_monitor.create_failure_issue", return_value=True),
+        ):
+            result = check_ci_failures(
+                "gastown-publish/gasclaw",
                             send_notification=None
                         )
 

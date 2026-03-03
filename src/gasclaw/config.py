@@ -257,9 +257,8 @@ def _parse_simple_yaml(text: str) -> dict:
             if val.startswith("[") and val.endswith("]"):
                 # List: ["a", "b"] or [a, b]
                 val = [v.strip().strip('"').strip("'") for v in val[1:-1].split(",") if v.strip()]
-            elif val.startswith('"') and val.endswith('"'):
-                val = val[1:-1]
-            elif val.startswith("'") and val.endswith("'"):
+            elif val.startswith('"') and val.endswith('"') or \
+                    val.startswith("'") and val.endswith("'"):
                 val = val[1:-1]
             elif val.lower() == "true":
                 val = True
@@ -324,7 +323,10 @@ def _parse_port_yaml(value: Any, default: int, name: str = "") -> int:
         pass
 
     if name:
-        logger.warning("Invalid %s: %r must be between 1 and 65535, using default %d", name, value, default)
+        logger.warning(
+            "Invalid %s: %r must be between 1 and 65535, using default %d",
+            name, value, default,
+        )
     return default
 
 
@@ -435,18 +437,20 @@ def load_config(config_path: str | None = None) -> GasclawConfig:
         gt_agent_count=_parse_positive_int_yaml(
             os.environ.get("GT_AGENT_COUNT") or _get_yaml_value(yaml_cfg, "gastown", "agent_count"),
             6,
-            "GT_AGENT_COUNT" if os.environ.get("GT_AGENT_COUNT") else "gastown.agent_count",
+            "GT_AGENT_COUNT" if os.environ.get("GT_AGENT_COUNT") else "gastown.agent_count",  # noqa: E501
         ),
         # Maintenance settings
         monitor_interval=_parse_positive_int_yaml(
-            os.environ.get("MONITOR_INTERVAL") or _get_yaml_value(yaml_cfg, "maintenance", "monitor_interval"),
+            os.environ.get("MONITOR_INTERVAL")  # noqa: E501
+            or _get_yaml_value(yaml_cfg, "maintenance", "monitor_interval"),
             300,
-            "MONITOR_INTERVAL" if os.environ.get("MONITOR_INTERVAL") else "maintenance.monitor_interval",
+            "MONITOR_INTERVAL" if os.environ.get("MONITOR_INTERVAL") else "maintenance.monitor_interval",  # noqa: E501
         ),
         activity_deadline=_parse_positive_int_yaml(
-            os.environ.get("ACTIVITY_DEADLINE") or _get_yaml_value(yaml_cfg, "maintenance", "activity_deadline"),
+            os.environ.get("ACTIVITY_DEADLINE")  # noqa: E501
+            or _get_yaml_value(yaml_cfg, "maintenance", "activity_deadline"),
             3600,
-            "ACTIVITY_DEADLINE" if os.environ.get("ACTIVITY_DEADLINE") else "maintenance.activity_deadline",
+            "ACTIVITY_DEADLINE" if os.environ.get("ACTIVITY_DEADLINE") else "maintenance.activity_deadline",  # noqa: E501
         ),
         # Service ports
         dolt_port=_parse_port_yaml(

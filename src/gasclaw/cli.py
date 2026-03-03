@@ -226,8 +226,6 @@ def migrate(
 
     """
     from gasclaw.migration import (
-        detect_gastown_setup,
-        detect_openclaw_launcher_setup,
         migrate_openclaw_launcher,
     )
 

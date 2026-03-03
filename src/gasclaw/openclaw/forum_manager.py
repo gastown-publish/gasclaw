@@ -6,6 +6,7 @@ and persists topic thread IDs for routing notifications.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -180,10 +181,8 @@ class ForumTopicManager:
             self._states = states
         except (OSError, TypeError, ValueError) as e:
             # Clean up temp file on failure
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
             logger.error("Failed to save forum topic state: %s", e)
             raise
 

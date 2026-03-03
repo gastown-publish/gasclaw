@@ -7,8 +7,6 @@ gasclaw containers, configuration, and lifecycle.
 from __future__ import annotations
 
 import json
-import os
-import re
 import subprocess
 from pathlib import Path
 from typing import Annotated
@@ -145,13 +143,12 @@ def init(
     env_file = project_path / ".env"
     compose_file = project_path / "docker-compose.yml"
 
-    if env_file.exists() or compose_file.exists():
-        if not Confirm.ask(
-            f"[yellow]Gasclaw files already exist in {project_path}.[/yellow] Overwrite?",
-            default=False,
-        ):
-            console.print("[yellow]Initialization cancelled.[/yellow]")
-            raise typer.Exit(code=0)
+    if (env_file.exists() or compose_file.exists()) and not Confirm.ask(
+        f"[yellow]Gasclaw files already exist in {project_path}.[/yellow] Overwrite?",
+        default=False,
+    ):
+        console.print("[yellow]Initialization cancelled.[/yellow]")
+        raise typer.Exit(code=0)
 
     if skip_wizard:
         _create_default_config(project_path)
@@ -268,7 +265,7 @@ LOG_LEVEL=INFO
     console.print(f"[green]✅ Created {env_file}[/green]")
 
     # Create docker-compose.yml
-    compose_content = f"""services:
+    compose_content = """services:
   gasclaw:
     image: ghcr.io/gastown-publish/gasclaw:latest
     container_name: gasclaw
@@ -328,7 +325,7 @@ agent:
     project_subdir.mkdir(exist_ok=True)
     (project_subdir / ".gitkeep").write_text("")
 
-    console.print(f"[green]✅ Created project directory structure[/green]")
+    console.print("[green]✅ Created project directory structure[/green]")
 
     # Summary
     console.print("\n" + "=" * 50)
@@ -407,7 +404,7 @@ def start(
     result = _run_docker_compose(args, project_dir=project_path, check=False)
 
     if result.returncode != 0:
-        console.print(f"[red]Failed to start gasclaw:[/red]")
+        console.print("[red]Failed to start gasclaw:[/red]")
         console.print(result.stderr)
         raise typer.Exit(code=1)
 
@@ -636,7 +633,9 @@ def config_cmd(
 
     # Check if container is running and warn
     if _container_running():
-        console.print("[yellow]Note: Changes will take effect after restart:[/yellow] gasclaw restart")
+        console.print(
+            "[yellow]Note: Changes will take effect after restart:[/yellow] gasclaw restart"
+        )
 
 
 def _parse_env_file(content: str) -> dict[str, str]:
@@ -679,8 +678,6 @@ def maintenance_cmd(
         gasclaw maintenance pause   # Pause automatic maintenance
         gasclaw maintenance resume  # Resume automatic maintenance
     """
-    project_path = project_dir.resolve()
-
     if not _container_running():
         console.print("[red]Gasclaw container is not running.[/red]")
         raise typer.Exit(code=1)

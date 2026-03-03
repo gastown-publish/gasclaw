@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -64,18 +63,16 @@ def get_failed_workflows(repo: str) -> list[CIFailure]:
             return []
 
         runs = json.loads(result.stdout)
-        failures = []
-
-        for run in runs:
-            if run.get("conclusion") == "failure":
-                failures.append(CIFailure(
-                    run_id=str(run.get("databaseId", "")),
-                    workflow_name=run.get("name", "Unknown Workflow"),
-                    url=run.get("url", ""),
-                    started_at=run.get("startedAt", "")
-                ))
-
-        return failures
+        return [
+            CIFailure(
+                run_id=str(run.get("databaseId", "")),
+                workflow_name=run.get("name", "Unknown Workflow"),
+                url=run.get("url", ""),
+                started_at=run.get("startedAt", "")
+            )
+            for run in runs
+            if run.get("conclusion") == "failure"
+        ]
 
     except json.JSONDecodeError as e:
         logger.warning("Failed to parse gh output: %s", e)
@@ -103,7 +100,7 @@ def load_seen_failures(state_file: str | None = None) -> set[str]:
         with open(path) as f:
             data = json.load(f)
             return set(data.get("seen", []))
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.warning("Failed to load seen failures: %s", e)
         return set()
 
@@ -123,7 +120,7 @@ def save_seen_failures(seen: set[str], state_file: str | None = None) -> None:
     try:
         with open(path, "w") as f:
             json.dump({"seen": sorted(seen)}, f, indent=2)
-    except IOError as e:
+    except OSError as e:
         logger.warning("Failed to save seen failures: %s", e)
 
 
@@ -159,7 +156,8 @@ def create_failure_issue(repo: str, failure: CIFailure) -> bool:
 **Started:** {failure.started_at}
 **URL:** {failure.url}
 
-This issue was automatically created by the Gasclaw maintainer bot when a GitHub Actions workflow failed.
+This issue was automatically created by the Gasclaw maintainer bot  # noqa: E501
+when a GitHub Actions workflow failed.
 
 ---
 *This is an automated message. Please investigate the failure and close this issue when resolved.*

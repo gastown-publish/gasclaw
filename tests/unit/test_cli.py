@@ -57,7 +57,7 @@ class TestStartCommand:
             "gasclaw.cli.monitor_loop", lambda cfg: (_ for _ in ()).throw(KeyboardInterrupt)
         )
 
-        result = runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
+        runner.invoke(app, ["start", "--gt-root", str(tmp_path)])
 
         assert len(bootstrap_calls) == 1
 
@@ -751,3 +751,66 @@ class TestKeysCommand:
         assert result.exit_code == 0
         assert "Key Pool Status" in result.output
         assert "0" in result.output
+
+    def test_migrate_from_openclaw_launcher_success(self, monkeypatch):
+        """migrate --from openclaw-launcher succeeds with warnings."""
+
+        def mock_migrate(*args, **kwargs):
+            return {
+                "success": True,
+                "migrated_keys": ["TELEGRAM_BOT_TOKEN", "OPENCLAW_KIMI_KEY"],
+                "warnings": ["Port changed from 18790 to 18789"],
+            }
+
+        monkeypatch.setattr(
+            "gasclaw.migration.migrate_openclaw_launcher", mock_migrate
+        )
+
+        result = runner.invoke(app, ["migrate", "--from", "openclaw-launcher"])
+
+        assert result.exit_code == 0
+        assert "Migration successful" in result.output
+        assert "Warnings:" in result.output
+        assert "Port changed" in result.output
+
+    def test_migrate_from_openclaw_launcher_failure(self, monkeypatch):
+        """migrate --from openclaw-launcher exits with code 1 on failure."""
+
+        def mock_migrate(*args, **kwargs):
+            return {
+                "success": False,
+                "error": "No openclaw-launcher installation found",
+            }
+
+        monkeypatch.setattr(
+            "gasclaw.migration.migrate_openclaw_launcher", mock_migrate
+        )
+
+        result = runner.invoke(app, ["migrate", "--from", "openclaw-launcher"])
+
+        assert result.exit_code == 1
+        assert "Migration failed" in result.output
+        assert "No openclaw-launcher installation found" in result.output
+
+    def test_migrate_from_openclaw_launcher_dry_run(self, monkeypatch):
+        """migrate --from openclaw-launcher --dry-run shows success without next steps."""
+
+        def mock_migrate(*args, **kwargs):
+            return {
+                "success": True,
+                "migrated_keys": ["TELEGRAM_BOT_TOKEN"],
+                "warnings": [],
+            }
+
+        monkeypatch.setattr(
+            "gasclaw.migration.migrate_openclaw_launcher", mock_migrate
+        )
+
+        result = runner.invoke(
+            app, ["migrate", "--from", "openclaw-launcher", "--dry-run"]
+        )
+
+        assert result.exit_code == 0
+        assert "Migration successful" in result.output
+        # Should not show next steps in dry run
+        assert "Next steps:" not in result.output

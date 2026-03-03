@@ -2,13 +2,7 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
-from pathlib import Path
-
-import pytest
-
-from gasclaw.config import GasclawConfig, load_config, load_yaml_config, merge_config
+from gasclaw.config import load_config, load_yaml_config
 
 
 class TestYamlConfigLoading:

@@ -10,12 +10,13 @@ with support for:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import tempfile
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -155,10 +156,8 @@ class RateLimitHandler:
             self._state = state
         except (OSError, TypeError, ValueError) as e:
             # Clean up temp file on failure
-            try:
+            with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            except OSError:
-                pass
             logger.error("Failed to save rate limit state: %s", e)
             raise
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -1539,10 +1539,12 @@ class TestCreateDefaultConfigFallback:
             # These are the paths constructed in _create_default_config:
             # Path(__file__).parent / ".." / ".." / ".env.example"
             # Path(__file__).parent / ".." / ".." / "docker-compose.yml"
-            if path_str.endswith(".env.example") or path_str.endswith("docker-compose.yml"):
+            is_example = (
+                path_str.endswith(".env.example") or path_str.endswith("docker-compose.yml")
+            )
+            if is_example and "gasclaw" in path_str and "project" not in path_str:
                 # Make sure we're checking the source file (has "gasclaw" in path)
-                if "gasclaw" in path_str and "project" not in path_str:
-                    return False
+                return False
             return original_exists(self)
 
         monkeypatch.setattr(Path, "exists", mock_exists)
@@ -1595,8 +1597,8 @@ class TestStatusHealthDisplay:
         assert "starting" in result.output
 
 
-class TestUpdateCommand:
-    """Test update command."""
+class TestUpdateCommandExtra:
+    """Additional tests for update command."""
 
     def test_update_pull_success(self, monkeypatch):
         """Test update command pulling latest image."""

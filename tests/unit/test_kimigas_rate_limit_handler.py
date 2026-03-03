@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -296,7 +295,6 @@ class TestRateLimitHandlerReport:
         handler = RateLimitHandler(state_dir=tmp_path)
         before = time.time()
         state = handler.report_rate_limit(retry_after=30)
-        after = time.time()
 
         expected_expiry = before + 30
         assert state.cooldown_expiry is not None

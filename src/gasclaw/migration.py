@@ -499,7 +499,7 @@ def _extract_api_keys_from_auth_profiles(openclaw_dir: Path) -> list[str]:
                     auth_config = json.load(f)
 
                 # Extract keys from auth profiles
-                for profile_name, profile in auth_config.items():
+                for profile in auth_config.values():
                     if isinstance(profile, dict) and "api_key" in profile:
                         key = profile["api_key"]
                         if key and key not in keys:
@@ -619,7 +619,7 @@ def migrate_openclaw_launcher(
         # GASTOWN_KIMI_KEYS
         if "GASTOWN_KIMI_KEYS" not in migrated_config:
             keys_input = input(
-                "Enter GASTOWN_KIMI_KEYS (colon-separated Kimi keys for agents, or press Enter to skip): "
+                "Enter GASTOWN_KIMI_KEYS (colon-separated keys, or press Enter to skip): "
             ).strip()
             if keys_input:
                 migrated_config["GASTOWN_KIMI_KEYS"] = keys_input
@@ -629,7 +629,7 @@ def migrate_openclaw_launcher(
         # GASTOWN_KIMI_KEYS
         if "GASTOWN_KIMI_KEYS" not in migrated_config:
             keys_input = input(
-                "Enter GASTOWN_KIMI_KEYS (colon-separated Kimi keys for agents, or press Enter to skip): "
+                "Enter GASTOWN_KIMI_KEYS (colon-separated keys, or press Enter to skip): "
             ).strip()
             if keys_input:
                 migrated_config["GASTOWN_KIMI_KEYS"] = keys_input
