@@ -707,7 +707,7 @@ class TestHealthCheckEdgeCases:
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
 
         def mock_run(cmd, **kw):
-            if "status" in str(cmd) and "--agents" in str(cmd):
+            if cmd == ["gt", "agents"]:
                 raise FileNotFoundError("gt not found")
             return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
 
@@ -720,7 +720,7 @@ class TestHealthCheckEdgeCases:
         respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
 
         def mock_run(cmd, **kw):
-            if "status" in str(cmd) and "--agents" in str(cmd):
+            if cmd == ["gt", "agents"]:
                 raise subprocess.TimeoutExpired(cmd=["gt"], timeout=10)
             return subprocess.CompletedProcess(cmd, 0, stdout=b"ok")
 

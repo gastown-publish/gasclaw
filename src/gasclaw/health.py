@@ -95,10 +95,10 @@ def _check_openclaw_gateway(gateway_port: int) -> str:
 
 
 def _list_agents() -> list[str]:
-    """Get list of running Gastown agents from gt status."""
+    """Get list of running Gastown agents via gt agents."""
     try:
         result = subprocess.run(
-            ["gt", "status", "--agents"],
+            ["gt", "agents"],
             capture_output=True,
             timeout=10,
         )

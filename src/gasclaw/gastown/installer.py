@@ -75,4 +75,5 @@ def gastown_install(*, gt_root: Path, rig_url: str) -> None:
     subprocess.run(
         ["gt", "rig", "add", "project", rig_url],
         check=True,
+        cwd=str(gt_root),
     )

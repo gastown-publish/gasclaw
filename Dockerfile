@@ -44,8 +44,11 @@ RUN npm install -g openclaw
 # KimiGas (kimi-cli)
 RUN pip install --no-cache-dir kimi-cli
 
-# Gastown (gt)
-RUN pip install --no-cache-dir gastown
+# Gastown (gt) — real Go CLI from github.com/steveyegge/gastown
+RUN go install github.com/steveyegge/gastown/cmd/gt@latest
+
+# Beads (bd) — git-backed issue tracking required by Gastown
+RUN go install github.com/steveyegge/beads/cmd/bd@latest
 
 # Install gasclaw
 WORKDIR /opt/gasclaw

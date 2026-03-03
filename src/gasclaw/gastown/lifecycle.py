@@ -89,7 +89,7 @@ def stop_all() -> None:
     commands = [
         ["gt", "mayor", "stop"],
         ["gt", "daemon", "stop"],
-        ["dolt", "sql-server", "--stop"],
+        ["pkill", "-f", "dolt sql-server"],
     ]
 
     for cmd in commands:

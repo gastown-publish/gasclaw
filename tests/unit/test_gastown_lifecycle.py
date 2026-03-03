@@ -395,7 +395,7 @@ class TestStopAll:
         # Verify exact stop commands
         assert any("mayor" in s and "stop" in s for s in cmd_strs)
         assert any("daemon" in s and "stop" in s for s in cmd_strs)
-        assert any("sql-server" in s and "--stop" in s for s in cmd_strs)
+        assert any("pkill" in s and "dolt" in s for s in cmd_strs)
 
 
 class TestStopAllExceptionHandling:
@@ -420,7 +420,7 @@ class TestStopAllExceptionHandling:
         assert len(calls) == 3
         assert ["gt", "mayor", "stop"] in [c[0] for c in calls]
         assert ["gt", "daemon", "stop"] in [c[0] for c in calls]
-        assert ["dolt", "sql-server", "--stop"] in [c[0] for c in calls]
+        assert ["pkill", "-f", "dolt sql-server"] in [c[0] for c in calls]
 
     def test_file_not_found_error_handled(self, monkeypatch, caplog):
         """FileNotFoundError is handled gracefully."""
@@ -515,7 +515,7 @@ class TestStopAllExceptionHandling:
 
         # All three commands should have been attempted
         assert len(calls) == 3
-        # Check order: mayor, daemon, dolt
+        # Check order: mayor, daemon, dolt-stop
         assert "mayor" in calls[0][0]
         assert "daemon" in calls[1][0]
-        assert "dolt" in calls[2][0]
+        assert calls[2][0] == ["pkill", "-f", "dolt sql-server"]

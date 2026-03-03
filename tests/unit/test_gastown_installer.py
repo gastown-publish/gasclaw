@@ -136,6 +136,21 @@ class TestGastownInstall:
         except subprocess.TimeoutExpired:
             pass
 
+    def test_gt_rig_add_runs_in_gt_root(self, monkeypatch, tmp_path):
+        """gt rig add runs with cwd=gt_root so it finds the HQ."""
+        calls = []
+
+        def mock_run(*a, **kw):
+            calls.append((a, kw))
+            return subprocess.CompletedProcess(a[0], 0)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+        gastown_install(gt_root=tmp_path, rig_url="/project")
+
+        rig_call = [c for c in calls if "rig" in c[0][0] and "add" in c[0][0]]
+        assert len(rig_call) == 1
+        assert rig_call[0][1].get("cwd") == str(tmp_path)
+
     def test_check_true_passed_to_subprocess(self, monkeypatch, tmp_path):
         """check=True is passed to subprocess.run for proper error handling."""
         calls = []
