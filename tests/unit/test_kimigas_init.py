@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import gasclaw.kimigas as kimigas
 
 
@@ -74,3 +76,45 @@ class TestPackageExports:
         assert info.key == "sk-test"
         assert info.balance == 100.0
         assert info.total_used == 50.0
+
+    def test_rate_limit_handler_exported(self):
+        """RateLimitHandler class is exported from package."""
+        assert hasattr(kimigas, "RateLimitHandler")
+        assert callable(kimigas.RateLimitHandler)
+
+    def test_rate_limit_state_exported(self):
+        """RateLimitState dataclass is exported."""
+        assert hasattr(kimigas, "RateLimitState")
+
+    def test_rate_limit_error_exported(self):
+        """RateLimitError exception is exported."""
+        assert hasattr(kimigas, "RateLimitError")
+        assert issubclass(kimigas.RateLimitError, Exception)
+
+    def test_with_rate_limit_handling_exported(self):
+        """with_rate_limit_handling decorator is exported."""
+        assert hasattr(kimigas, "with_rate_limit_handling")
+        assert callable(kimigas.with_rate_limit_handling)
+
+    def test_all_includes_rate_limit_exports(self):
+        """__all__ includes rate limit handler exports."""
+        assert "RateLimitHandler" in kimigas.__all__
+        assert "RateLimitState" in kimigas.__all__
+        assert "RateLimitError" in kimigas.__all__
+        assert "with_rate_limit_handling" in kimigas.__all__
+
+    def test_rate_limit_handler_can_be_instantiated(self):
+        """RateLimitHandler can be instantiated from package export."""
+        handler = kimigas.RateLimitHandler()
+        assert handler is not None
+
+    def test_rate_limit_state_can_be_created(self):
+        """RateLimitState can be created from package export."""
+        state = kimigas.RateLimitState(backoff_level=2, total_hits=5)
+        assert state.backoff_level == 2
+        assert state.total_hits == 5
+
+    def test_rate_limit_error_can_be_raised(self):
+        """RateLimitError can be raised and caught."""
+        with pytest.raises(kimigas.RateLimitError):
+            raise kimigas.RateLimitError("test error")
