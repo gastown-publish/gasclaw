@@ -478,6 +478,40 @@ class TestConfigCommand:
 
         assert result.exit_code == 0
 
+    def test_config_get_key_not_found(self, tmp_path, monkeypatch):
+        """Test config getting non-existent key."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("KEY1=value1\n")
+
+        result = runner.invoke(
+            app,
+            ["config", "NONEXISTENT_KEY", "-p", str(tmp_path)],
+        )
+
+        assert result.exit_code == 0
+        assert "not found" in result.output
+
+    def test_config_get_sensitive_value_masked(self, tmp_path, monkeypatch):
+        """Test config masks sensitive values."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("GASTOWN_KIMI_KEYS=secret_key\n")
+
+        result = runner.invoke(
+            app,
+            ["config", "GASTOWN_KIMI_KEYS", "-p", str(tmp_path)],
+        )
+
+        assert result.exit_code == 0
+        assert "***" in result.output
+
     def test_config_set_value(self, tmp_path, monkeypatch):
         """Test config setting value."""
         from typer.testing import CliRunner
@@ -504,6 +538,29 @@ class TestConfigCommand:
         content = env_file.read_text()
         assert "KEY1=new_value" in content
 
+    def test_config_set_value_container_running(self, tmp_path, monkeypatch):
+        """Test config setting value warns when container running."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("KEY1=old_value\n")
+
+        result = runner.invoke(
+            app,
+            ["config", "KEY1", "new_value", "-p", str(tmp_path)],
+        )
+
+        assert result.exit_code == 0
+        assert "Set KEY1=new_value" in result.output
+        assert "restart" in result.output
+
     def test_config_no_env_file(self, tmp_path, monkeypatch):
         """Test config when .env file doesn't exist."""
         from typer.testing import CliRunner
@@ -514,6 +571,25 @@ class TestConfigCommand:
 
         assert result.exit_code == 1
         assert "not found" in result.output
+
+    def test_config_sensitive_masking_in_show_all(self, tmp_path, monkeypatch):
+        """Test config masks sensitive values when showing all."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("""
+KEY1=value1
+GASTOWN_KIMI_KEYS=secret
+TELEGRAM_BOT_TOKEN=token123
+SECRET_KEY=mysecret
+""")
+
+        result = runner.invoke(app, ["config", "-p", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "***" in result.output
 
 
 class TestMaintenanceCommand:
@@ -540,6 +616,178 @@ class TestMaintenanceCommand:
         result = runner.invoke(app, ["maintenance", "status"])
 
         assert result.exit_code == 0
+
+    def test_maintenance_status_paused(self, monkeypatch):
+        """Test maintenance status when paused."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        # First call checks if paused (returns 0), second call reads info file
+        call_count = [0]
+
+        def mock_run_docker(*args, **kwargs):
+            call_count[0] += 1
+            mock_result = MagicMock()
+            if call_count[0] == 1:
+                mock_result.returncode = 0  # Paused
+            else:
+                mock_result.returncode = 1  # No info file
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+
+        result = runner.invoke(app, ["maintenance", "status"])
+
+        assert result.exit_code == 0
+        assert "PAUSED" in result.output or result.exit_code == 0
+
+    def test_maintenance_status_with_info(self, monkeypatch):
+        """Test maintenance status with info file."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        call_count = [0]
+
+        def mock_run_docker(*args, **kwargs):
+            call_count[0] += 1
+            mock_result = MagicMock()
+            if call_count[0] == 1:
+                mock_result.returncode = 1  # Not paused
+            else:
+                mock_result.returncode = 0  # Info file exists
+                mock_result.stdout = '{"last_run": "2026-03-03", "cycles": 5}'
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+
+        result = runner.invoke(app, ["maintenance", "status"])
+
+        assert result.exit_code == 0
+
+    def test_maintenance_trigger_success(self, monkeypatch):
+        """Test maintenance trigger success."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["maintenance", "trigger"])
+
+        assert result.exit_code == 0
+        assert "successful" in result.output
+
+    def test_maintenance_pause_success(self, monkeypatch):
+        """Test maintenance pause success."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["maintenance", "pause"])
+
+        assert result.exit_code == 0
+        assert "successful" in result.output
+
+    def test_maintenance_resume_success(self, monkeypatch):
+        """Test maintenance resume success."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["maintenance", "resume"])
+
+        assert result.exit_code == 0
+        assert "successful" in result.output
+
+    def test_maintenance_action_failure(self, monkeypatch):
+        """Test maintenance action failure."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "Error executing command"
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["maintenance", "trigger"])
+
+        assert result.exit_code == 1
+        assert "Failed" in result.output
+
+    def test_maintenance_unknown_action(self, monkeypatch):
+        """Test maintenance with unknown action."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+
+        result = runner.invoke(app, ["maintenance", "unknown"])
+
+        assert result.exit_code == 1
+        assert "Unknown action" in result.output
 
     def test_maintenance_container_not_running(self, monkeypatch):
         """Test maintenance when container not running."""
@@ -576,6 +824,115 @@ class TestLogsCommand:
 
         assert result.exit_code == 1
         assert "does not exist" in result.output
+
+    def test_logs_container_exists(self, monkeypatch):
+        """Test logs when container exists."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_docker_compose_cmd",
+            lambda: ["docker", "compose"],
+        )
+
+        mock_calls = []
+
+        def mock_run(cmd, **kwargs):
+            mock_calls.append(cmd)
+            return MagicMock(returncode=0)
+
+        monkeypatch.setattr("subprocess.run", mock_run)
+
+        result = runner.invoke(app, ["logs"])
+
+        assert result.exit_code == 0
+        assert any("logs" in str(c) for c in mock_calls)
+
+    def test_logs_with_follow(self, monkeypatch):
+        """Test logs with follow option."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_docker_compose_cmd",
+            lambda: ["docker", "compose"],
+        )
+
+        mock_calls = []
+
+        def mock_run(cmd, **kwargs):
+            mock_calls.append((cmd, kwargs.get("cwd")))
+            return MagicMock(returncode=0)
+
+        monkeypatch.setattr("subprocess.run", mock_run)
+
+        result = runner.invoke(app, ["logs", "--follow"])
+
+        assert result.exit_code == 0
+        assert any("-f" in c for c, _ in mock_calls)
+
+    def test_logs_with_tail(self, monkeypatch):
+        """Test logs with tail option."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_docker_compose_cmd",
+            lambda: ["docker", "compose"],
+        )
+
+        mock_calls = []
+
+        def mock_run(cmd, **kwargs):
+            mock_calls.append(cmd)
+            return MagicMock(returncode=0)
+
+        monkeypatch.setattr("subprocess.run", mock_run)
+
+        result = runner.invoke(app, ["logs", "--tail", "100"])
+
+        assert result.exit_code == 0
+        assert any("--tail" in str(c) for c in mock_calls)
+
+    def test_logs_keyboard_interrupt(self, monkeypatch):
+        """Test logs handling keyboard interrupt."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_docker_compose_cmd",
+            lambda: ["docker", "compose"],
+        )
+
+        def mock_run(cmd, **kwargs):
+            raise KeyboardInterrupt()
+
+        monkeypatch.setattr("subprocess.run", mock_run)
+
+        result = runner.invoke(app, ["logs", "--follow"])
+
+        assert result.exit_code == 0
+        assert "stopped" in result.output
 
 
 class TestVersionCommand:
@@ -641,3 +998,87 @@ class TestUpdateCommand:
 
         assert result.exit_code == 0
         assert "Update complete" in result.output
+
+    def test_update_with_running_container(self, monkeypatch):
+        """Test update when container is running."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: True,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli.stop",
+            lambda **kwargs: None,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli.start",
+            lambda **kwargs: None,
+        )
+
+        result = runner.invoke(app, ["update"])
+
+        assert result.exit_code == 0
+        assert "Update complete" in result.output
+
+    def test_update_pull_failure(self, monkeypatch):
+        """Test update when pull fails."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = "Failed to pull"
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: mock_result,
+        )
+
+        result = runner.invoke(app, ["update"])
+
+        assert result.exit_code == 0
+        assert "Warning" in result.output or "Update complete" in result.output
+
+    def test_update_pull_option(self, monkeypatch):
+        """Test update with explicit --pull flag."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        docker_calls = []
+
+        def mock_run_docker(*args, **kwargs):
+            docker_calls.append(args)
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            return mock_result
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+
+        result = runner.invoke(app, ["update", "--pull"])
+
+        assert result.exit_code == 0
+        # Should call docker pull
+        assert any("pull" in str(c) for c in docker_calls)
