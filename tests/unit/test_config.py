@@ -77,6 +77,13 @@ class TestLoadConfig:
         """Optional fields use defaults."""
         for k, v in env_vars().items():
             monkeypatch.setenv(k, v)
+        # Ensure optional env vars are unset to test defaults
+        monkeypatch.delenv("GT_AGENT_COUNT", raising=False)
+        monkeypatch.delenv("GT_RIG_URL", raising=False)
+        monkeypatch.delenv("PROJECT_DIR", raising=False)
+        monkeypatch.delenv("MONITOR_INTERVAL", raising=False)
+        monkeypatch.delenv("ACTIVITY_DEADLINE", raising=False)
+        monkeypatch.delenv("DOLT_PORT", raising=False)
         cfg = load_config()
         assert cfg.gt_rig_url == "/project"
         assert cfg.project_dir == "/project"

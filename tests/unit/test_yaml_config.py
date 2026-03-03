@@ -65,6 +65,8 @@ gastown:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(config_file))
+        # Clear env vars to test YAML override of defaults
+        monkeypatch.delenv("GT_AGENT_COUNT", raising=False)
 
         cfg = load_config()
         assert cfg.gt_agent_count == 10
@@ -99,6 +101,8 @@ gastown:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(config_file))
+        # Clear env vars to test YAML override of defaults
+        monkeypatch.delenv("GT_AGENT_COUNT", raising=False)
 
         cfg = load_config()
         assert cfg.gt_agent_count == 8  # from YAML
@@ -118,6 +122,9 @@ maintenance:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(config_file))
+        # Clear env vars to test YAML values
+        monkeypatch.delenv("MONITOR_INTERVAL", raising=False)
+        monkeypatch.delenv("ACTIVITY_DEADLINE", raising=False)
 
         cfg = load_config()
         assert cfg.monitor_interval == 600
@@ -136,6 +143,9 @@ services:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(config_file))
+        # Clear env vars to test YAML values
+        monkeypatch.delenv("DOLT_PORT", raising=False)
+        monkeypatch.delenv("GATEWAY_PORT", raising=False)
 
         cfg = load_config()
         assert cfg.dolt_port == 3308
@@ -221,6 +231,9 @@ class TestEmptyYamlConfig:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(config_file))
+        # Clear optional env vars to test defaults
+        monkeypatch.delenv("GT_AGENT_COUNT", raising=False)
+        monkeypatch.delenv("MONITOR_INTERVAL", raising=False)
 
         cfg = load_config()
         assert cfg.gt_agent_count == 6  # default
@@ -233,6 +246,9 @@ class TestEmptyYamlConfig:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(tmp_path / "nonexistent.yaml"))
+        # Clear optional env vars to test defaults
+        monkeypatch.delenv("GT_AGENT_COUNT", raising=False)
+        monkeypatch.delenv("MONITOR_INTERVAL", raising=False)
 
         cfg = load_config()
         assert cfg.gt_agent_count == 6  # default
@@ -253,6 +269,8 @@ services:
         monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123456:ABC")
         monkeypatch.setenv("TELEGRAM_OWNER_ID", "123456")
         monkeypatch.setenv("GASCLAW_CONFIG", str(config_file))
+        # Clear env var to test YAML validation
+        monkeypatch.delenv("DOLT_PORT", raising=False)
 
         import logging
         with caplog.at_level(logging.WARNING):
