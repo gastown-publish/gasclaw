@@ -1512,3 +1512,177 @@ class TestMaintenanceStatusCoverage:
 
         assert result.exit_code == 0
         assert "ACTIVE" in result.output
+
+
+class TestCreateDefaultConfigFallback:
+    """Test _create_default_config fallback when example files don't exist."""
+
+    def test_create_default_config_no_examples(self, tmp_path, monkeypatch):
+        """Test _create_default_config when example files don't exist (lines 356, 363)."""
+        from gasclaw.host_cli import _create_default_config
+
+        # Create project path
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+
+        # Mock Path.exists to return False for source example files
+        # but True for destination files after they're created
+        created_files = set()
+        original_exists = Path.exists
+
+        def mock_exists(self):
+            path_str = str(self)
+            # Check if this is a destination file we've already created
+            if path_str in created_files:
+                return True
+            # Return False for source example files to trigger fallback
+            # These are the paths constructed in _create_default_config:
+            # Path(__file__).parent / ".." / ".." / ".env.example"
+            # Path(__file__).parent / ".." / ".." / "docker-compose.yml"
+            if path_str.endswith(".env.example") or path_str.endswith("docker-compose.yml"):
+                # Make sure we're checking the source file (has "gasclaw" in path)
+                if "gasclaw" in path_str and "project" not in path_str:
+                    return False
+            return original_exists(self)
+
+        monkeypatch.setattr(Path, "exists", mock_exists)
+
+        # Track file writes to know what was created
+        original_write_text = Path.write_text
+
+        def mock_write_text(self, content):
+            created_files.add(str(self))
+            return original_write_text(self, content)
+
+        monkeypatch.setattr(Path, "write_text", mock_write_text)
+
+        _create_default_config(project_path)
+
+        env_file = project_path / ".env"
+        compose_file = project_path / "docker-compose.yml"
+
+        # These should exist (created by the function)
+        assert env_file.exists()
+        assert compose_file.exists()
+        # Verify fallback content (lines 356, 363)
+        assert "# Copy from .env.example" in env_file.read_text()
+        assert "# Copy from docker-compose.yml.example" in compose_file.read_text()
+
+
+class TestStatusHealthDisplay:
+    """Test status command health display variations."""
+
+    def test_status_with_nonstandard_health(self, monkeypatch):
+        """Test status with non-standard health value (line 498)."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        # Mock _get_container_status to return non-standard health value
+        monkeypatch.setattr(
+            "gasclaw.host_cli._get_container_status",
+            lambda *args, **kwargs: {
+                "exists": "true",
+                "status": "running",
+                "health": "starting",  # Non-standard value
+                "image": "gasclaw:latest",
+            },
+        )
+
+        result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0
+        assert "starting" in result.output
+
+
+class TestUpdateCommand:
+    """Test update command."""
+
+    def test_update_pull_success(self, monkeypatch):
+        """Test update command pulling latest image."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            lambda *args, **kwargs: MagicMock(returncode=0, stdout="", stderr=""),
+        )
+
+        result = runner.invoke(app, ["update"])
+
+        assert result.exit_code == 0
+        assert "Update complete" in result.output
+
+    def test_update_was_running_restart(self, monkeypatch):
+        """Test update when container was running and needs restart."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+        call_count = [0]
+
+        def mock_container_running():
+            # First call returns True (was running), subsequent calls return False
+            call_count[0] += 1
+            return call_count[0] == 1
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            mock_container_running,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_exists",
+            lambda: True,
+        )
+
+        docker_calls = []
+        def mock_run_docker(*args, **kwargs):
+            docker_calls.append(args)
+            return MagicMock(returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker_compose",
+            lambda *args, **kwargs: MagicMock(returncode=0, stdout="", stderr=""),
+        )
+
+        result = runner.invoke(app, ["update"])
+
+        assert result.exit_code == 0
+        assert "Update complete" in result.output
+
+    def test_update_pull_failure_warning(self, monkeypatch):
+        """Test update with failed pull shows warning."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._container_running",
+            lambda: False,
+        )
+
+        def mock_run_docker(*args, **kwargs):
+            mock = MagicMock()
+            if "pull" in args[0]:
+                mock.returncode = 1  # Pull fails
+            else:
+                mock.returncode = 0
+            return mock
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli._run_docker",
+            mock_run_docker,
+        )
+
+        result = runner.invoke(app, ["update"])
+
+        assert result.exit_code == 0
+        assert "Warning" in result.output
