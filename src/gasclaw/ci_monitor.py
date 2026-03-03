@@ -77,7 +77,7 @@ def get_failed_workflows(repo: str) -> list[CIFailure]:
     except json.JSONDecodeError as e:
         logger.warning("Failed to parse gh output: %s", e)
         return []
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("Failed to get failed workflows: %s", e)
         return []
 
@@ -186,7 +186,7 @@ when a GitHub Actions workflow failed.
             logger.warning("Failed to create issue: %s", result.stderr)
             return False
 
-    except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("Failed to create issue: %s", e)
         return False
 
