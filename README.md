@@ -22,6 +22,11 @@ docker compose up -d
 | [Dolt](https://github.com/dolthub/dolt) | Version-controlled SQL for agent state |
 | [Beads](https://github.com/steveyegge/beads) (`bd`) | Git-backed issue tracking |
 
+
+
+<img width="1140" height="816" alt="Google Chrome 2026-03-03 14 37 52" src="https://github.com/user-attachments/assets/3cb146d6-8ed8-4608-93bd-1edd848935aa" />
+
+
 ## How It Works
 
 ```
