@@ -22,7 +22,7 @@ maintenance:
   branch_prefixes: ["fix/", "feat/", "test/", "docs/", "refactor/"]
 claude:
   kimi_base_url: "https://api.kimi.com/coding/"
-  dangerously_skip_permissions: true
+  bypass_permissions_via_config: true
 openclaw:
   gateway_port: 18789
 logging:
@@ -242,13 +242,13 @@ if owner_id and owner_id not in group_user_allow:
 print(f"Telegram DM users: {user_allow}, group users: {group_user_allow}")
 
 tg_channel = {
+    "enabled": True,
     "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
     "dmPolicy": "allowlist",
-    "groupPolicy": "allowlist",
     "allowFrom": user_allow,
+    "groupPolicy": "open",
+    "streaming": "off",
 }
-if group_user_allow:
-    tg_channel["groupAllowFrom"] = group_user_allow
 
 config["channels"] = {"telegram": tg_channel}
 config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
@@ -427,7 +427,7 @@ HOTRELOAD
     cd /workspace/gasclaw
     source .venv/bin/activate
 
-    claude --dangerously-skip-permissions -p "$MAINTAINER_PROMPT" \
+    claude -p "$MAINTAINER_PROMPT" \
         >> /workspace/logs/claude-code.log 2>&1 &
     CLAUDE_PID=$!
     echo "$CLAUDE_PID" > /workspace/state/claude.pid

@@ -89,9 +89,12 @@ def write_openclaw_config(
         },
         "channels": {
             "telegram": {
+                "enabled": True,
                 "botToken": bot_token,
                 "dmPolicy": "allowlist",
                 "allowFrom": [str(owner_id)],
+                "groupPolicy": "open",
+                "streaming": "off",
             },
         },
         "commands": {
