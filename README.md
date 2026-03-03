@@ -130,6 +130,36 @@ Available ──► In Use ──► Rate Limited ──► Cooldown (5 min) ─
 
 Users coming from standalone OpenClaw (single key, no rotation) experience hard rate-limit failures where agents go completely offline. Gasclaw's key pool provides automatic failover and recovery.
 
+## How It Works
+
+When you run `gasclaw start`, a 10-step bootstrap sequence executes:
+
+| Step | Action | What It Does | On Failure |
+|------|--------|--------------|------------|
+| 1 | Setup Kimi accounts | Writes `~/.kimi-accounts/kimi` with API keys | Check `GASTOWN_KIMI_KEYS` env var |
+| 2 | Write agent config | Generates `settings/config.json` for Gastown | Check permissions on settings directory |
+| 3 | Install Gastown | Runs `gt install` and `gt rig add` | Verify `gt` CLI is in PATH |
+| 4 | Start Dolt SQL | Launches Dolt SQL server on port 3307 | Check if port 3307 is already in use |
+| 5 | Configure OpenClaw | Writes `~/.openclaw/openclaw.json` | Check `OPENCLAW_KIMI_KEY` env var |
+| 6 | Install skills | Copies skills to `~/.openclaw/skills/` | Check skills directory exists |
+| 7 | Run doctor | Executes `openclaw doctor --repair` | Check OpenClaw installation |
+| 8 | Start GT daemon | Launches Gastown daemon process | Check daemon logs |
+| 9 | Start Mayor | Launches the Mayor agent | Check mayor logs |
+| 10 | Notify | Sends startup message to Telegram | Verify Telegram bot token |
+
+### Rollback on Failure
+
+If any step fails, gasclaw automatically **rolls back** all previously started services to leave the system in a clean state. This prevents partial startup where some services are running but others aren't.
+
+### Health Monitoring
+
+After bootstrap completes, the health monitor runs continuously to:
+- Check service health every 5 minutes (configurable via `MONITOR_INTERVAL`)
+- Verify activity compliance (git commits/PRs within `ACTIVITY_DEADLINE`)
+- Rotate keys on rate limits
+- Restart failed services
+- Report issues via Telegram
+
 ## OpenClaw as Overseer
 
 OpenClaw is the boss. It:
