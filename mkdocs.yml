@@ -39,6 +39,8 @@ nav:
     - Config: api/config.md
     - Health: api/health.md
     - Key Pool: api/key-pool.md
+    - Maintenance: api/maintenance.md
+    - Migration: api/migration.md
   - Troubleshooting: troubleshooting.md
 markdown_extensions:
   - pymdownx.highlight:
