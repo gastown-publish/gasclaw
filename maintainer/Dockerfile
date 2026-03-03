@@ -27,10 +27,11 @@ RUN useradd -m -s /bin/bash maintainer \
     && mkdir -p /workspace \
     && chmod 777 /workspace /home/maintainer
 
-# Copy scripts, skills, agent instructions
+# Copy scripts, skills, agent workspace files
 COPY scripts/ /opt/scripts/
 COPY skills/ /opt/maintainer-skills/
-COPY agent-instructions.md /opt/agent-instructions.md
+COPY agent-soul.md /opt/agent-soul.md
+COPY agent-bootstrap.md /opt/agent-bootstrap.md
 RUN chmod +x /opt/scripts/*.py 2>/dev/null; \
     find /opt/maintainer-skills -name '*.sh' -exec chmod +x {} +
 

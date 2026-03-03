@@ -90,7 +90,25 @@ openclaw doctor --fix --yes 2>&1 || true
 
 # --- 8. Write OpenClaw config AFTER doctor (so doctor can't strip it) ---
 echo "Writing OpenClaw config..."
-AGENT_INSTRUCTIONS=$(cat /opt/agent-instructions.md)
+
+# Create agent workspace on bind mount (persists across restarts)
+AGENT_WORKSPACE="/workspace/agent-workspace"
+mkdir -p "$AGENT_WORKSPACE"
+
+# Copy SOUL.md (agent identity — always refresh from image)
+cp /opt/agent-soul.md "$AGENT_WORKSPACE/SOUL.md"
+
+# Copy BOOTSTRAP.md (operational instructions — always refresh from image)
+cp /opt/agent-bootstrap.md "$AGENT_WORKSPACE/BOOTSTRAP.md"
+
+# Don't overwrite MEMORY.md if it exists (agent-generated, persists across restarts)
+if [ ! -f "$AGENT_WORKSPACE/MEMORY.md" ]; then
+    echo "# Gasclaw Maintainer Memory" > "$AGENT_WORKSPACE/MEMORY.md"
+    echo "" >> "$AGENT_WORKSPACE/MEMORY.md"
+    echo "This file is updated by the agent. Do not edit manually." >> "$AGENT_WORKSPACE/MEMORY.md"
+fi
+
+echo "Agent workspace: $AGENT_WORKSPACE (SOUL.md + BOOTSTRAP.md + MEMORY.md)"
 
 python3 << 'PYEOF'
 import json, os
@@ -119,10 +137,6 @@ models = {
 with open(os.path.join(openclaw_dir, "agents/main/agent/models.json"), "w") as f:
     json.dump(models, f, indent=2)
 
-# Read agent instructions
-with open("/opt/agent-instructions.md") as f:
-    instructions = f.read()
-
 # Read existing config to preserve doctor-generated fields (meta, auth token, etc.)
 cfg_path = os.path.join(openclaw_dir, "openclaw.json")
 existing = {}
@@ -131,16 +145,18 @@ if os.path.exists(cfg_path):
         existing = json.load(f)
 
 # Merge our config on top (our values win)
+# NOTE: No "instructions" key — OpenClaw loads context from workspace files
+# (SOUL.md, BOOTSTRAP.md, MEMORY.md) in the agent workspace directory
 config = existing.copy()
 config["agents"] = {
     "defaults": {
         "model": {"primary": "kimi-coding/k2p5"},
         "models": {"kimi-coding/k2p5": {}},
+        "workspace": "/workspace/agent-workspace",
     },
     "list": [{
         "id": "main",
         "identity": {"name": "Gasclaw Maintainer", "emoji": "\U0001f3ed"},
-        "instructions": instructions,
     }],
 }
 config["channels"] = {
@@ -161,7 +177,7 @@ config["env"] = {"KIMI_API_KEY": os.environ["KIMI_API_KEY"]}
 with open(cfg_path, "w") as f:
     json.dump(config, f, indent=2)
 
-print("OpenClaw config written (models.json + openclaw.json with instructions)")
+print("OpenClaw config written (models.json + openclaw.json — workspace-based context)")
 PYEOF
 
 # --- 9. Install skills ---
