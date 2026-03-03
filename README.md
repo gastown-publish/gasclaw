@@ -2,6 +2,10 @@
 
 Gastown + OpenClaw + KimiGas in one container. A single-container deployment that runs a full Gastown multi-agent workspace, managed by an OpenClaw overseer bot accessible via Telegram. All agents use Kimi K2.5 as their LLM backend.
 
+> **🤖 AI Agent Contributor?** Read the [AI-AGENTS.md](./AI-AGENTS.md) for condensed documentation optimized for AI agents, including all prerequisites, ecosystem links, and architecture details.
+>
+> **Quick Links**: [Gas Town Docs](https://docs.gt.villamarket.ai) | [Kimi CLI Docs](https://moonshotai.github.io/kimi-cli/en/) | [OpenClaw](https://github.com/gastown-publish/openclaw-launcher) | [AIS](https://github.com/gastown-publish/ais)
+
 ## Architecture
 
 ```
