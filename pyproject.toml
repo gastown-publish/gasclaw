@@ -23,7 +23,8 @@ dev = [
 ]
 
 [project.scripts]
-gasclaw = "gasclaw.cli:app"
+gasclaw = "gasclaw.host_cli:app"
+gasclaw-container = "gasclaw.cli:app"
 
 [build-system]
 requires = ["hatchling"]
