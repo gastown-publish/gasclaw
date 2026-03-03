@@ -8,9 +8,13 @@ services:
       - KIMI_API_KEY=${KIMI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - TELEGRAM_GROUP_ID=${TELEGRAM_GROUP_ID:-}
       - HOME=/home/maintainer
     volumes:
       - ./data:/workspace
+      # Bind-mount code/config so changes never need docker build
       - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./scripts:/opt/scripts:ro
+      - ./skills:/opt/maintainer-skills:ro
+      - ./agent-soul.md:/opt/agent-soul.md:ro
+      - ./agent-bootstrap.md:/opt/agent-bootstrap.md:ro
     restart: unless-stopped

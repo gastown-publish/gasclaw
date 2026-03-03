@@ -73,12 +73,35 @@ cat > "$CLAUDE_CONFIG_DIR/.claude.json" <<CJSON
 }
 CJSON
 
-# --- 6. Helper: send Telegram message ---
+# --- 6. Helper: send Telegram message to all configured targets ---
+# Reads group IDs from /workspace/config/gasclaw.yaml at call time
 tg_send() {
+    local msg="$1"
+    # Always send to owner DM
     curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         -d chat_id="${TELEGRAM_CHAT_ID}" \
         -d parse_mode=Markdown \
-        -d text="$1" > /dev/null 2>&1 || true
+        -d text="$msg" > /dev/null 2>&1 || true
+    # Send to all other chats from config (skip owner, already sent above)
+    local chats
+    chats=$(python3 -c "
+import yaml
+with open('/workspace/config/gasclaw.yaml') as f:
+    cfg = yaml.safe_load(f) or {}
+tg = cfg.get('telegram', {})
+for u in tg.get('users', []):
+    print(u)
+for g in tg.get('groups', []):
+    print(g)
+" 2>/dev/null) || true
+    while IFS= read -r cid; do
+        [ -z "$cid" ] && continue
+        [ "$cid" = "${TELEGRAM_CHAT_ID}" ] && continue  # already sent to owner
+        curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="$cid" \
+            -d parse_mode=Markdown \
+            -d text="$msg" > /dev/null 2>&1 || true
+    done <<< "$chats"
 }
 
 # --- 7. Run openclaw doctor FIRST (before writing our config) ---
@@ -159,19 +182,38 @@ config["agents"] = {
         "identity": {"name": "Gasclaw Maintainer", "emoji": "\U0001f3ed"},
     }],
 }
-# Telegram: support both DM and group
-telegram_allow = [os.environ["TELEGRAM_CHAT_ID"]]
-group_id = os.environ.get("TELEGRAM_GROUP_ID", "").strip()
-if group_id:
-    telegram_allow.append(group_id)
+# Telegram: build allowlists from YAML config (editable from host)
+# OpenClaw uses separate fields: allowFrom (users) and groupAllowFrom (groups)
+import yaml
+user_allow = []
+group_allow = []
+try:
+    with open("/workspace/config/gasclaw.yaml") as yf:
+        ycfg = yaml.safe_load(yf) or {}
+    tg_cfg = ycfg.get("telegram", {})
+    for uid in tg_cfg.get("users", []):
+        user_allow.append(str(uid))
+    for gid in tg_cfg.get("groups", []):
+        group_allow.append(str(gid))
+except Exception:
+    pass
 
-config["channels"] = {
-    "telegram": {
-        "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
-        "dmPolicy": "allowlist",
-        "allowFrom": telegram_allow,
-    }
+# Fallback: always include TELEGRAM_CHAT_ID from env
+owner_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+if owner_id and owner_id not in user_allow:
+    user_allow.insert(0, owner_id)
+
+print(f"Telegram users: {user_allow}, groups: {group_allow}")
+
+tg_channel = {
+    "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
+    "dmPolicy": "allowlist",
+    "allowFrom": user_allow,
 }
+if group_allow:
+    tg_channel["groupAllowFrom"] = group_allow
+
+config["channels"] = {"telegram": tg_channel}
 config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
 config["gateway"] = config.get("gateway", {})
 config["gateway"]["port"] = int(os.environ.get("GATEWAY_PORT", "18789"))

@@ -22,6 +22,14 @@ claude:
 openclaw:
   gateway_port: 18789
 
+telegram:
+  # Allowed user DMs (positive IDs)
+  users:
+    - "2045995148"          # nic (owner)
+  # Allowed groups (negative IDs)
+  groups:
+    - "-5140291170"         # gasclaw group
+
 logging:
   level: "INFO"
   log_dir: "/workspace/logs"
