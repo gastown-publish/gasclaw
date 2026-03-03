@@ -45,6 +45,23 @@ tests/integration/      # Integration tests (optional, needs services)
 - **One concern per PR**: Don't bundle unrelated changes
 - **Branch naming**: `fix/`, `feat/`, `test/`, `docs/`, `refactor/`
 
+## Third-Party Configuration Rules
+
+**MANDATORY for any change to OpenClaw, Gastown, Dolt, or other dependency configs:**
+
+1. **Read the official documentation FIRST** — never guess config values. Distilled references are in `reference/`:
+   - `reference/openclaw-telegram.md` — Telegram channel config (DM vs group fields)
+   - `reference/openclaw-config.md` — Gateway, agents, skills
+   - `reference/gastown-cli.md` — `gt` CLI commands and workspace
+   - `reference/beads-cli.md` — `bd` CLI for state tracking
+   - `reference/dolt-sql.md` — Dolt SQL server management
+   - `reference/kimi-proxy.md` — Kimi K2.5 proxy and key rotation
+2. **Validate after every change** — run `bash scripts/validate-openclaw-config.sh`
+3. **Test end-to-end** — send a real message, check logs, verify the change works
+4. **Never mix concerns** — e.g., `allowFrom` is for DM user IDs only, group config is under `groups`
+5. **Check logs after changes** — `openclaw logs` or `tail /workspace/logs/openclaw-gateway.log`
+6. **Invalid values are silently ignored** by OpenClaw — the only way to know is to test
+
 ## Testing
 
 ```bash

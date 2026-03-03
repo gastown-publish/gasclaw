@@ -38,12 +38,29 @@ bash ~/.openclaw/skills/gasclaw-logs/scripts/logs.sh gateway 20
 
 ## Project Context
 
-- **Repo**: /workspace/gasclaw (Python 3.13, 600+ unit tests)
+- **Repo**: /workspace/gasclaw (Python 3.13, 628 unit tests)
 - **Config**: /workspace/config/gasclaw.yaml (editable from host)
 - **Logs**: /workspace/logs/ (startup, claude, gateway, tests)
 - **State**: /workspace/state/ (PIDs, maintenance state, pause sentinel)
+- **Reference docs**: /workspace/gasclaw/reference/ (distilled dependency guides)
+- **Validation**: `bash /workspace/gasclaw/scripts/validate-openclaw-config.sh`
 - **Claude Code** runs as the maintainer agent with full merge authority
 - **Tests**: `cd /workspace/gasclaw && source .venv/bin/activate && python -m pytest tests/unit -v`
+
+## Reference Documentation
+
+Distilled quick-reference docs for all dependencies at `/workspace/gasclaw/reference/`:
+
+| File | Contents |
+|------|----------|
+| `openclaw-telegram.md` | Telegram config: DM policy, group policy, groups, mention gating, privacy mode |
+| `openclaw-config.md` | Gateway, agents, skills, validation commands |
+| `gastown-cli.md` | `gt` CLI: install, rig, config, daemon, mayor, agents |
+| `beads-cli.md` | `bd` CLI: create, list, search, close — persistent memory |
+| `dolt-sql.md` | Dolt SQL server: start, stop, health check |
+| `kimi-proxy.md` | Kimi K2.5: env vars, permission bypass, key pools, LRU rotation |
+
+**Read the relevant reference doc BEFORE making any config change.**
 
 ## Memory
 
