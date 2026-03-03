@@ -28,7 +28,7 @@ telegram:
     - "2045995148"          # nic (owner)
   # Allowed groups (negative IDs)
   groups:
-    - "-5140291170"         # gasclaw group
+    - "-1003759869133"      # gasclaw group (supergroup)
 
 logging:
   level: "INFO"

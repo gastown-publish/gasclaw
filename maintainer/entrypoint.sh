@@ -344,6 +344,34 @@ while true; do
     # Re-read interval from config (allows hot changes)
     MAINTENANCE_INTERVAL=$(python3 /opt/scripts/config-loader.py --get maintenance.loop_interval 2>/dev/null || echo "300")
 
+    # Hot-reload: sync gasclaw.yaml telegram config into openclaw.json
+    python3 << 'HOTRELOAD' 2>/dev/null || true
+import yaml, json, os
+with open("/workspace/config/gasclaw.yaml") as f:
+    ycfg = yaml.safe_load(f) or {}
+tg = ycfg.get("telegram", {})
+users = [str(u) for u in tg.get("users", [])]
+groups = [str(g) for g in tg.get("groups", [])]
+owner = os.environ.get("TELEGRAM_CHAT_ID", "")
+if owner and owner not in users:
+    users.insert(0, owner)
+
+oc_path = os.path.expanduser("~/.openclaw/openclaw.json")
+with open(oc_path) as f:
+    oc = json.load(f)
+tg_ch = oc.get("channels", {}).get("telegram", {})
+changed = tg_ch.get("allowFrom") != users or tg_ch.get("groupAllowFrom") != (groups or None)
+if changed:
+    tg_ch["allowFrom"] = users
+    if groups:
+        tg_ch["groupAllowFrom"] = groups
+    elif "groupAllowFrom" in tg_ch:
+        del tg_ch["groupAllowFrom"]
+    with open(oc_path, "w") as f:
+        json.dump(oc, f, indent=2)
+    print("Hot-reload: updated openclaw.json telegram config")
+HOTRELOAD
+
     # Check for manual trigger
     TRIGGERED=false
     if [ -f /workspace/state/trigger-now ]; then
