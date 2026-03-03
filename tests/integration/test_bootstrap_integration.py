@@ -230,8 +230,8 @@ class TestMonitorLoopIntegration:
             return {"compliant": True, "last_commit_age": 300}
 
         monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
-        monkeypatch.setattr("gasclaw.bootstrap.check_agent_activity", mock_check_activity)
-        monkeypatch.setattr("gasclaw.bootstrap.notify_telegram", lambda msg: None)
+        monkeypatch.setattr("gasclaw.health.check_agent_activity", mock_check_activity)
+        monkeypatch.setattr("gasclaw.updater.notifier.notify_telegram", lambda msg: None)
         monkeypatch.setattr("time.sleep", lambda x: None)
 
         monitor_loop(config, interval=1)
@@ -260,11 +260,11 @@ class TestMonitorLoopIntegration:
 
         monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr(
-            "gasclaw.bootstrap.check_agent_activity",
+            "gasclaw.health.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
         monkeypatch.setattr(
-            "gasclaw.bootstrap.notify_telegram", lambda msg: notifications.append(msg)
+            "gasclaw.updater.notifier.notify_telegram", lambda msg: notifications.append(msg)
         )
         monkeypatch.setattr("time.sleep", lambda x: None)
 
@@ -296,11 +296,11 @@ class TestMonitorLoopIntegration:
 
         monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr(
-            "gasclaw.bootstrap.check_agent_activity",
+            "gasclaw.health.check_agent_activity",
             lambda **kw: {"compliant": False, "last_commit_age": 5000},  # Not compliant
         )
         monkeypatch.setattr(
-            "gasclaw.bootstrap.notify_telegram", lambda msg: notifications.append(msg)
+            "gasclaw.updater.notifier.notify_telegram", lambda msg: notifications.append(msg)
         )
         monkeypatch.setattr("time.sleep", lambda x: None)
 
@@ -335,10 +335,13 @@ class TestMonitorLoopIntegration:
 
         monkeypatch.setattr("gasclaw.health.check_health", mock_check_health)
         monkeypatch.setattr(
-            "gasclaw.bootstrap.check_agent_activity",
+            "gasclaw.health.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
         monkeypatch.setattr("time.sleep", lambda x: None)
+        monkeypatch.setattr(
+            "gasclaw.updater.notifier.notify_telegram", lambda msg: None
+        )
 
         # Use actual notify_telegram which makes HTTP calls
         monitor_loop(config, interval=1)
@@ -369,10 +372,10 @@ class TestMonitorLoopIntegration:
             )(),
         )
         monkeypatch.setattr(
-            "gasclaw.bootstrap.check_agent_activity",
+            "gasclaw.health.check_agent_activity",
             lambda **kw: {"compliant": True, "last_commit_age": 300},
         )
-        monkeypatch.setattr("gasclaw.bootstrap.notify_telegram", lambda msg: None)
+        monkeypatch.setattr("gasclaw.updater.notifier.notify_telegram", lambda msg: None)
         monkeypatch.setattr("time.sleep", mock_sleep)
 
         custom_interval = 120
