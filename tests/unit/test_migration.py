@@ -97,7 +97,7 @@ class TestDetectGastownSetup:
         # Skip when running as root - root bypasses permission checks
         if os.getuid() == 0:
             pytest.skip("Permission tests don't work when running as root")
-        
+
         monkeypatch.delenv("KIMI_API_KEY", raising=False)
         monkeypatch.delenv("GASTOWN_KIMI_KEYS", raising=False)
 
