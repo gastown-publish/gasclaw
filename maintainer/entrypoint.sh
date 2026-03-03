@@ -363,17 +363,30 @@ Config: /workspace/config/gasclaw.yaml
 Maintenance interval: ${MAINTENANCE_INTERVAL}s
 Ready to work."
 
-# --- 15. Graceful shutdown ---
+# --- 15. Start gateway watchdog ---
+echo "Starting gateway watchdog..."
+nohup python3 /opt/scripts/gateway-watchdog.py \
+    --daemon \
+    --stale-threshold 300 \
+    --check-interval 60 \
+    --notify \
+    --log-file /workspace/logs/gateway-watchdog.log 2>&1 &
+WATCHDOG_PID=$!
+echo "$WATCHDOG_PID" > /workspace/state/gateway-watchdog.pid
+echo "Gateway watchdog started (PID $WATCHDOG_PID)"
+
+# --- 16. Graceful shutdown ---
 cleanup() {
     echo "Shutting down..."
     [ -f /workspace/state/claude.pid ] && kill "$(cat /workspace/state/claude.pid)" 2>/dev/null || true
     [ -f /workspace/state/gateway.pid ] && kill "$(cat /workspace/state/gateway.pid)" 2>/dev/null || true
+    [ -f /workspace/state/gateway-watchdog.pid ] && kill "$(cat /workspace/state/gateway-watchdog.pid)" 2>/dev/null || true
     tg_send "🏭 *Gasclaw Maintainer shutting down*"
     exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# --- 16. Maintenance loop ---
+# --- 17. Maintenance loop ---
 echo ""
 echo "Starting maintenance loop (interval=${MAINTENANCE_INTERVAL}s)..."
 
