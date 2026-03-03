@@ -244,78 +244,63 @@ class TestWriteOpenclawConfig:
         agent = cfg["agents"]["list"][0]
         assert "bd" in agent["instructions"].lower() or "bead" in agent["instructions"].lower()
 
-    def test_multiple_allow_ids(self, tmp_path):
-        """Multiple allow IDs are included in allowlist."""
+    def test_open_dm_policy_with_wildcard_allow(self, tmp_path):
+        """Open DM policy sets allowFrom to wildcard."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
             bot_token="123:ABC",
-            owner_id="999",
-            allow_ids=["111", "222"],
-        )
-        cfg = json.loads((tmp_path / "openclaw.json").read_text())
-        allow_from = cfg["channels"]["telegram"]["allowFrom"]
-        assert "999" in allow_from
-        assert "111" in allow_from
-        assert "222" in allow_from
-
-    def test_group_ids_add_group_allow_from(self, tmp_path):
-        """Group IDs add groupAllowFrom and groupPolicy."""
-        write_openclaw_config(
-            openclaw_dir=tmp_path,
-            kimi_key="sk-test",
-            bot_token="123:ABC",
-            owner_id="999",
-            group_ids=["-5054397264", "-123456789"],
+            owner_id=999,
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         telegram = cfg["channels"]["telegram"]
-        assert "groupAllowFrom" in telegram
-        assert "-5054397264" in telegram["groupAllowFrom"]
-        assert "-123456789" in telegram["groupAllowFrom"]
-        assert telegram["groupPolicy"] == "allowlist"
+        assert telegram["dmPolicy"] == "open"
+        assert telegram["allowFrom"] == ["*"]
 
-    def test_custom_agent_identity(self, tmp_path):
-        """Custom agent identity is written to config."""
+    def test_open_group_policy(self, tmp_path):
+        """Group policy is open with requireMention disabled."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
             bot_token="123:ABC",
-            owner_id="999",
-            agent_id="openclawmaster",
-            agent_name="OpenClawMaster",
-            agent_emoji="🦾",
+            owner_id=999,
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
-        agent = cfg["agents"]["list"][0]
-        assert agent["id"] == "openclawmaster"
-        assert agent["identity"]["name"] == "OpenClawMaster"
-        assert agent["identity"]["emoji"] == "🦾"
+        telegram = cfg["channels"]["telegram"]
+        assert telegram["groupPolicy"] == "open"
+        assert telegram["groups"]["*"]["requireMention"] is False
 
-    def test_no_duplicate_owner_in_allowlist(self, tmp_path):
-        """Owner ID is not duplicated when also in allow_ids."""
+    def test_streaming_off(self, tmp_path):
+        """Streaming is disabled for Telegram."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
             bot_token="123:ABC",
-            owner_id="999",
-            allow_ids=["999", "111"],  # 999 is owner
+            owner_id=999,
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
-        allow_from = cfg["channels"]["telegram"]["allowFrom"]
-        # 999 should appear only once
-        assert allow_from.count("999") == 1
-        assert "111" in allow_from
+        telegram = cfg["channels"]["telegram"]
+        assert telegram["streaming"] == "off"
 
-    def test_no_group_config_when_no_group_ids(self, tmp_path):
-        """Group fields are not present when no group_ids provided."""
+    def test_ack_reaction_scope_all(self, tmp_path):
+        """ackReactionScope is set to all."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
             bot_token="123:ABC",
-            owner_id="999",
+            owner_id=999,
+        )
+        cfg = json.loads((tmp_path / "openclaw.json").read_text())
+        assert cfg["messages"]["ackReactionScope"] == "all"
+
+    def test_no_group_allow_from_field(self, tmp_path):
+        """groupAllowFrom is not used with open group policy."""
+        write_openclaw_config(
+            openclaw_dir=tmp_path,
+            kimi_key="sk-test",
+            bot_token="123:ABC",
+            owner_id=999,
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         telegram = cfg["channels"]["telegram"]
         assert "groupAllowFrom" not in telegram
-        assert "groupPolicy" not in telegram

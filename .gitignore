@@ -17,3 +17,5 @@ venv/
 *.swo
 *~
 .DS_Store
+CONTRIBUTION_PROMPT.md
+.github/workflows/

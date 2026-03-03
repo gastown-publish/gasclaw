@@ -253,28 +253,30 @@ class TestSendTelegramNotification:
 class TestMain:
     """Test main entry point."""
 
-    def test_main_runs_watchdog(self):
+    def test_main_runs_watchdog(self, tmp_path):
         """Main function runs watchdog."""
+        log_file = str(tmp_path / "test.log")
         with patch.object(GatewayWatchdog, "run") as mock_run:
-            with patch("sys.argv", ["gateway-watchdog", "--verbose"]):
+            with patch("sys.argv", ["gateway-watchdog", "--verbose", "--log-file", log_file]):
                 result = main()
 
             assert result == 0
             mock_run.assert_called_once()
 
-    def test_main_handles_keyboard_interrupt(self):
+    def test_main_handles_keyboard_interrupt(self, tmp_path):
         """Main handles keyboard interrupt gracefully."""
+        log_file = str(tmp_path / "test.log")
         with patch.object(GatewayWatchdog, "run", side_effect=KeyboardInterrupt):
-            with patch("sys.argv", ["gateway-watchdog"]):
+            with patch("sys.argv", ["gateway-watchdog", "--log-file", log_file]):
                 result = main()
 
             assert result == 0
 
-    def test_main_daemon_mode_forks(self):
+    def test_main_daemon_mode_forks(self, tmp_path):
         """Daemon mode forks process."""
+        log_file = str(tmp_path / "test.log")
         with patch("os.fork", return_value=1234):
-            with patch("sys.argv", ["gateway-watchdog", "--daemon"]):
+            with patch("sys.argv", ["gateway-watchdog", "--daemon", "--log-file", log_file]):
                 result = main()
 
-            # Parent exits with 0 after fork
             assert result == 0
