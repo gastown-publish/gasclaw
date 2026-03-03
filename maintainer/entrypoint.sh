@@ -53,12 +53,12 @@ git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https:/
 git config --global user.email "gasclaw-bot@gastown.dev"
 git config --global user.name "Gasclaw Maintainer"
 
-# --- 4. Kimi K2.5 as Claude Code backend ---
+# --- 4. Environment for Claude Code ---
 export ANTHROPIC_BASE_URL="${KIMI_BASE_URL}"
 export ANTHROPIC_API_KEY="${KIMI_API_KEY}"
 export DISABLE_COST_WARNINGS=true
 
-# --- 5. Claude Code config (isolated, API key auth) ---
+# --- 5. Claude Code config ---
 export CLAUDE_CONFIG_DIR="$HOME/.claude-config"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 echo '{}' > "$CLAUDE_CONFIG_DIR/.credentials.json"
@@ -73,65 +73,108 @@ cat > "$CLAUDE_CONFIG_DIR/.claude.json" <<CJSON
 }
 CJSON
 
-# --- 6. Helper: send Telegram message to all configured targets ---
-# Reads group IDs from /workspace/config/gasclaw.yaml at call time
+# --- 6. Helper: send Telegram message ---
 tg_send() {
     local msg="$1"
-    # Always send to owner DM
+    local topic_type="${2:-discussion}"
     curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         -d chat_id="${TELEGRAM_CHAT_ID}" \
         -d parse_mode=Markdown \
         -d text="$msg" > /dev/null 2>&1 || true
-    # Send to notification groups and other users from config
-    local targets
-    targets=$(python3 -c "
-import yaml
-with open('/workspace/config/gasclaw.yaml') as f:
-    cfg = yaml.safe_load(f) or {}
-tg = cfg.get('telegram', {})
-for u in tg.get('users', []):
-    print(u)
-for g in tg.get('notify_groups', []):
-    print(g)
-" 2>/dev/null) || true
-    while IFS= read -r cid; do
-        [ -z "$cid" ] && continue
-        [ "$cid" = "${TELEGRAM_CHAT_ID}" ] && continue  # already sent to owner
-        curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="$cid" \
-            -d parse_mode=Markdown \
-            -d text="$msg" > /dev/null 2>&1 || true
-    done <<< "$targets"
 }
 
-# --- 7. Run openclaw doctor FIRST (before writing our config) ---
+# --- 7. Setup Gastown Workspace (/workspace/gt) ---
+echo ""
+echo "=== Setting up Gastown Workspace ==="
+export GT_HOME="/workspace/gt"
+mkdir -p "$GT_HOME"
+cd "$GT_HOME"
+
+# Initialize gt workspace if needed
+if [ ! -d "$GT_HOME/.git" ]; then
+    echo "Initializing Gastown workspace at $GT_HOME..."
+    cd "$GT_HOME"
+    git init
+    git config user.email "gasclaw@gastown.dev"
+    git config user.name "Gasclaw"
+fi
+
+# Setup gt config
+mkdir -p "$GT_HOME/.beads"
+
+# Start Dolt SQL server
+echo "Starting Dolt SQL server..."
+mkdir -p "$GT_HOME/.dolt-data"
+
+# Check if dolt is already running on port 3307
+if dolt sql -q "SELECT 1" > /dev/null 2>&1; then
+    echo "  ✅ Dolt already running on port 3307"
+else
+    # Start dolt in background
+    nohup dolt sql-server --port 3307 --data-dir "$GT_HOME/.dolt-data" \
+        --max-connections 100 --loglevel info \
+        > "$GT_HOME/.dolt-data/dolt.log" 2>&1 &
+    DOLT_PID=$!
+    
+    # Wait for dolt to be ready
+    for i in {1..10}; do
+        sleep 1
+        if dolt sql -q "SELECT 1" > /dev/null 2>&1; then
+            echo "$DOLT_PID" > "$GT_HOME/.dolt-data/dolt.pid"
+            echo "  ✅ Dolt started (PID $DOLT_PID)"
+            break
+        fi
+    done
+    
+    if ! dolt sql -q "SELECT 1" > /dev/null 2>&1; then
+        echo "  ⚠️  Dolt may not have started properly"
+    fi
+fi
+
+# Setup basic beads for gastown
+echo "Setting up beads..."
+for bead in hq deacon; do
+    if [ ! -d "$GT_HOME/beads_${bead}" ]; then
+        echo "  Creating bead: beads_${bead}"
+        mkdir -p "$GT_HOME/beads_${bead}" 2>/dev/null || true
+    fi
+done
+
+# Start gt daemon
+echo "Starting gt daemon..."
+if ! pgrep -f "gt daemon run" > /dev/null 2>&1; then
+    # Start daemon manually since gt daemon start might fail
+    nohup gt daemon run > "$GT_HOME/daemon.log" 2>&1 &
+    sleep 3
+fi
+
+if pgrep -f "gt daemon run" > /dev/null 2>&1; then
+    GT_DAEMON_PID=$(pgrep -f "gt daemon run")
+    echo "  ✅ gt daemon running (PID $GT_DAEMON_PID)"
+    echo "$GT_DAEMON_PID" > "$GT_HOME/daemon.pid"
+else
+    echo "  ⚠️  gt daemon not running (this is OK for basic maintenance)"
+fi
+
+echo "Gastown workspace ready at $GT_HOME"
+
+# --- 8. Run OpenClaw doctor ---
+echo ""
 echo "Running OpenClaw doctor..."
 OPENCLAW_DIR="$HOME/.openclaw"
 mkdir -p "$OPENCLAW_DIR/agents/main/agent"
 mkdir -p "$OPENCLAW_DIR/agents/main/sessions"
 openclaw doctor --fix --yes 2>&1 || true
 
-# --- 8. Write OpenClaw config AFTER doctor (so doctor can't strip it) ---
+# --- 9. Write OpenClaw config ---
 echo "Writing OpenClaw config..."
-
-# Create agent workspace on bind mount (persists across restarts)
 AGENT_WORKSPACE="/workspace/agent-workspace"
 mkdir -p "$AGENT_WORKSPACE"
-
-# Copy SOUL.md (agent identity — always refresh from image)
-cp /opt/agent-soul.md "$AGENT_WORKSPACE/SOUL.md"
-
-# Copy BOOTSTRAP.md (operational instructions — always refresh from image)
-cp /opt/agent-bootstrap.md "$AGENT_WORKSPACE/BOOTSTRAP.md"
-
-# Don't overwrite MEMORY.md if it exists (agent-generated, persists across restarts)
+cp /opt/agent-soul.md "$AGENT_WORKSPACE/SOUL.md" 2>/dev/null || true
+cp /opt/agent-bootstrap.md "$AGENT_WORKSPACE/BOOTSTRAP.md" 2>/dev/null || true
 if [ ! -f "$AGENT_WORKSPACE/MEMORY.md" ]; then
     echo "# Gasclaw Maintainer Memory" > "$AGENT_WORKSPACE/MEMORY.md"
-    echo "" >> "$AGENT_WORKSPACE/MEMORY.md"
-    echo "This file is updated by the agent. Do not edit manually." >> "$AGENT_WORKSPACE/MEMORY.md"
 fi
-
-echo "Agent workspace: $AGENT_WORKSPACE (SOUL.md + BOOTSTRAP.md + MEMORY.md)"
 
 python3 << 'PYEOF'
 import json, os
@@ -160,16 +203,13 @@ models = {
 with open(os.path.join(openclaw_dir, "agents/main/agent/models.json"), "w") as f:
     json.dump(models, f, indent=2)
 
-# Read existing config to preserve doctor-generated fields (meta, auth token, etc.)
+# Read existing config
 cfg_path = os.path.join(openclaw_dir, "openclaw.json")
 existing = {}
 if os.path.exists(cfg_path):
     with open(cfg_path) as f:
         existing = json.load(f)
 
-# Merge our config on top (our values win)
-# NOTE: No "instructions" key — OpenClaw loads context from workspace files
-# (SOUL.md, BOOTSTRAP.md, MEMORY.md) in the agent workspace directory
 config = existing.copy()
 config["agents"] = {
     "defaults": {
@@ -182,41 +222,16 @@ config["agents"] = {
         "identity": {"name": "Gasclaw Maintainer", "emoji": "\U0001f3ed"},
     }],
 }
-# Telegram: build allowlists from YAML config (editable from host)
-# OpenClaw allowFrom = user IDs for DMs, groupAllowFrom = user IDs for group chats
-import yaml
-user_allow = []
-group_user_allow = []
-try:
-    with open("/workspace/config/gasclaw.yaml") as yf:
-        ycfg = yaml.safe_load(yf) or {}
-    tg_cfg = ycfg.get("telegram", {})
-    for uid in tg_cfg.get("users", []):
-        user_allow.append(str(uid))
-    for uid in tg_cfg.get("group_users", []):
-        group_user_allow.append(str(uid))
-except Exception:
-    pass
 
-# Fallback: always include TELEGRAM_CHAT_ID from env
 owner_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-if owner_id and owner_id not in user_allow:
-    user_allow.insert(0, owner_id)
-if owner_id and owner_id not in group_user_allow:
-    group_user_allow.insert(0, owner_id)
-
-print(f"Telegram DM users: {user_allow}, group users: {group_user_allow}")
-
-tg_channel = {
-    "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
-    "dmPolicy": "allowlist",
-    "groupPolicy": "allowlist",
-    "allowFrom": user_allow,
+config["channels"] = {
+    "telegram": {
+        "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
+        "dmPolicy": "allowlist",
+        "groupPolicy": "allowlist",
+        "allowFrom": [owner_id] if owner_id else [],
+    }
 }
-if group_user_allow:
-    tg_channel["groupAllowFrom"] = group_user_allow
-
-config["channels"] = {"telegram": tg_channel}
 config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
 config["gateway"] = config.get("gateway", {})
 config["gateway"]["port"] = int(os.environ.get("GATEWAY_PORT", "18789"))
@@ -228,20 +243,20 @@ config["env"] = {"KIMI_API_KEY": os.environ["KIMI_API_KEY"]}
 with open(cfg_path, "w") as f:
     json.dump(config, f, indent=2)
 
-print("OpenClaw config written (models.json + openclaw.json — workspace-based context)")
+print("OpenClaw config written")
 PYEOF
 
-# --- 9. Install skills ---
+# --- 10. Install skills ---
 echo "Installing OpenClaw skills..."
 OPENCLAW_SKILLS="$OPENCLAW_DIR/skills"
 mkdir -p "$OPENCLAW_SKILLS"
 if [ -d /opt/maintainer-skills ]; then
     cp -r /opt/maintainer-skills/* "$OPENCLAW_SKILLS/" 2>/dev/null || true
     find "$OPENCLAW_SKILLS" -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
-    echo "Installed skills: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | tr '\n' ' ')"
+    echo "  Installed: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | wc -l) skills"
 fi
 
-# --- 10. Clone/update repo ---
+# --- 11. Clone/update gasclaw repo ---
 echo "Cloning gasclaw..."
 if [ -d /workspace/gasclaw/.git ]; then
     cd /workspace/gasclaw && git pull origin main 2>&1 || true
@@ -250,7 +265,7 @@ else
     cd /workspace/gasclaw
 fi
 
-# --- 11. Dev setup (venv persists on bind mount) ---
+# --- 12. Dev setup ---
 echo "Setting up dev environment..."
 if [ ! -d .venv ]; then
     python3 -m venv .venv
@@ -260,136 +275,110 @@ pip install --upgrade pip --timeout 120 --retries 5 -q
 pip install --timeout 120 --retries 5 -q -e .
 pip install --timeout 120 --retries 5 -q pytest pytest-asyncio respx
 
-# --- 12. Run tests (non-fatal — bot can fix failures) ---
+# --- 13. Run tests ---
 echo "Running tests..."
 python -m pytest tests/unit -v 2>&1 | tee /workspace/logs/test-results.log | tail -3 || true
-TEST_COUNT=$(tail -1 /workspace/logs/test-results.log 2>/dev/null || echo "unknown")
-echo "Tests: $TEST_COUNT"
+TEST_COUNT=$(tail -1 /workspace/logs/test-results.log 2>/dev/null | grep -oE '[0-9]+ passed.*' || echo "unknown")
+echo "  Tests: $TEST_COUNT"
 
-# --- 13. Start OpenClaw gateway ---
+# --- 14. Start OpenClaw gateway ---
 echo "Starting OpenClaw gateway..."
+export OPENCLAW_VERBOSE=1
 nohup openclaw gateway run > /workspace/logs/openclaw-gateway.log 2>&1 &
 GATEWAY_PID=$!
 echo "$GATEWAY_PID" > /workspace/state/gateway.pid
 sleep 5
 if kill -0 "$GATEWAY_PID" 2>/dev/null; then
-    echo "OpenClaw gateway running (PID $GATEWAY_PID)"
+    echo "  ✅ OpenClaw gateway running (PID $GATEWAY_PID)"
 else
-    echo "WARNING: OpenClaw gateway failed to start"
-    cat /workspace/logs/openclaw-gateway.log 2>/dev/null | tail -10 || true
+    echo "  ⚠️  Gateway may not have started"
 fi
 
-# --- 14. Startup notification ---
+# --- 15. Startup notification ---
 tg_send "🏭 *Gasclaw Maintainer online*
-Tests: ${TEST_COUNT}
-Skills: $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | wc -l) installed
-Config: /workspace/config/gasclaw.yaml
-Maintenance interval: ${MAINTENANCE_INTERVAL}s
-Ready to work."
 
-# --- 15. Graceful shutdown ---
+*Gastown Workspace:*
+• Location: /workspace/gt
+• Dolt: $(cat /workspace/gt/.dolt-data/dolt.pid 2>/dev/null && echo 'running' || echo 'unknown')
+• Daemon: $(pgrep -f 'gt daemon' > /dev/null && echo 'running' || echo 'unknown')
+
+*Tests:* ${TEST_COUNT}
+*Skills:* $(ls "$OPENCLAW_SKILLS/" 2>/dev/null | wc -l) installed
+
+Ready to work." discussion
+
+# --- 16. Background status loop ---
+STATUS_INTERVAL=$(python3 /opt/scripts/config-loader.py --get telegram.status_interval 2>/dev/null || echo "900")
+echo "Starting status loop (interval=${STATUS_INTERVAL}s)..."
+
+export MAINTENANCE_REPO
+export STATUS_GROUP_ID="-1003759869133"
+export STATUS_THREAD_ID="114"
+
+# Send initial status
+bash /opt/scripts/gastown-status.sh 2>/dev/null || echo "Initial status failed"
+
+# Background loop
+(
+    while true; do
+        sleep "$STATUS_INTERVAL"
+        bash /opt/scripts/gastown-status.sh 2>/dev/null || true
+    done
+) &
+STATUS_LOOP_PID=$!
+echo "$STATUS_LOOP_PID" > /workspace/state/status-loop.pid
+echo "Status loop running (PID $STATUS_LOOP_PID)"
+
+# --- 17. Graceful shutdown ---
 cleanup() {
     echo "Shutting down..."
-    [ -f /workspace/state/claude.pid ] && kill "$(cat /workspace/state/claude.pid)" 2>/dev/null || true
     [ -f /workspace/state/gateway.pid ] && kill "$(cat /workspace/state/gateway.pid)" 2>/dev/null || true
+    [ -f /workspace/state/status-loop.pid ] && kill "$(cat /workspace/state/status-loop.pid)" 2>/dev/null || true
     tg_send "🏭 *Gasclaw Maintainer shutting down*"
     exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# --- 16. Maintenance loop ---
+# --- 18. Maintenance loop ---
 echo ""
 echo "Starting maintenance loop (interval=${MAINTENANCE_INTERVAL}s)..."
 
-MAINTAINER_PROMPT='You are the gasclaw repo maintainer with FULL merge authority. Read CLAUDE.md first.
-
-TELEGRAM REPORTING: After every significant action, send a Telegram update using this command:
-curl -s "https://api.telegram.org/bot'"${TELEGRAM_BOT_TOKEN}"'/sendMessage" -d chat_id="'"${TELEGRAM_CHAT_ID}"'" -d parse_mode=Markdown -d text="YOUR_MESSAGE"
-
-Send updates for: PR created, PR merged, issue fixed, tests status, errors encountered.
-
-Your continuous maintenance loop:
-
-1. Check PRs: gh pr list --repo '"${MAINTENANCE_REPO}"' --state open
-2. For EACH open PR:
-   a. Check out the branch: gh pr checkout <number>
-   b. Run tests: python -m pytest tests/unit -v
-   c. If tests pass: merge it immediately with gh pr merge <number> --squash --delete-branch
-   d. If tests fail: fix the issues on the branch, push, then merge
-   e. After merging: git checkout main and git pull
-   f. Send Telegram update
-3. Check issues: gh issue list --repo '"${MAINTENANCE_REPO}"' --state open
-4. Fix open issues: Branch, implement with tests, create PR, then merge
-5. Improve test coverage
-6. Code quality improvements
-
-IMPORTANT: You have merge authority. Merge your own PRs with gh pr merge --squash --delete-branch.
-
-Rules:
-- Always branch from latest main
-- Branch naming: fix/, feat/, test/, docs/, refactor/
-- Run python -m pytest tests/unit -v before every commit
-- One concern per PR, keep PRs small (under 200 lines)
-- Never push to main directly
-- TDD: Write tests first
-- Send Telegram updates after each action
-
-Start now. Read CLAUDE.md, then check and merge open PRs first.'
-
 CYCLE=0
 while true; do
-    # Check if paused
     if [ -f /workspace/state/paused ]; then
         sleep 30
         continue
     fi
 
-    # Re-read interval from config (allows hot changes)
-    MAINTENANCE_INTERVAL=$(python3 /opt/scripts/config-loader.py --get maintenance.loop_interval 2>/dev/null || echo "300")
-
-    # Hot-reload: sync gasclaw.yaml telegram config into openclaw.json
-    python3 << 'HOTRELOAD' 2>/dev/null || true
-import yaml, json, os
-with open("/workspace/config/gasclaw.yaml") as f:
-    ycfg = yaml.safe_load(f) or {}
-tg = ycfg.get("telegram", {})
-users = [str(u) for u in tg.get("users", [])]
-group_users = [str(u) for u in tg.get("group_users", [])]
-owner = os.environ.get("TELEGRAM_CHAT_ID", "")
-if owner and owner not in users:
-    users.insert(0, owner)
-if owner and owner not in group_users:
-    group_users.insert(0, owner)
-
-oc_path = os.path.expanduser("~/.openclaw/openclaw.json")
-with open(oc_path) as f:
-    oc = json.load(f)
-tg_ch = oc.get("channels", {}).get("telegram", {})
-changed = tg_ch.get("allowFrom") != users or tg_ch.get("groupAllowFrom") != (group_users or None)
-if changed:
-    tg_ch["allowFrom"] = users
-    if group_users:
-        tg_ch["groupAllowFrom"] = group_users
-    elif "groupAllowFrom" in tg_ch:
-        del tg_ch["groupAllowFrom"]
-    with open(oc_path, "w") as f:
-        json.dump(oc, f, indent=2)
-    print("Hot-reload: updated openclaw.json telegram config")
-HOTRELOAD
-
-    # Check for manual trigger
-    TRIGGERED=false
-    if [ -f /workspace/state/trigger-now ]; then
-        rm -f /workspace/state/trigger-now
-        TRIGGERED=true
-        echo "Manual trigger detected!"
+    # Gateway watchdog
+    if [ -f /workspace/state/gateway.pid ]; then
+        GATEWAY_PID=$(cat /workspace/state/gateway.pid)
+        if ! kill -0 "$GATEWAY_PID" 2>/dev/null; then
+            echo "Gateway died, restarting..."
+            nohup openclaw gateway run > /workspace/logs/openclaw-gateway.log 2>&1 &
+            GATEWAY_PID=$!
+            echo "$GATEWAY_PID" > /workspace/state/gateway.pid
+            echo "Gateway restarted (PID $GATEWAY_PID)"
+        fi
     fi
 
     CYCLE=$((CYCLE + 1))
     echo ""
     echo "=== Maintenance cycle #${CYCLE} ($(date -Iseconds)) ==="
 
-    # Run Claude Code maintenance
+    MAINTAINER_PROMPT='You are the gasclaw repo maintainer. Read CLAUDE.md first.
+
+Your maintenance loop:
+1. Check PRs: gh pr list --repo '"${MAINTENANCE_REPO}"' --state open
+2. For EACH open PR: checkout, test, merge if passing
+3. Check issues: gh issue list --repo '"${MAINTENANCE_REPO}"' --state open
+4. Fix open issues: branch, implement, create PR, merge
+5. Improve test coverage
+
+Rules: branch naming (fix/, feat/, test/), run tests before commit, TDD.
+
+Start now. Check and merge open PRs first.'
+
     cd /workspace/gasclaw
     source .venv/bin/activate
 
@@ -405,7 +394,7 @@ state_file = '/workspace/state/maintenance.json'
 try:
     with open(state_file) as f:
         state = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
+except:
     state = {'total_cycles': 0, 'total_prs_merged': 0}
 state['status'] = 'running'
 state['last_run'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -415,92 +404,17 @@ with open(state_file, 'w') as f:
     json.dump(state, f, indent=2)
 "
 
-    # Wait for Claude Code to finish
     wait "$CLAUDE_PID" || true
     rm -f /workspace/state/claude.pid
-
-    # --- Post-cycle: detect changes and send Telegram report ---
-    export CYCLE_NUM=$CYCLE
-    export MAINTENANCE_REPO
-    CYCLE_REPORT=$(python3 << 'REPORT_EOF'
-import subprocess, json, datetime, os
-
-repo = os.environ.get("MAINTENANCE_REPO", "gastown-publish/gasclaw")
-cycle = os.environ.get("CYCLE_NUM", "?")
-
-# Get PRs merged in the last 10 minutes
-try:
-    result = subprocess.run(
-        ["gh", "pr", "list", "--repo", repo, "--state", "merged",
-         "--json", "number,title,mergedAt", "--limit", "20"],
-        capture_output=True, text=True, timeout=30
-    )
-    merged_prs = json.loads(result.stdout) if result.returncode == 0 else []
-except Exception:
-    merged_prs = []
-
-# Filter to recently merged (last 15 min)
-now = datetime.datetime.now(datetime.timezone.utc)
-recent = []
-for pr in merged_prs:
-    try:
-        merged_at = datetime.datetime.fromisoformat(pr["mergedAt"].replace("Z", "+00:00"))
-        if (now - merged_at).total_seconds() < 900:  # 15 min
-            recent.append(pr)
-    except Exception:
-        pass
-
-# Get open issue count
-try:
-    result = subprocess.run(
-        ["gh", "issue", "list", "--repo", repo, "--state", "open", "--json", "number"],
-        capture_output=True, text=True, timeout=30
-    )
-    open_issues = len(json.loads(result.stdout)) if result.returncode == 0 else "?"
-except Exception:
-    open_issues = "?"
-
-# Get open PR count
-try:
-    result = subprocess.run(
-        ["gh", "pr", "list", "--repo", repo, "--state", "open", "--json", "number"],
-        capture_output=True, text=True, timeout=30
-    )
-    open_prs = len(json.loads(result.stdout)) if result.returncode == 0 else "?"
-except Exception:
-    open_prs = "?"
-
-# Build message
-lines = [f"🏭 *Maintenance cycle #{cycle} complete*"]
-
-if recent:
-    lines.append(f"\n*Merged {len(recent)} PR(s):*")
-    for pr in recent:
-        lines.append(f"  • #{pr['number']} {pr['title']}")
-
-if not recent:
-    lines.append("\nNo PRs merged this cycle.")
-
-lines.append(f"\n📊 Open: {open_prs} PRs, {open_issues} issues")
-print("\n".join(lines))
-REPORT_EOF
-    )
-
-    if [ -n "$CYCLE_REPORT" ]; then
-        export CYCLE_NUM=$CYCLE
-        tg_send "$CYCLE_REPORT"
-        echo "$CYCLE_REPORT"
-    fi
 
     # Update state to completed
     python3 -c "
 import json, datetime
-state_file = '/workspace/state/maintenance.json'
-with open(state_file) as f:
+with open('/workspace/state/maintenance.json') as f:
     state = json.load(f)
 state['status'] = 'idle'
 state['last_completed'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-with open(state_file, 'w') as f:
+with open('/workspace/state/maintenance.json', 'w') as f:
     json.dump(state, f, indent=2)
 "
 
