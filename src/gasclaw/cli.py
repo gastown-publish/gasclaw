@@ -2,47 +2,131 @@
 
 from __future__ import annotations
 
+import json
+import socket
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from gasclaw import __version__
 from gasclaw.bootstrap import bootstrap, monitor_loop
 from gasclaw.config import load_config
 from gasclaw.gastown.lifecycle import stop_all
 from gasclaw.health import check_agent_activity, check_health
 from gasclaw.kimigas.key_pool import KeyPool
+from gasclaw.logging_config import get_logger, setup_logging
+from gasclaw.maintenance import maintenance_loop, run_maintenance_cycle
+from gasclaw.migration import migrate as run_migration
 from gasclaw.updater.applier import apply_updates
 from gasclaw.updater.checker import check_versions
+
+# Initialize logging on module import
+setup_logging()
+logger = get_logger(__name__)
+
+
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        console.print(f"gasclaw {__version__}")
+        raise typer.Exit()
+
+
+def _is_port_in_use(port: int) -> bool:
+    """Check if a TCP port is already in use on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return False
+        except OSError:
+            return True
+
 
 app = typer.Typer(help="Gasclaw — Gastown + OpenClaw + KimiGas in one container.")
 console = Console()
 
 
+@app.callback()
+def main(
+    version: bool | None = typer.Option(
+        None,
+        "--version",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
+) -> None:
+    """Gasclaw CLI."""
+    pass
+
+
 @app.command()
 def start(
-    gt_root: Path = typer.Option(Path("/workspace/gt"), help="Gastown root directory"),
+    gt_root: Path = typer.Option(  # noqa: B008
+        Path("/workspace/gt"), help="Gastown root directory"
+    ),
+    project_dir: Path | None = typer.Option(  # noqa: B008
+        None, help="Project directory for activity checks (overrides config)"
+    ),
 ) -> None:
     """Start gasclaw: bootstrap all services and enter monitor loop."""
     try:
         config = load_config()
+        logger.info("Configuration loaded successfully")
     except ValueError as e:
+        logger.error("Configuration error: %s", e)
         console.print(f"[red]Config error:[/red] {e}")
         raise typer.Exit(code=1) from None
 
+    # Override project_dir if provided via CLI
+    if project_dir is not None:
+        config.project_dir = str(project_dir)
+        logger.debug("Project directory overridden to: %s", project_dir)
+
+    # Check if gateway port is already in use
+    if _is_port_in_use(config.gateway_port):
+        console.print(
+            f"[red]Error:[/red] Gateway port {config.gateway_port} is already in use. "
+            "Another OpenClaw instance may be running.\n"
+            "Stop the existing instance before starting gasclaw."
+        )
+        logger.error("Gateway port %d is already in use", config.gateway_port)
+        raise typer.Exit(code=1)
+
     console.print("[bold]Starting gasclaw...[/bold]")
-    bootstrap(config, gt_root=gt_root)
+    logger.info("Starting gasclaw bootstrap sequence")
+    try:
+        bootstrap(config, gt_root=gt_root)
+        logger.info("Bootstrap completed successfully")
+    except KeyboardInterrupt:
+        logger.info("Bootstrap interrupted by user")
+        console.print("\n[yellow]Bootstrap interrupted by user[/yellow]")
+        raise typer.Exit(code=130) from None
+    except Exception as e:
+        logger.exception("Bootstrap failed")
+        console.print(f"[red]Bootstrap failed:[/red] {e}")
+        raise typer.Exit(code=1) from None
     console.print("[green]All services started. Entering monitor loop.[/green]")
-    monitor_loop(config)
+    try:
+        monitor_loop(config)
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt, shutting down")
+        console.print("\n[yellow]Shutting down...[/yellow]")
 
 
 @app.command()
 def stop() -> None:
     """Stop all gasclaw services."""
     console.print("Stopping all services...")
-    stop_all()
-    console.print("[green]All services stopped.[/green]")
+    try:
+        stop_all()
+        console.print("[green]All services stopped.[/green]")
+    except Exception as e:
+        logger.exception("Failed to stop services")
+        console.print(f"[red]Error stopping services:[/red] {e}")
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
@@ -76,7 +160,11 @@ def status() -> None:
     if report.key_pool:
         avail = report.key_pool.get("available", "?")
         total = report.key_pool.get("total", "?")
-        table.add_row("key pool", f"{avail}/{total} available")
+        rl_count = report.key_pool.get("rate_limited", 0)
+        status_text = f"{avail}/{total} available"
+        if rl_count:
+            status_text += f" ({rl_count} rate-limited)"
+        table.add_row("key pool", status_text)
     if report.activity:
         compliant = report.activity.get("compliant", False)
         style = "green" if compliant else "red"
@@ -99,3 +187,190 @@ def update() -> None:
     for name, result in results.items():
         style = "green" if result == "updated" else "yellow"
         console.print(f"  {name}: [{style}]{result}[/{style}]")
+
+
+@app.command()
+def version() -> None:
+    """Show gasclaw version."""
+    console.print(f"gasclaw {__version__}")
+
+
+@app.command()
+def migrate(
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Detect and report only, don't modify anything"
+    ),
+    from_source: str = typer.Option(
+        "auto", "--from", help="Source to migrate from: auto, gastown, openclaw-launcher"
+    ),
+    gastown_dir: Path | None = typer.Option(
+        None, help="Path to Gastown config directory (default: ~/.gt or ~/.gastown)"
+    ),
+    openclaw_dir: Path | None = typer.Option(
+        None, help="Path to OpenClaw config directory (default: ~/.openclaw)"
+    ),
+    env_file: Path | None = typer.Option(
+        None, help="Path for gasclaw .env file (default: /workspace/.env)"
+    ),
+) -> None:
+    """Migrate from Gastown or openclaw-launcher to gasclaw.
+
+    Detects existing installation and migrates configuration to gasclaw format.
+    Creates a backup of the original configuration.
+
+    Examples:
+        gasclaw migrate                          # Auto-detect source
+        gasclaw migrate --from gastown           # Migrate from Gastown
+        gasclaw migrate --from openclaw-launcher # Migrate from openclaw-launcher
+        gasclaw migrate --dry-run                # Preview what would be migrated
+
+    """
+    from gasclaw.migration import (
+        migrate_openclaw_launcher,
+    )
+
+    if from_source == "openclaw-launcher":
+        console.print("[bold]Checking for openclaw-launcher installation...[/bold]")
+        result = migrate_openclaw_launcher(
+            openclaw_dir=openclaw_dir,
+            env_file=env_file,
+            interactive=True,
+        )
+
+        if result["success"]:
+            console.print("[green]✅ Migration successful[/green]")
+            if result.get("migrated_keys"):
+                console.print(f"   Migrated: {', '.join(result['migrated_keys'])}")
+            if result.get("warnings"):
+                console.print("\n[yellow]Warnings:[/yellow]")
+                for warning in result["warnings"]:
+                    console.print(f"   ⚠️  {warning}")
+            if not dry_run and env_file:
+                console.print(f"\n   Config file: {env_file}")
+        else:
+            console.print("[red]❌ Migration failed[/red]")
+            if result.get("error"):
+                console.print(f"   Error: {result['error']}")
+            raise typer.Exit(code=1)
+
+        if not dry_run:
+            console.print("\n[green]Migration complete![/green]")
+            console.print("\nNext steps:")
+            console.print("  1. Review the generated .env file")
+            console.print("  2. Stop any running openclaw-launcher containers")
+            console.print("  3. Ensure OPENCLAW_HOME env var is unset")
+            console.print("  4. Run 'gasclaw start' to begin using gasclaw")
+        return
+
+    # Default: Gastown migration
+    console.print("[bold]Checking for Gastown installation...[/bold]")
+
+    result = run_migration(
+        gastown_dir=gastown_dir,
+        gasclaw_env_file=env_file,
+        dry_run=dry_run,
+        interactive=True,
+    )
+
+    console.print(result.summary())
+
+    if result.success and not dry_run:
+        console.print("\n[green]Migration complete![/green]")
+        console.print("\nNext steps:")
+        console.print("  1. Review the generated .env file")
+        console.print("  2. Run 'gasclaw start' to begin using gasclaw")
+    elif not result.success:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def maintain(
+    once: bool = typer.Option(False, help="Run once and exit (don't loop)"),
+    interval: int = typer.Option(300, help="Seconds between cycles (default: 300)", min=1),
+) -> None:
+    """Run continuous maintenance on the gasclaw repository.
+
+    - Check open PRs: checkout, test, and merge if passing
+    - Monitor open issues: identify and auto-fix where possible
+    - Maintain 100% test coverage by adding edge case tests
+    - Ensure code quality through linting and type checking
+
+    When run without --once, enters an infinite loop checking every
+    interval seconds. Use Ctrl+C to stop.
+    """
+    console.print("[bold]Starting maintenance...[/bold]")
+
+    if once:
+        console.print("Running single maintenance cycle...")
+        try:
+            results = run_maintenance_cycle()
+            console.print(f"[green]Cycle complete:[/green] {results}")
+        except Exception as e:
+            logger.exception("Maintenance cycle failed")
+            console.print(f"[red]Maintenance failed:[/red] {e}")
+            raise typer.Exit(code=1) from None
+    else:
+        console.print(f"[green]Entering maintenance loop (interval={interval}s)...[/green]")
+        console.print("Press Ctrl+C to stop")
+        try:
+            maintenance_loop(interval=interval)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Maintenance loop stopped[/yellow]")
+
+
+@app.command()
+def keys(
+    rotate: bool = typer.Option(
+        False, "--rotate", help="Force rotation of the most recently used key"
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+) -> None:
+    """Show Kimi API key pool status or force key rotation.
+
+    Displays the current state of the key pool including total keys,
+    available keys, and rate-limited keys. Use --rotate to mark the
+    most recently used key as rate-limited (5 minute cooldown).
+
+    Examples:
+        gasclaw keys              # Show key pool status
+        gasclaw keys --json       # Output as JSON
+        gasclaw keys --rotate     # Force rotation of current key
+    """
+    try:
+        config = load_config()
+    except ValueError as e:
+        logger.error("Configuration error: %s", e)
+        console.print(f"[red]Config error:[/red] {e}")
+        raise typer.Exit(code=1) from None
+
+    pool = KeyPool(config.gastown_kimi_keys)
+
+    if rotate:
+        # Get current key, mark it as rate-limited
+        current_key = pool.get_key()
+        pool.mark_rate_limited(current_key)
+        status = pool.status()
+        if json_output:
+            console.print(json.dumps({"rotated": True, **status}))
+        else:
+            console.print("[green]Key rotated successfully[/green]")
+            total = status["total"]
+            avail = status["available"]
+            rl = status["rate_limited"]
+            console.print(f"Total: {total}, Available: {avail}, Rate-limited: {rl}")
+        return
+
+    # Show status
+    status = pool.status()
+    if json_output:
+        console.print(json.dumps(status))
+    else:
+        table = Table(title="Key Pool Status")
+        table.add_column("Metric", style="bold")
+        table.add_column("Value")
+        table.add_row("Total Keys", str(status["total"]))
+        available_style = "green" if status["available"] > 0 else "red"
+        table.add_row("Available", f"[{available_style}]{status['available']}[/{available_style}]")
+        rl_style = "yellow" if status["rate_limited"] > 0 else "green"
+        table.add_row("Rate-limited", f"[{rl_style}]{status['rate_limited']}[/{rl_style}]")
+        console.print(table)

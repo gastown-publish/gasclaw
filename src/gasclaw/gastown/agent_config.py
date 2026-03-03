@@ -28,6 +28,7 @@ def write_agent_config(gt_root: Path) -> Path:
 
     Returns:
         Path to the written config.json.
+
     """
     settings_dir = gt_root / "settings"
     settings_dir.mkdir(parents=True, exist_ok=True)

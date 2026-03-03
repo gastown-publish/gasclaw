@@ -6,12 +6,17 @@ it needs to assess system health, agent activity, and compliance.
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
 from gasclaw.openclaw.doctor import run_doctor
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,8 +34,10 @@ class HealthReport:
 
     def summary(self) -> str:
         """Human-readable summary string."""
-        avail = self.key_pool.get("available", "?")
-        total = self.key_pool.get("total", "?")
+        # Handle both missing keys and None values (0 is valid for available)
+        avail = self.key_pool.get("available")
+        avail = "?" if avail is None else avail
+        total = self.key_pool.get("total") or "?"
         lines = [
             f"Dolt: {self.dolt}",
             f"Daemon: {self.daemon}",
@@ -49,11 +56,41 @@ class HealthReport:
 
 
 def _check_service(cmd: list[str], service_name: str) -> str:
-    """Run a health check command and return status."""
+    """Run a health check command and return status.
+
+    Args:
+        cmd: Command and arguments to run.
+        service_name: Name of the service being checked (for logging).
+
+    Returns:
+        "healthy" if command succeeds, "unhealthy" otherwise.
+
+    """
     try:
         result = subprocess.run(cmd, capture_output=True, timeout=10)
-        return "healthy" if result.returncode == 0 else "unhealthy"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        if result.returncode == 0:
+            return "healthy"
+        logger.debug("Health check failed for %s: exit code %d", service_name, result.returncode)
+        return "unhealthy"
+    except (OSError, subprocess.TimeoutExpired):
+        logger.debug("Health check error for %s: command failed or timed out", service_name)
+        return "unhealthy"
+
+
+def _check_openclaw_gateway(gateway_port: int) -> str:
+    """Check OpenClaw gateway health via HTTP request.
+
+    Args:
+        gateway_port: Port where the OpenClaw gateway is listening.
+
+    Returns:
+        "healthy" if the gateway responds with 200, "unhealthy" otherwise.
+
+    """
+    try:
+        response = httpx.get(f"http://localhost:{gateway_port}/health", timeout=10)
+        return "healthy" if response.status_code == 200 else "unhealthy"
+    except (httpx.ConnectError, httpx.TimeoutException):
         return "unhealthy"
 
 
@@ -66,30 +103,33 @@ def _list_agents() -> list[str]:
             timeout=10,
         )
         if result.returncode == 0:
-            return [
-                line.strip() for line in result.stdout.decode().splitlines()
-                if line.strip()
-            ]
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+            # Filter out empty lines and whitespace-only lines
+            agents = []
+            for line in result.stdout.decode().splitlines():
+                stripped = line.strip()
+                # Only include non-empty lines (strip() removes all whitespace)
+                if stripped:
+                    agents.append(stripped)
+            return agents
+    except (OSError, subprocess.TimeoutExpired) as e:
+        logger.debug("Failed to list agents: %s", e)
     return []
 
 
-def check_health(*, gateway_port: int = 18789) -> HealthReport:
+def check_health(*, gateway_port: int = 18789, dolt_port: int = 3307) -> HealthReport:
     """Run all health checks and return a complete report.
 
     Args:
         gateway_port: OpenClaw gateway port for connectivity check.
+        dolt_port: Dolt SQL server port for health check.
+
     """
     doctor = run_doctor()
     return HealthReport(
-        dolt=_check_service(["dolt", "sql", "--port", "3307", "-q", "SELECT 1"], "dolt"),
+        dolt=_check_service(["dolt", "sql", "--port", str(dolt_port), "-q", "SELECT 1"], "dolt"),
         daemon=_check_service(["gt", "daemon", "status"], "daemon"),
         mayor=_check_service(["gt", "mayor", "status"], "mayor"),
-        openclaw=_check_service(
-            ["curl", "-sf", f"http://localhost:{gateway_port}/health"],
-            "openclaw",
-        ),
+        openclaw=_check_openclaw_gateway(gateway_port),
         openclaw_doctor="healthy" if doctor.healthy else "unhealthy",
         agents=_list_agents(),
     )
@@ -110,7 +150,8 @@ def check_agent_activity(
         deadline_seconds: Max allowed time since last activity.
 
     Returns:
-        Dict with last_commit_age (seconds) and compliant (bool).
+        dict with last_commit_age (seconds), compliant (bool), and error (str|None).
+
     """
     try:
         result = subprocess.run(
@@ -121,15 +162,26 @@ def check_agent_activity(
         )
         if result.returncode == 0 and result.stdout.strip():
             last_ts = int(result.stdout.decode().strip())
-            age = int(time.time() - last_ts)
+            now = time.time()
+            age = int(now - last_ts)
+
+            # Handle future timestamps (clock skew)
+            if age < 0:
+                logger.warning("Commit timestamp is in the future - possible clock skew")
+                age = 0  # Treat as "just now"
+
             return {
                 "last_commit_age": age,
                 "compliant": age <= deadline_seconds,
+                "error": None,
             }
-    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
-        pass
+    except (OSError, subprocess.TimeoutExpired) as e:
+        logger.debug("Git log command failed: %s", e)
+    except ValueError as e:
+        logger.debug("Failed to parse commit timestamp: %s", e)
 
     return {
         "last_commit_age": None,
         "compliant": False,
+        "error": "failed to get git log",
     }

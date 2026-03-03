@@ -1,8 +1,10 @@
 FROM python:3.13-slim-bookworm
 
+# --- Heavy layers (rarely change, cached) ---
+
 # System deps + Node.js 22
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl git tmux ca-certificates gnupg jq \
+    curl git tmux ca-certificates gnupg jq procps \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
@@ -15,19 +17,26 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && apt-get update && apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
-# Claude Code
-RUN npm install -g @anthropic-ai/claude-code
+# Claude Code + OpenClaw (pinned — only rebuild when versions change)
+RUN npm install -g @anthropic-ai/claude-code openclaw
 
-# Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+# PyYAML for config loader
+RUN pip install --no-cache-dir pyyaml
+
+# --- Light layers ---
+
+# Non-root user setup
 RUN useradd -m -s /bin/bash maintainer \
-    && mkdir -p /workspace && chown maintainer:maintainer /workspace
+    && mkdir -p /workspace /opt/scripts /opt/maintainer-skills \
+    && chmod 777 /workspace /home/maintainer
 
-# Working directory
 WORKDIR /workspace
-
-# Copy entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
 USER maintainer
+
+EXPOSE 18789
+
+# Everything below is bind-mounted from docker-compose.yml:
+#   entrypoint.sh, scripts/, skills/, agent-soul.md, agent-bootstrap.md
+# This means code/config changes NEVER need a docker build — just restart.
+
 ENTRYPOINT ["/entrypoint.sh"]

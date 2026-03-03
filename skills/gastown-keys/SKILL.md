@@ -1,8 +1,18 @@
 ---
 name: gastown-keys
-description: "Manage Kimi API key pool: check status, force rotation, handle rate limits. Use when: keys are rate-limited, need to check key health, or rotate to a fresh key."
+description: Manage Kimi API key pool - check status, force rotation, handle rate limits
 metadata:
-  { "openclaw": { "emoji": "🔑", "os": ["linux"], "requires": { "bins": [] } } }
+  openclaw:
+    emoji: 🔑
+    os:
+      - linux
+    requires:
+      bins: []
+parameters:
+  action:
+    type: string
+    description: Action to perform (status, rotate, cooldown)
+    required: true
 ---
 
 # Gastown Key Manager

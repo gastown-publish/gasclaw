@@ -16,7 +16,7 @@ make test    # Must pass before any changes
 src/gasclaw/
 ├── cli.py              # Typer CLI: start, stop, status, update
 ├── config.py           # Env var config (pydantic-free, dataclass)
-├── bootstrap.py        # Startup orchestration (17-step sequence)
+├── bootstrap.py        # Startup orchestration (10-step sequence)
 ├── health.py           # Health checks + activity compliance
 ├── gastown/
 │   ├── agent_config.py # Write settings/config.json for gt
@@ -33,7 +33,7 @@ src/gasclaw/
     ├── applier.py      # Run update commands
     └── notifier.py     # POST to OpenClaw gateway
 skills/                 # OpenClaw skills (4: health, keys, update, agents)
-tests/unit/             # 73 unit tests — all mocked, no API keys needed
+tests/unit/             # 931 unit tests — all mocked, no API keys needed
 tests/integration/      # Integration tests (optional, needs services)
 ```
 
@@ -53,7 +53,7 @@ make test-all      # Includes integration tests
 make lint          # Ruff linting
 ```
 
-All 73 unit tests must pass. Never modify a test to make it pass — fix the code.
+All 931 unit tests must pass. Never modify a test to make it pass — fix the code.
 
 ## Architecture Decisions
 
@@ -93,11 +93,12 @@ All 73 unit tests must pass. Never modify a test to make it pass — fix the cod
 | `GT_AGENT_COUNT` | No | `6` | Number of crew workers |
 | `MONITOR_INTERVAL` | No | `300` | Health check interval (seconds) |
 | `ACTIVITY_DEADLINE` | No | `3600` | Max seconds between commits |
+| `DOLT_PORT` | No | `3307` | Dolt SQL server port |
 
 ## PR Checklist
 
 Before creating a PR, verify:
-- [ ] `make test` passes (all 73+ tests)
+- [ ] `make test` passes (all 931 tests)
 - [ ] `make lint` passes
 - [ ] New code has corresponding tests
 - [ ] Commit message follows `<type>: <description>` format
