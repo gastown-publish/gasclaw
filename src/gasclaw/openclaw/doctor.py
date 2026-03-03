@@ -5,6 +5,8 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass
 
+__all__ = ["DoctorResult", "run_doctor"]
+
 
 @dataclass
 class DoctorResult:
