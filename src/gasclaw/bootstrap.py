@@ -80,7 +80,13 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
             kimi_key=config.openclaw_kimi_key,
             bot_token=config.telegram_bot_token,
             owner_id=int(config.telegram_owner_id),
+            gateway_port=config.gateway_port,
             gt_root=str(gt_root),
+            allow_ids=config.telegram_allow_ids,
+            group_ids=config.telegram_group_ids,
+            agent_id=config.agent_id,
+            agent_name=config.agent_name,
+            agent_emoji=config.agent_emoji,
         )
 
         # 6. Install skills

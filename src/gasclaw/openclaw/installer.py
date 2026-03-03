@@ -24,6 +24,11 @@ def write_openclaw_config(
     owner_id: int,
     gateway_port: int = 18789,
     gt_root: str = "/workspace/gt",
+    allow_ids: list[str] | None = None,
+    group_ids: list[str] | None = None,
+    agent_id: str = "main",
+    agent_name: str = "Gasclaw Overseer",
+    agent_emoji: str = "🏭",
 ) -> Path:
     """Write ~/.openclaw/openclaw.json with full configuration.
 
@@ -38,6 +43,11 @@ def write_openclaw_config(
         owner_id: Telegram user ID for allowlist.
         gateway_port: Gateway port (default 18789).
         gt_root: Gastown root directory (for bead workspace).
+        allow_ids: Additional Telegram user IDs allowed (optional).
+        group_ids: Telegram group chat IDs allowed (optional).
+        agent_id: Agent identifier (default "main").
+        agent_name: Agent display name (default "Gasclaw Overseer").
+        agent_emoji: Agent emoji (default "🏭").
 
     Returns:
         Path to the written openclaw.json.
@@ -56,6 +66,11 @@ def write_openclaw_config(
         except (json.JSONDecodeError, OSError):
             pass
 
+    # Build allowlist from owner_id plus any additional allow_ids
+    allow_from = [str(owner_id)]
+    if allow_ids:
+        allow_from.extend(str(uid) for uid in allow_ids if str(uid) != str(owner_id))
+
     config = {
         "agents": {
             "defaults": {
@@ -71,10 +86,10 @@ def write_openclaw_config(
             },
             "list": [
                 {
-                    "id": "main",
+                    "id": agent_id,
                     "identity": {
-                        "name": "Gasclaw Overseer",
-                        "emoji": "🏭",
+                        "name": agent_name,
+                        "emoji": agent_emoji,
                     },
                     "instructions": (
                         "You use beads (bd CLI) for ALL memory and state tracking. "
@@ -91,7 +106,9 @@ def write_openclaw_config(
             "telegram": {
                 "botToken": bot_token,
                 "dmPolicy": "allowlist",
-                "allowFrom": [str(owner_id)],
+                "allowFrom": allow_from,
+                **({"groupAllowFrom": group_ids} if group_ids else {}),
+                **({"groupPolicy": "allowlist"} if group_ids else {}),
             },
         },
         "commands": {

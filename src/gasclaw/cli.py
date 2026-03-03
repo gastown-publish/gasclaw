@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import socket
 from pathlib import Path
 
 import typer
@@ -31,6 +32,16 @@ def version_callback(value: bool) -> None:
     if value:
         console.print(f"gasclaw {__version__}")
         raise typer.Exit()
+
+
+def _is_port_in_use(port: int) -> bool:
+    """Check if a TCP port is already in use on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return False
+        except OSError:
+            return True
 
 
 app = typer.Typer(help="Gasclaw — Gastown + OpenClaw + KimiGas in one container.")
@@ -73,6 +84,16 @@ def start(
     if project_dir is not None:
         config.project_dir = str(project_dir)
         logger.debug("Project directory overridden to: %s", project_dir)
+
+    # Check if gateway port is already in use
+    if _is_port_in_use(config.gateway_port):
+        console.print(
+            f"[red]Error:[/red] Gateway port {config.gateway_port} is already in use. "
+            "Another OpenClaw instance may be running.\n"
+            "Stop the existing instance before starting gasclaw."
+        )
+        logger.error("Gateway port %d is already in use", config.gateway_port)
+        raise typer.Exit(code=1)
 
     console.print("[bold]Starting gasclaw...[/bold]")
     logger.info("Starting gasclaw bootstrap sequence")
