@@ -6,14 +6,13 @@ rather than account discovery.
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import json
-import os
-import tempfile
 import time
 from pathlib import Path
 from typing import Any, cast
+
+from gasclaw.utils import atomic_write_json
 
 RATE_LIMIT_COOLDOWN = 300  # 5 minutes
 
@@ -71,27 +70,10 @@ class KeyPool:
         return {}
 
     def _save_state(self, state: dict[str, Any]) -> None:
-        """Save the key rotation state to disk atomically.
-
-        Uses atomic write (write to temp file, then rename) to avoid
-        race conditions where the file could be corrupted during read.
-        """
+        """Save the key rotation state to disk atomically."""
         self._state_dir.mkdir(parents=True, exist_ok=True)
         state_file = self._state_dir / "key-rotation.json"
-
-        # Write to temp file in same directory, then rename atomically
-        fd, temp_path = tempfile.mkstemp(
-            dir=self._state_dir, prefix=".key-rotation-", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(state, f, indent=2)
-            os.replace(temp_path, state_file)
-        except (OSError, TypeError, ValueError):
-            # Clean up temp file on failure (disk errors or JSON serialization issues)
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
-            raise
+        atomic_write_json(state_file, state)
 
     def get_key(self) -> str:
         """Select the best available key using LRU rotation."""
