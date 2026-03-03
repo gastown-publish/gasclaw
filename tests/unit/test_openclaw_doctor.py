@@ -23,7 +23,8 @@ class TestRunDoctor:
         monkeypatch.setattr(
             "gasclaw.openclaw.doctor.subprocess.run",
             lambda *a, **kw: subprocess.CompletedProcess(
-                args=a[0], returncode=1,
+                args=a[0],
+                returncode=1,
                 stdout=b"Config issues found\nMissing gateway auth\n",
                 stderr=b"",
             ),
@@ -74,6 +75,24 @@ class TestRunDoctor:
         result = run_doctor()
         assert result.healthy is False
         assert "timed out" in result.output.lower()
+
+    def test_handles_permission_error(self, monkeypatch):
+        def mock_run(cmd, **kwargs):
+            raise PermissionError("Permission denied")
+
+        monkeypatch.setattr("gasclaw.openclaw.doctor.subprocess.run", mock_run)
+        result = run_doctor()
+        assert result.healthy is False
+        assert "permission" in result.output.lower()
+
+    def test_handles_os_error(self, monkeypatch):
+        def mock_run(cmd, **kwargs):
+            raise OSError("Some other OS error")
+
+        monkeypatch.setattr("gasclaw.openclaw.doctor.subprocess.run", mock_run)
+        result = run_doctor()
+        assert result.healthy is False
+        assert "failed to execute" in result.output.lower()
 
 
 class TestDoctorResult:

@@ -15,9 +15,9 @@ def _write_kimi_config(account_dir: Path, api_key: str) -> None:
     account_dir.mkdir(parents=True, exist_ok=True)
 
     doc = tomlkit.document()
-    doc.add("default_model", "kimi-code/kimi-for-coding")
-    doc.add("default_thinking", True)
-    doc.add("default_yolo", False)
+    doc.add("default_model", "kimi-code/kimi-for-coding")  # type: ignore[arg-type]
+    doc.add("default_thinking", True)  # type: ignore[arg-type]
+    doc.add("default_yolo", False)  # type: ignore[arg-type]
 
     # Model definition
     models = tomlkit.table(is_super_table=True)
@@ -49,8 +49,9 @@ def setup_kimi_accounts(
     """Write ~/.kimi-accounts/<N>/config.toml for each key.
 
     Args:
-        keys: List of Kimi API keys.
+        keys: list of Kimi API keys.
         accounts_dir: Override for ~/.kimi-accounts.
+
     """
     if accounts_dir is None:
         accounts_dir = Path.home() / ".kimi-accounts"
@@ -65,6 +66,7 @@ def gastown_install(*, gt_root: Path, rig_url: str) -> None:
     Args:
         gt_root: Where to install Gastown (e.g. /workspace/gt).
         rig_url: Git URL or path for the rig.
+
     """
     subprocess.run(
         ["gt", "install", str(gt_root), "--git"],

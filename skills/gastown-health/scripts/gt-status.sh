@@ -2,12 +2,14 @@
 # Quick Gastown status check
 set -euo pipefail
 
+DOLT_PORT=${DOLT_PORT:-3307}
+
 echo "=== Gastown Status ==="
 echo ""
 
 # Dolt
 echo -n "Dolt: "
-if dolt sql --port 3307 -q "SELECT 1" &>/dev/null; then
+if dolt sql --port "${DOLT_PORT}" -q "SELECT 1" &>/dev/null; then
     echo "HEALTHY"
 else
     echo "DOWN"

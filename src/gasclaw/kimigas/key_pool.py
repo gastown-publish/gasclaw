@@ -6,11 +6,14 @@ rather than account discovery.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 RATE_LIMIT_COOLDOWN = 300  # 5 minutes
 
@@ -21,6 +24,16 @@ class KeyPool:
     """LRU-based API key rotation pool."""
 
     def __init__(self, keys: list[str], *, state_dir: Path | None = None) -> None:
+        """Initialize the key pool.
+
+        Args:
+            keys: List of API keys for rotation.
+            state_dir: Directory to store rotation state (default: ~/.gasclaw).
+
+        Raises:
+            ValueError: If keys list is empty.
+
+        """
         if not keys:
             raise ValueError("KeyPool requires at least one key")
         self._keys = list(keys)
@@ -28,25 +41,57 @@ class KeyPool:
 
     @property
     def total_keys(self) -> int:
+        """Return the total number of keys in the pool."""
         return len(self._keys)
 
     @staticmethod
     def _key_hash(key: str) -> str:
-        return hashlib.sha256(key.encode()).hexdigest()[:12]
+        """Compute a short hash of the key for state tracking.
+
+        Uses blake2b with digest_size=6 for efficiency (produces 12 hex chars,
+        same as the truncated sha256 it replaces). blake2b is faster than
+        sha256 while providing equivalent collision resistance for this use case.
+
+        Args:
+            key: The API key to hash.
+
+        Returns:
+            12-character hexadecimal hash string.
+
+        """
+        return hashlib.blake2b(key.encode(), digest_size=6).hexdigest()
 
     def _load_state(self) -> dict[str, Any]:
         state_file = self._state_dir / "key-rotation.json"
         if state_file.is_file():
             try:
-                return json.loads(state_file.read_text())
+                return cast(dict[str, Any], json.loads(state_file.read_text()))
             except (json.JSONDecodeError, OSError):
                 pass
         return {}
 
     def _save_state(self, state: dict[str, Any]) -> None:
+        """Save the key rotation state to disk atomically.
+
+        Uses atomic write (write to temp file, then rename) to avoid
+        race conditions where the file could be corrupted during read.
+        """
         self._state_dir.mkdir(parents=True, exist_ok=True)
         state_file = self._state_dir / "key-rotation.json"
-        state_file.write_text(json.dumps(state, indent=2))
+
+        # Write to temp file in same directory, then rename atomically
+        fd, temp_path = tempfile.mkstemp(
+            dir=self._state_dir, prefix=".key-rotation-", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(state, f, indent=2)
+            os.replace(temp_path, state_file)
+        except (OSError, TypeError, ValueError):
+            # Clean up temp file on failure (disk errors or JSON serialization issues)
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
 
     def get_key(self) -> str:
         """Select the best available key using LRU rotation."""
@@ -59,7 +104,8 @@ class KeyPool:
 
         rate_limited: dict[str, float] = state.get("rate_limited", {})
         available = [
-            k for k in self._keys
+            k
+            for k in self._keys
             if now - rate_limited.get(self._key_hash(k), 0) > RATE_LIMIT_COOLDOWN
         ]
 
@@ -82,13 +128,63 @@ class KeyPool:
         state["last_used"] = last_used
         self._save_state(state)
 
+    def _validate_key(self, key: str) -> None:
+        """Validate that a key belongs to this pool.
+
+        Args:
+            key: The API key to validate.
+
+        Raises:
+            ValueError: If the key does not belong to this pool.
+
+        """
+        if key not in self._keys:
+            raise ValueError(f"Key {self._key_hash(key)} does not belong to this pool")
+
     def mark_rate_limited(self, key: str) -> None:
-        """Mark a key as rate-limited (enters cooldown)."""
+        """Mark a key as rate-limited (enters cooldown).
+
+        Args:
+            key: The API key to mark as rate-limited.
+
+        Raises:
+            ValueError: If the key does not belong to this pool.
+
+        """
+        self._validate_key(key)
+
         state = self._load_state()
         rate_limited = state.get("rate_limited", {})
         rate_limited[self._key_hash(key)] = time.time()
         state["rate_limited"] = rate_limited
         self._save_state(state)
+
+    def clear_cooldown(self, key: str) -> bool:
+        """Clear rate-limited status for a key.
+
+        Args:
+            key: The API key to clear cooldown for.
+
+        Returns:
+            True if the key was rate-limited and is now cleared,
+            False if the key was not rate-limited.
+
+        Raises:
+            ValueError: If the key does not belong to this pool.
+
+        """
+        self._validate_key(key)
+
+        state = self._load_state()
+        rate_limited = state.get("rate_limited", {})
+        key_hash = self._key_hash(key)
+
+        if key_hash in rate_limited:
+            del rate_limited[key_hash]
+            state["rate_limited"] = rate_limited
+            self._save_state(state)
+            return True
+        return False
 
     def status(self) -> dict[str, Any]:
         """Return pool status report."""
@@ -97,7 +193,8 @@ class KeyPool:
         rate_limited: dict[str, float] = state.get("rate_limited", {})
 
         rl_count = sum(
-            1 for k in self._keys
+            1
+            for k in self._keys
             if now - rate_limited.get(self._key_hash(k), 0) <= RATE_LIMIT_COOLDOWN
         )
 

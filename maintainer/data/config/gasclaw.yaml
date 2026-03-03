@@ -1,0 +1,27 @@
+# Gasclaw Maintainer Configuration
+# Editable from host — changes take effect on next maintenance cycle
+# Secrets (API keys, tokens) stay in .env / env vars only
+
+maintenance:
+  loop_interval: 300        # seconds between Claude Code maintenance cycles
+  max_pr_size: 200          # max lines changed per PR
+  auto_merge: true          # auto-merge PRs when tests pass
+  repo: "gastown-publish/gasclaw"
+  working_dir: "/workspace/gasclaw"
+  branch_prefixes:
+    - "fix/"
+    - "feat/"
+    - "test/"
+    - "docs/"
+    - "refactor/"
+
+claude:
+  kimi_base_url: "https://api.kimi.com/coding/"
+  dangerously_skip_permissions: true
+
+openclaw:
+  gateway_port: 18789
+
+logging:
+  level: "INFO"
+  log_dir: "/workspace/logs"
