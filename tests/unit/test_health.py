@@ -9,6 +9,7 @@ import httpx
 import respx
 
 from gasclaw.health import HealthReport, check_agent_activity, check_health
+from gasclaw.kimigas.key_pool import KeyPool
 
 
 class TestCheckHealth:
@@ -971,3 +972,68 @@ class TestCheckAgentActivityClockSkew:
         assert report.dolt == "unhealthy"
         assert report.daemon == "unhealthy"
         assert report.mayor == "unhealthy"
+
+
+class TestCheckHealthKeyPool:
+    """Tests for check_health() with KeyPool parameter."""
+
+    def test_key_pool_status_populated(self, tmp_path, monkeypatch, respx_mock: respx.MockRouter):
+        """check_health populates key_pool field when KeyPool is provided."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        pool = KeyPool(["sk-test1", "sk-test2", "sk-test3"], state_dir=tmp_path)
+        report = check_health(gateway_port=18789, key_pool=pool)
+
+        assert "total" in report.key_pool
+        assert "available" in report.key_pool
+        assert report.key_pool["total"] == 3
+        assert report.key_pool["available"] == 3
+
+    def test_key_pool_empty_without_pool(self, monkeypatch, respx_mock: respx.MockRouter):
+        """check_health returns empty key_pool when no KeyPool provided."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        report = check_health(gateway_port=18789)
+
+        assert report.key_pool == {}
+
+    def test_key_pool_with_rate_limited_keys(
+        self, tmp_path, monkeypatch, respx_mock: respx.MockRouter
+    ):
+        """check_health shows rate-limited keys in key_pool status."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        pool = KeyPool(["sk-test1", "sk-test2"], state_dir=tmp_path)
+        pool.mark_rate_limited("sk-test1")
+
+        report = check_health(gateway_port=18789, key_pool=pool)
+
+        assert report.key_pool["total"] == 2
+        assert report.key_pool["available"] == 1
+        assert report.key_pool["rate_limited"] == 1
+
+    def test_key_pool_passed_to_summary(self, tmp_path, monkeypatch, respx_mock: respx.MockRouter):
+        """HealthReport.summary() uses key_pool data when populated."""
+        respx_mock.get("http://localhost:18789/health").mock(return_value=httpx.Response(200))
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b"ok"),
+        )
+        pool = KeyPool(["sk-test1", "sk-test2"], state_dir=tmp_path)
+        report = check_health(gateway_port=18789, key_pool=pool)
+
+        summary = report.summary()
+        assert "2/2" in summary or "Keys:" in summary

@@ -193,9 +193,17 @@ def monitor_loop(
         interval = config.monitor_interval
 
     logger.info("Starting monitor loop with interval=%d seconds", interval)
+
+    # Initialize key pool for health checks
+    key_pool = KeyPool(config.gastown_kimi_keys)
+
     try:
         while True:
-            report = check_health()
+            report = check_health(
+                gateway_port=config.gateway_port,
+                dolt_port=config.dolt_port,
+                key_pool=key_pool,
+            )
             activity = check_agent_activity(
                 project_dir=config.project_dir,
                 deadline_seconds=config.activity_deadline,
