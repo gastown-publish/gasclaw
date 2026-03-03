@@ -193,10 +193,10 @@ pip install --upgrade pip --timeout 120 --retries 5 -q
 pip install --timeout 120 --retries 5 -q -e .
 pip install --timeout 120 --retries 5 -q pytest pytest-asyncio respx
 
-# --- 12. Run tests ---
+# --- 12. Run tests (non-fatal — bot can fix failures) ---
 echo "Running tests..."
-python -m pytest tests/unit -v 2>&1 | tee /workspace/logs/test-results.log | tail -3
-TEST_COUNT=$(tail -1 /workspace/logs/test-results.log)
+python -m pytest tests/unit -v 2>&1 | tee /workspace/logs/test-results.log | tail -3 || true
+TEST_COUNT=$(tail -1 /workspace/logs/test-results.log 2>/dev/null || echo "unknown")
 echo "Tests: $TEST_COUNT"
 
 # --- 13. Start OpenClaw gateway ---
