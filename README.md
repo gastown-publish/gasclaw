@@ -97,6 +97,54 @@ docker compose build --build-arg TARGETARCH=arm64
 | `DOLT_PORT` | No | Dolt SQL server port (default: 3307) |
 | `LOG_LEVEL` | No | Log level: DEBUG, INFO, WARNING, ERROR (default: INFO) |
 
+### Configuration File
+
+In addition to environment variables, Gasclaw supports a YAML configuration file for non-secret settings. This allows you to customize behavior without changing environment variables.
+
+**Config file locations (checked in order):**
+1. Path specified by `GASCLAW_CONFIG` environment variable
+2. `/workspace/config/gasclaw.yaml` (for maintainer mode)
+3. `./gasclaw.yaml` (for local development)
+
+**Priority:** Environment variables → YAML config → Default values
+
+Example `gasclaw.yaml`:
+```yaml
+# Gastown agent settings
+gastown:
+  agent_count: 8
+  rig_url: "https://github.com/org/repo"
+
+# File paths
+paths:
+  project_dir: "/workspace/gasclaw"
+
+# Maintenance loop settings
+maintenance:
+  monitor_interval: 600
+  activity_deadline: 7200
+
+# Service ports
+services:
+  dolt_port: 3308
+  gateway_port: 18790
+
+# Telegram configuration
+telegram:
+  allow_ids:
+    - "123456789"
+  group_ids:
+    - "-1001234567890"
+
+# Agent identity
+agent:
+  id: "main"
+  name: "Gasclaw Overseer"
+  emoji: "🏭"
+```
+
+See `gasclaw.yaml.example` for a complete reference.
+
 **Key separation:** Gastown and OpenClaw keys are completely separate pools. Keys are never shared unless you explicitly put the same key in both `GASTOWN_KIMI_KEYS` and `OPENCLAW_KIMI_KEY`.
 
 ## Key Management

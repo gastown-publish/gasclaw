@@ -1,4 +1,15 @@
-"""Configuration loading and validation from environment variables."""
+"""Configuration loading and validation from environment variables.
+
+Supports YAML config files for non-secret settings. Secrets must still
+be provided via environment variables.
+
+Config file search order (first found wins):
+1. Path from GASCLAW_CONFIG env var
+2. /workspace/config/gasclaw.yaml (for maintainer mode)
+3. ./gasclaw.yaml (for local development)
+
+Env vars always override YAML config values.
+"""
 
 from __future__ import annotations
 
@@ -6,8 +17,10 @@ import logging
 import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
-__all__ = ["GasclawConfig", "load_config"]
+__all__ = ["GasclawConfig", "load_config", "load_yaml_config", "merge_config"]
 
 logger = logging.getLogger(__name__)
 
@@ -176,42 +189,301 @@ def _parse_port(value: str, default: int, name: str = "") -> int:
         return default
 
 
-def load_config() -> GasclawConfig:
-    """Load and validate configuration from environment variables."""
+def _get_yaml_value(yaml_cfg: dict, *keys: str, default: Any = None) -> Any:
+    """Get a nested value from YAML config by key path."""
+    current = yaml_cfg
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
+
+
+def load_yaml_config(path: str | None = None) -> dict:
+    """Load YAML config file, returning empty dict if not found or invalid.
+
+    Args:
+        path: Path to YAML file. If None, uses GASCLAW_CONFIG env var or
+              defaults to /workspace/config/gasclaw.yaml.
+
+    Returns:
+        Parsed YAML config dict, or empty dict if file not found/invalid.
+    """
+    if path is None:
+        path = os.environ.get("GASCLAW_CONFIG", "/workspace/config/gasclaw.yaml")
+
+    if not path or not os.path.exists(path):
+        return {}
+
+    try:
+        # Try PyYAML first
+        try:
+            import yaml
+
+            with open(path) as f:
+                return yaml.safe_load(f) or {}
+        except ImportError:
+            # Fallback to minimal parser for simple YAML
+            return _parse_simple_yaml(Path(path).read_text())
+    except Exception as e:
+        logger.warning("Failed to parse YAML config at %s: %s", path, e)
+        return {}
+
+
+def _parse_simple_yaml(text: str) -> dict:
+    """Minimal YAML parser for simple key: value files (no PyYAML needed)."""
+    result: dict = {}
+    current_section = None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+
+        # Section header: "section:"
+        if not line.startswith(" ") and stripped.endswith(":"):
+            current_section = stripped[:-1]
+            result[current_section] = {}
+            continue
+
+        # Key-value pair in section
+        if current_section and ":" in stripped:
+            key, _, val = stripped.partition(":")
+            key = key.strip()
+            val = val.strip()
+
+            # Parse value
+            if val.startswith("[") and val.endswith("]"):
+                # List: ["a", "b"] or [a, b]
+                val = [v.strip().strip('"').strip("'") for v in val[1:-1].split(",") if v.strip()]
+            elif val.startswith('"') and val.endswith('"'):
+                val = val[1:-1]
+            elif val.startswith("'") and val.endswith("'"):
+                val = val[1:-1]
+            elif val.lower() == "true":
+                val = True
+            elif val.lower() == "false":
+                val = False
+            elif val.isdigit() or (val.startswith("-") and val[1:].isdigit()):
+                val = int(val)
+            elif val == "":
+                val = None
+
+            result[current_section][key] = val
+
+    return result
+
+
+def merge_config(
+    yaml_cfg: dict,
+    env_value: str | None,
+    yaml_keys: tuple[str, ...],
+    default: Any,
+    parser: callable = lambda x: x,  # type: ignore
+    name: str = "",
+) -> Any:
+    """Merge YAML and env var values, with env vars taking precedence.
+
+    Args:
+        yaml_cfg: Parsed YAML config dict
+        env_value: Environment variable value (or None if not set)
+        yaml_keys: Key path to look up in YAML (e.g., ("gastown", "agent_count"))
+        default: Default value if neither YAML nor env var set
+        parser: Function to parse the value (e.g., int, str.strip)
+        name: Config name for logging/warnings
+
+    Returns:
+        Merged configuration value
+    """
+    # Env var always wins
+    if env_value is not None and env_value.strip():
+        try:
+            return parser(env_value.strip())
+        except (ValueError, TypeError):
+            pass  # Fall through to YAML/default
+
+    # Check YAML
+    yaml_val = _get_yaml_value(yaml_cfg, *yaml_keys)
+    if yaml_val is not None:
+        try:
+            return parser(yaml_val)
+        except (ValueError, TypeError):
+            pass  # Fall through to default
+
+    return default
+
+
+def _parse_port_yaml(value: Any, default: int, name: str = "") -> int:
+    """Parse port from YAML or env var, with validation."""
+    try:
+        port = int(value)
+        if 1 <= port <= 65535:
+            return port
+    except (ValueError, TypeError):
+        pass
+
+    if name:
+        logger.warning("Invalid %s: %r must be between 1 and 65535, using default %d", name, value, default)
+    return default
+
+
+def _parse_positive_int_yaml(value: Any, default: int, name: str = "") -> int:
+    """Parse positive int from YAML or env var, with validation.
+
+    Matches the behavior of _parse_positive_int for backward compatibility.
+    """
+    try:
+        result = int(value)
+        if result <= 0:
+            if name:
+                logger.warning(
+                    "Invalid %s: %r must be positive, using default %d", name, value, default
+                )
+            return default
+        return result
+    except (ValueError, TypeError):
+        if name:
+            logger.warning(
+                "Invalid %s: %r is not a valid integer, using default %d", name, value, default
+            )
+        return default
+
+
+def _parse_string_yaml(value: Any, default: str = "") -> str:
+    """Parse string from YAML or env var.
+
+    Note: default is required when called from merge_config, but we handle
+    the default in merge_config itself, so this just parses the value.
+    """
+    if value is None:
+        return default
+    result = str(value).strip()
+    return result if result else default
+
+
+def _parse_string_list_yaml(value: Any) -> list[str]:
+    """Parse list of strings from YAML."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if v is not None]
+    if isinstance(value, str):
+        return [v.strip() for v in value.split(":") if v.strip()]
+    return []
+
+
+def load_config(config_path: str | None = None) -> GasclawConfig:
+    """Load and validate configuration from environment variables and YAML file.
+
+    Args:
+        config_path: Optional path to YAML config file. If not provided,
+                     uses GASCLAW_CONFIG env var or default path.
+
+    Returns:
+        GasclawConfig with merged env var and YAML values.
+
+    Priority (highest to lowest):
+    1. Environment variables
+    2. YAML config file
+    3. Default values
+    """
+    # Load YAML config
+    yaml_cfg = load_yaml_config(config_path)
+
+    # Required env vars (no YAML fallback for secrets)
     raw_keys = _require_env("GASTOWN_KIMI_KEYS")
     keys = _parse_keys(raw_keys)
     if not keys:
         raise ValueError("GASTOWN_KIMI_KEYS contains no valid keys")
 
-    # Parse additional Telegram allowlists (colon-separated)
-    telegram_allow_ids = _parse_ids(os.environ.get("TELEGRAM_ALLOW_IDS", ""))
-    telegram_group_ids = _parse_ids(os.environ.get("TELEGRAM_GROUP_IDS", ""))
+    # Parse additional Telegram allowlists from env var (colon-separated)
+    env_allow_ids = _parse_ids(os.environ.get("TELEGRAM_ALLOW_IDS", ""))
+    env_group_ids = _parse_ids(os.environ.get("TELEGRAM_GROUP_IDS", ""))
 
+    # Parse from YAML (list format)
+    yaml_allow_ids = _parse_string_list_yaml(_get_yaml_value(yaml_cfg, "telegram", "allow_ids"))
+    yaml_group_ids = _parse_string_list_yaml(_get_yaml_value(yaml_cfg, "telegram", "group_ids"))
+
+    # Merge allowlists (env var takes precedence, falls back to YAML)
+    telegram_allow_ids = env_allow_ids if env_allow_ids else yaml_allow_ids
+    telegram_group_ids = env_group_ids if env_group_ids else yaml_group_ids
+
+    # Build config with merge priority: env vars > YAML > defaults
     config = GasclawConfig(
         gastown_kimi_keys=keys,
         openclaw_kimi_key=_require_env("OPENCLAW_KIMI_KEY"),
         telegram_bot_token=_require_env("TELEGRAM_BOT_TOKEN"),
         telegram_owner_id=_require_env("TELEGRAM_OWNER_ID"),
-        gt_rig_url=os.environ.get("GT_RIG_URL", "/project").strip() or "/project",
-        project_dir=os.environ.get("PROJECT_DIR", "/project").strip() or "/project",
-        gt_agent_count=_parse_positive_int(
-            os.environ.get("GT_AGENT_COUNT", "6"), 6, "GT_AGENT_COUNT"
+        # Gastown settings
+        gt_rig_url=merge_config(
+            yaml_cfg,
+            os.environ.get("GT_RIG_URL"),
+            ("gastown", "rig_url"),
+            "/project",
+            _parse_string_yaml,
         ),
-        monitor_interval=_parse_positive_int(
-            os.environ.get("MONITOR_INTERVAL", "300"), 300, "MONITOR_INTERVAL"
+        # Paths
+        project_dir=merge_config(
+            yaml_cfg,
+            os.environ.get("PROJECT_DIR"),
+            ("paths", "project_dir"),
+            "/project",
+            _parse_string_yaml,
         ),
-        activity_deadline=_parse_positive_int(
-            os.environ.get("ACTIVITY_DEADLINE", "3600"), 3600, "ACTIVITY_DEADLINE"
+        # Gastown settings
+        gt_agent_count=_parse_positive_int_yaml(
+            os.environ.get("GT_AGENT_COUNT") or _get_yaml_value(yaml_cfg, "gastown", "agent_count"),
+            6,
+            "GT_AGENT_COUNT" if os.environ.get("GT_AGENT_COUNT") else "gastown.agent_count",
         ),
-        dolt_port=_parse_port(os.environ.get("DOLT_PORT", "3307"), 3307, "DOLT_PORT"),
-        gateway_port=_parse_port(
-            os.environ.get("GATEWAY_PORT", "18789"), 18789, "GATEWAY_PORT"
+        # Maintenance settings
+        monitor_interval=_parse_positive_int_yaml(
+            os.environ.get("MONITOR_INTERVAL") or _get_yaml_value(yaml_cfg, "maintenance", "monitor_interval"),
+            300,
+            "MONITOR_INTERVAL" if os.environ.get("MONITOR_INTERVAL") else "maintenance.monitor_interval",
         ),
+        activity_deadline=_parse_positive_int_yaml(
+            os.environ.get("ACTIVITY_DEADLINE") or _get_yaml_value(yaml_cfg, "maintenance", "activity_deadline"),
+            3600,
+            "ACTIVITY_DEADLINE" if os.environ.get("ACTIVITY_DEADLINE") else "maintenance.activity_deadline",
+        ),
+        # Service ports
+        dolt_port=_parse_port_yaml(
+            os.environ.get("DOLT_PORT") or _get_yaml_value(yaml_cfg, "services", "dolt_port"),
+            3307,
+            "DOLT_PORT" if os.environ.get("DOLT_PORT") else "services.dolt_port",
+        ),
+        gateway_port=_parse_port_yaml(
+            os.environ.get("GATEWAY_PORT") or _get_yaml_value(yaml_cfg, "services", "gateway_port"),
+            18789,
+            "GATEWAY_PORT" if os.environ.get("GATEWAY_PORT") else "services.gateway_port",
+        ),
+        # Telegram allowlists
         telegram_allow_ids=telegram_allow_ids,
         telegram_group_ids=telegram_group_ids,
-        agent_id=os.environ.get("AGENT_ID", "main").strip() or "main",
-        agent_name=os.environ.get("AGENT_NAME", "Gasclaw Overseer").strip() or "Gasclaw Overseer",
-        agent_emoji=os.environ.get("AGENT_EMOJI", "🏭").strip() or "🏭",
+        # Agent identity
+        agent_id=merge_config(
+            yaml_cfg,
+            os.environ.get("AGENT_ID"),
+            ("agent", "id"),
+            "main",
+            _parse_string_yaml,
+        ),
+        agent_name=merge_config(
+            yaml_cfg,
+            os.environ.get("AGENT_NAME"),
+            ("agent", "name"),
+            "Gasclaw Overseer",
+            _parse_string_yaml,
+        ),
+        agent_emoji=merge_config(
+            yaml_cfg,
+            os.environ.get("AGENT_EMOJI"),
+            ("agent", "emoji"),
+            "🏭",
+            _parse_string_yaml,
+        ),
     )
 
     logger.debug("Loaded configuration with %d Gastown keys", len(keys))
