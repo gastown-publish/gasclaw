@@ -38,7 +38,7 @@ bash ~/.openclaw/skills/gasclaw-logs/scripts/logs.sh gateway 20
 
 ## Project Context
 
-- **Repo**: /workspace/gasclaw (Python 3.13, 628 unit tests)
+- **Repo**: /workspace/gasclaw (Python 3.13, 954 unit tests)
 - **Config**: /workspace/config/gasclaw.yaml (editable from host)
 - **Logs**: /workspace/logs/ (startup, claude, gateway, tests)
 - **State**: /workspace/state/ (PIDs, maintenance state, pause sentinel)

@@ -71,7 +71,7 @@ For AI agents: [`llms.txt`](https://github.com/gastown-publish/gasclaw/blob/main
 ```bash
 python -m venv .venv && source .venv/bin/activate
 make dev
-make test       # 628 unit tests — no API keys needed
+make test       # 954 unit tests — no API keys needed
 make lint
 ```
 
@@ -90,7 +90,7 @@ src/gasclaw/
 reference/           # Distilled dependency docs (for agents)
 scripts/             # Validation scripts
 skills/              # OpenClaw skills
-tests/unit/          # 628 unit tests
+tests/unit/          # 954 unit tests
 ```
 
 ## Contributing
