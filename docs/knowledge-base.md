@@ -106,10 +106,13 @@ This is the most common issue. Check in order:
 3. **Is `groupPolicy` set to `"open"`?**
    Valid values: `"open"`, `"disabled"`, `"allowlist"`. The value `"owner"` does **not** exist and will be silently ignored.
 
-4. **Does the bot require @mention?**
-   Set `messages.ackReactionScope: "all"` to make the bot respond to every message, not just @mentions.
+4. **Is `requireMention` disabled for groups?**
+   By default, OpenClaw requires @mention in groups. You must set `channels.telegram.groups: { "*": { "requireMention": false } }` to make the bot reply to all group messages. The `ackReactionScope` only controls the acknowledgment emoji reaction — it does NOT control whether the bot actually replies.
 
-5. **Is `streaming` off?**
+5. **Is the bot an admin or is privacy mode disabled?**
+   Telegram bots have Privacy Mode enabled by default, which blocks them from seeing group messages unless @mentioned. Either make the bot a group admin, or disable privacy mode via BotFather (`/setprivacy` -> Disable). After changing privacy mode, remove and re-add the bot to each group.
+
+6. **Is `streaming` off?**
    Some Telegram setups don't support streaming. Set `streaming: "off"`.
 
 ### Q: What is the correct OpenClaw Telegram config?
@@ -123,6 +126,7 @@ This is the most common issue. Check in order:
       "dmPolicy": "open",
       "allowFrom": ["*"],
       "groupPolicy": "open",
+      "groups": { "*": { "requireMention": false } },
       "streaming": "off"
     }
   },
@@ -138,9 +142,12 @@ Key fields:
 |-------|-------|-----|
 | `dmPolicy` | `"open"` | Accept DMs from everyone |
 | `allowFrom` | `["*"]` | Required when `dmPolicy` is `"open"` |
-| `groupPolicy` | `"open"` | Accept all group messages |
-| `ackReactionScope` | `"all"` | Respond without requiring @mention |
+| `groupPolicy` | `"open"` | Accept all group senders |
+| `groups.*. requireMention` | `false` | Reply to all group messages without @mention |
+| `ackReactionScope` | `"all"` | Show acknowledgment reaction on all messages |
 | `streaming` | `"off"` | Avoid Telegram streaming issues |
+
+**Important:** `ackReactionScope` only controls the emoji reaction — it does NOT make the bot reply. The `groups.*.requireMention: false` setting is what actually disables the @mention requirement for group replies.
 
 ### Q: What values does `groupPolicy` accept?
 

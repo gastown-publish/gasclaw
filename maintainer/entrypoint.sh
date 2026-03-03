@@ -247,6 +247,7 @@ tg_channel = {
     "dmPolicy": "open",
     "allowFrom": ["*"],
     "groupPolicy": "open",
+    "groups": {"*": {"requireMention": False}},
     "streaming": "off",
 }
 
@@ -382,34 +383,31 @@ while true; do
     # Re-read interval from config (allows hot changes)
     MAINTENANCE_INTERVAL=$(python3 /opt/scripts/config-loader.py --get maintenance.loop_interval 2>/dev/null || echo "300")
 
-    # Hot-reload: sync gasclaw.yaml telegram config into openclaw.json
+    # Hot-reload: ensure openclaw.json telegram groups/requireMention stays correct
     python3 << 'HOTRELOAD' 2>/dev/null || true
-import yaml, json, os
-with open("/workspace/config/gasclaw.yaml") as f:
-    ycfg = yaml.safe_load(f) or {}
-tg = ycfg.get("telegram", {})
-users = [str(u) for u in tg.get("users", [])]
-group_users = [str(u) for u in tg.get("group_users", [])]
-owner = os.environ.get("TELEGRAM_CHAT_ID", "")
-if owner and owner not in users:
-    users.insert(0, owner)
-if owner and owner not in group_users:
-    group_users.insert(0, owner)
+import json, os
 
 oc_path = os.path.expanduser("~/.openclaw/openclaw.json")
 with open(oc_path) as f:
     oc = json.load(f)
 tg_ch = oc.get("channels", {}).get("telegram", {})
-changed = tg_ch.get("allowFrom") != users or tg_ch.get("groupAllowFrom") != (group_users or None)
+changed = False
+
+# Ensure dmPolicy=open with allowFrom=["*"] (required by OpenClaw validation)
+if tg_ch.get("dmPolicy") == "open" and tg_ch.get("allowFrom") != ["*"]:
+    tg_ch["allowFrom"] = ["*"]
+    changed = True
+
+# Ensure groups.*.requireMention=false so bot replies without @mention
+groups = tg_ch.get("groups", {})
+if not groups.get("*", {}).get("requireMention") is False:
+    tg_ch["groups"] = {"*": {"requireMention": False}}
+    changed = True
+
 if changed:
-    tg_ch["allowFrom"] = users
-    if group_users:
-        tg_ch["groupAllowFrom"] = group_users
-    elif "groupAllowFrom" in tg_ch:
-        del tg_ch["groupAllowFrom"]
     with open(oc_path, "w") as f:
         json.dump(oc, f, indent=2)
-    print("Hot-reload: updated openclaw.json telegram config")
+    print("Hot-reload: fixed openclaw.json telegram config")
 HOTRELOAD
 
     # Check for manual trigger

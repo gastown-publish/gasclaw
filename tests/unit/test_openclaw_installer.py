@@ -40,6 +40,7 @@ class TestWriteOpenclawConfig:
         assert tg["botToken"] == "123:ABC"
         assert tg["dmPolicy"] == "open"
         assert tg["groupPolicy"] == "open"
+        assert tg["groups"] == {"*": {"requireMention": False}}
         assert tg["allowFrom"] == ["*"]
 
     def test_gateway_port(self, tmp_path):

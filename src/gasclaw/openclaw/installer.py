@@ -94,6 +94,7 @@ def write_openclaw_config(
                 "dmPolicy": "open",
                 "allowFrom": ["*"],
                 "groupPolicy": "open",
+                "groups": {"*": {"requireMention": False}},
                 "streaming": "off",
             },
         },
