@@ -82,16 +82,16 @@ tg_send() {
         -d chat_id="${TELEGRAM_CHAT_ID}" \
         -d parse_mode=Markdown \
         -d text="$msg" > /dev/null 2>&1 || true
-    # Send to all other chats from config (skip owner, already sent above)
-    local chats
-    chats=$(python3 -c "
+    # Send to notification groups and other users from config
+    local targets
+    targets=$(python3 -c "
 import yaml
 with open('/workspace/config/gasclaw.yaml') as f:
     cfg = yaml.safe_load(f) or {}
 tg = cfg.get('telegram', {})
 for u in tg.get('users', []):
     print(u)
-for g in tg.get('groups', []):
+for g in tg.get('notify_groups', []):
     print(g)
 " 2>/dev/null) || true
     while IFS= read -r cid; do
@@ -101,7 +101,7 @@ for g in tg.get('groups', []):
             -d chat_id="$cid" \
             -d parse_mode=Markdown \
             -d text="$msg" > /dev/null 2>&1 || true
-    done <<< "$chats"
+    done <<< "$targets"
 }
 
 # --- 7. Run openclaw doctor FIRST (before writing our config) ---
@@ -183,18 +183,18 @@ config["agents"] = {
     }],
 }
 # Telegram: build allowlists from YAML config (editable from host)
-# OpenClaw uses separate fields: allowFrom (users) and groupAllowFrom (groups)
+# OpenClaw allowFrom = user IDs for DMs, groupAllowFrom = user IDs for group chats
 import yaml
 user_allow = []
-group_allow = []
+group_user_allow = []
 try:
     with open("/workspace/config/gasclaw.yaml") as yf:
         ycfg = yaml.safe_load(yf) or {}
     tg_cfg = ycfg.get("telegram", {})
     for uid in tg_cfg.get("users", []):
         user_allow.append(str(uid))
-    for gid in tg_cfg.get("groups", []):
-        group_allow.append(str(gid))
+    for uid in tg_cfg.get("group_users", []):
+        group_user_allow.append(str(uid))
 except Exception:
     pass
 
@@ -202,16 +202,18 @@ except Exception:
 owner_id = os.environ.get("TELEGRAM_CHAT_ID", "")
 if owner_id and owner_id not in user_allow:
     user_allow.insert(0, owner_id)
+if owner_id and owner_id not in group_user_allow:
+    group_user_allow.insert(0, owner_id)
 
-print(f"Telegram users: {user_allow}, groups: {group_allow}")
+print(f"Telegram DM users: {user_allow}, group users: {group_user_allow}")
 
 tg_channel = {
     "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
     "dmPolicy": "allowlist",
     "allowFrom": user_allow,
 }
-if group_allow:
-    tg_channel["groupAllowFrom"] = group_allow
+if group_user_allow:
+    tg_channel["groupAllowFrom"] = group_user_allow
 
 config["channels"] = {"telegram": tg_channel}
 config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
@@ -351,20 +353,22 @@ with open("/workspace/config/gasclaw.yaml") as f:
     ycfg = yaml.safe_load(f) or {}
 tg = ycfg.get("telegram", {})
 users = [str(u) for u in tg.get("users", [])]
-groups = [str(g) for g in tg.get("groups", [])]
+group_users = [str(u) for u in tg.get("group_users", [])]
 owner = os.environ.get("TELEGRAM_CHAT_ID", "")
 if owner and owner not in users:
     users.insert(0, owner)
+if owner and owner not in group_users:
+    group_users.insert(0, owner)
 
 oc_path = os.path.expanduser("~/.openclaw/openclaw.json")
 with open(oc_path) as f:
     oc = json.load(f)
 tg_ch = oc.get("channels", {}).get("telegram", {})
-changed = tg_ch.get("allowFrom") != users or tg_ch.get("groupAllowFrom") != (groups or None)
+changed = tg_ch.get("allowFrom") != users or tg_ch.get("groupAllowFrom") != (group_users or None)
 if changed:
     tg_ch["allowFrom"] = users
-    if groups:
-        tg_ch["groupAllowFrom"] = groups
+    if group_users:
+        tg_ch["groupAllowFrom"] = group_users
     elif "groupAllowFrom" in tg_ch:
         del tg_ch["groupAllowFrom"]
     with open(oc_path, "w") as f:

@@ -23,11 +23,15 @@ openclaw:
   gateway_port: 18789
 
 telegram:
-  # Allowed user DMs (positive IDs)
+  # User IDs allowed to DM the bot
   users:
     - "2045995148"          # nic (owner)
-  # Allowed groups (negative IDs)
-  groups:
+  # User IDs allowed to interact with the bot in groups
+  # (the bot must be added to the group separately)
+  group_users:
+    - "2045995148"          # nic (owner)
+  # Group chat IDs for sending notifications (startup, cycle reports)
+  notify_groups:
     - "-1003759869133"      # gasclaw group (supergroup)
 
 logging:
