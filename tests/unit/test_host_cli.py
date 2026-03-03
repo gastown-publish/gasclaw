@@ -1686,3 +1686,94 @@ class TestUpdateCommand:
 
         assert result.exit_code == 0
         assert "Warning" in result.output
+
+
+class TestCommandAliases:
+    """Test command aliases for convenience."""
+
+    def test_up_alias_calls_start(self, monkeypatch):
+        """Test that 'up' alias calls start command."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        start_calls = []
+
+        def mock_start(*, project_dir, build, detach):
+            start_calls.append({"project_dir": project_dir, "build": build, "detach": detach})
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli.start",
+            mock_start,
+        )
+
+        result = runner.invoke(app, ["up", "--build", "-d"])
+
+        assert result.exit_code == 0
+        assert len(start_calls) == 1
+        assert start_calls[0]["build"] is True
+        assert start_calls[0]["detach"] is True
+
+    def test_down_alias_calls_stop(self, monkeypatch):
+        """Test that 'down' alias calls stop command."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        stop_calls = []
+
+        def mock_stop(*, project_dir, remove):
+            stop_calls.append({"project_dir": project_dir, "remove": remove})
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli.stop",
+            mock_stop,
+        )
+
+        result = runner.invoke(app, ["down", "--remove"])
+
+        assert result.exit_code == 0
+        assert len(stop_calls) == 1
+        assert stop_calls[0]["remove"] is True
+
+    def test_ps_alias_calls_status(self, monkeypatch):
+        """Test that 'ps' alias calls status command."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        status_calls = []
+
+        def mock_status(*, project_dir):
+            status_calls.append({"project_dir": project_dir})
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli.status",
+            mock_status,
+        )
+
+        result = runner.invoke(app, ["ps"])
+
+        assert result.exit_code == 0
+        assert len(status_calls) == 1
+
+    def test_v_alias_calls_version(self, monkeypatch):
+        """Test that 'v' alias calls version command."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+
+        version_calls = []
+
+        def mock_version():
+            version_calls.append(True)
+
+        monkeypatch.setattr(
+            "gasclaw.host_cli.version",
+            mock_version,
+        )
+
+        result = runner.invoke(app, ["v"])
+
+        assert result.exit_code == 0
+        assert len(version_calls) == 1

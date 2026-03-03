@@ -366,7 +366,7 @@ def _create_default_config(project_path: Path) -> None:
     (project_path / "project").mkdir(exist_ok=True)
 
 
-@app.command()
+@app.command(name="start")
 def start(
     project_dir: Annotated[
         Path,
@@ -420,7 +420,7 @@ def start(
         console.print("  gasclaw stop    # Stop container")
 
 
-@app.command()
+@app.command(name="stop")
 def stop(
     project_dir: Annotated[
         Path,
@@ -460,7 +460,7 @@ def stop(
     console.print("[green]✅ Gasclaw stopped[/green]")
 
 
-@app.command()
+@app.command(name="status")
 def status(
     project_dir: Annotated[
         Path,
@@ -795,10 +795,62 @@ def update(
     console.print("[green]✅ Update complete[/green]")
 
 
-@app.command()
+@app.command(name="version")
 def version() -> None:
     """Show gasclaw version."""
     console.print(f"gasclaw {__version__}")
+
+
+# Command aliases for convenience
+@app.command(name="up", hidden=True)
+def up(
+    project_dir: Annotated[
+        Path,
+        typer.Option("--project-dir", "-p", help="Project directory containing docker-compose.yml"),
+    ] = Path("."),
+    build: Annotated[
+        bool,
+        typer.Option("--build", "-b", help="Build image before starting"),
+    ] = False,
+    detach: Annotated[
+        bool,
+        typer.Option("--detach", "-d", help="Run in detached mode"),
+    ] = True,
+) -> None:
+    """Alias for 'start' - Start the gasclaw container."""
+    start(project_dir=project_dir, build=build, detach=detach)
+
+
+@app.command(name="down", hidden=True)
+def down(
+    project_dir: Annotated[
+        Path,
+        typer.Option("--project-dir", "-p", help="Project directory containing docker-compose.yml"),
+    ] = Path("."),
+    remove: Annotated[
+        bool,
+        typer.Option("--remove", "-r", help="Remove container after stopping"),
+    ] = False,
+) -> None:
+    """Alias for 'stop' - Stop the gasclaw container."""
+    stop(project_dir=project_dir, remove=remove)
+
+
+@app.command(name="ps", hidden=True)
+def ps(
+    project_dir: Annotated[
+        Path,
+        typer.Option("--project-dir", "-p", help="Project directory"),
+    ] = Path("."),
+) -> None:
+    """Alias for 'status' - Show gasclaw container status."""
+    status(project_dir=project_dir)
+
+
+@app.command(name="v", hidden=True)
+def v() -> None:
+    """Alias for 'version' - Show gasclaw version."""
+    version()
 
 
 def main() -> None:
