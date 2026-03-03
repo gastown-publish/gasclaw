@@ -323,7 +323,9 @@ class TestCLIEdgeCases:
         """start --help shows available options."""
         result = runner.invoke(app, ["start", "--help"])
         assert result.exit_code == 0
-        assert "--gt-root" in result.output
+        import re
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "--gt-root" in plain
 
     def test_invalid_command_fails(self):
         """Invalid command name exits with error."""
