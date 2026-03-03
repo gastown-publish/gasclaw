@@ -9,6 +9,12 @@ from gasclaw.kimigas.credit_checker import (
 )
 from gasclaw.kimigas.key_pool import RATE_LIMIT_COOLDOWN, KeyPool
 from gasclaw.kimigas.proxy import KIMI_ANTHROPIC_BASE_URL, build_claude_env
+from gasclaw.kimigas.rate_limit_handler import (
+    RateLimitError,
+    RateLimitHandler,
+    RateLimitState,
+    with_rate_limit_handling,
+)
 
 __all__ = [
     "KeyPool",
@@ -18,4 +24,8 @@ __all__ = [
     "check_key_credits",
     "KIMI_ANTHROPIC_BASE_URL",
     "build_claude_env",
+    "RateLimitHandler",
+    "RateLimitState",
+    "RateLimitError",
+    "with_rate_limit_handling",
 ]
