@@ -8,7 +8,9 @@ services:
       - KIMI_API_KEY=${KIMI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - TELEGRAM_GROUP_ID=${TELEGRAM_GROUP_ID:-}
       - HOME=/home/maintainer
     volumes:
       - ./data:/workspace
+      - ./entrypoint.sh:/entrypoint.sh:ro
     restart: unless-stopped

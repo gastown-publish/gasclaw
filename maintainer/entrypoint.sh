@@ -159,11 +159,17 @@ config["agents"] = {
         "identity": {"name": "Gasclaw Maintainer", "emoji": "\U0001f3ed"},
     }],
 }
+# Telegram: support both DM and group
+telegram_allow = [os.environ["TELEGRAM_CHAT_ID"]]
+group_id = os.environ.get("TELEGRAM_GROUP_ID", "").strip()
+if group_id:
+    telegram_allow.append(group_id)
+
 config["channels"] = {
     "telegram": {
         "botToken": os.environ["TELEGRAM_BOT_TOKEN"],
         "dmPolicy": "allowlist",
-        "allowFrom": [os.environ["TELEGRAM_CHAT_ID"]],
+        "allowFrom": telegram_allow,
     }
 }
 config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
@@ -337,6 +343,79 @@ with open(state_file, 'w') as f:
     # Wait for Claude Code to finish
     wait "$CLAUDE_PID" || true
     rm -f /workspace/state/claude.pid
+
+    # --- Post-cycle: detect changes and send Telegram report ---
+    export CYCLE_NUM=$CYCLE
+    export MAINTENANCE_REPO
+    CYCLE_REPORT=$(python3 << 'REPORT_EOF'
+import subprocess, json, datetime, os
+
+repo = os.environ.get("MAINTENANCE_REPO", "gastown-publish/gasclaw")
+cycle = os.environ.get("CYCLE_NUM", "?")
+
+# Get PRs merged in the last 10 minutes
+try:
+    result = subprocess.run(
+        ["gh", "pr", "list", "--repo", repo, "--state", "merged",
+         "--json", "number,title,mergedAt", "--limit", "20"],
+        capture_output=True, text=True, timeout=30
+    )
+    merged_prs = json.loads(result.stdout) if result.returncode == 0 else []
+except Exception:
+    merged_prs = []
+
+# Filter to recently merged (last 15 min)
+now = datetime.datetime.now(datetime.timezone.utc)
+recent = []
+for pr in merged_prs:
+    try:
+        merged_at = datetime.datetime.fromisoformat(pr["mergedAt"].replace("Z", "+00:00"))
+        if (now - merged_at).total_seconds() < 900:  # 15 min
+            recent.append(pr)
+    except Exception:
+        pass
+
+# Get open issue count
+try:
+    result = subprocess.run(
+        ["gh", "issue", "list", "--repo", repo, "--state", "open", "--json", "number"],
+        capture_output=True, text=True, timeout=30
+    )
+    open_issues = len(json.loads(result.stdout)) if result.returncode == 0 else "?"
+except Exception:
+    open_issues = "?"
+
+# Get open PR count
+try:
+    result = subprocess.run(
+        ["gh", "pr", "list", "--repo", repo, "--state", "open", "--json", "number"],
+        capture_output=True, text=True, timeout=30
+    )
+    open_prs = len(json.loads(result.stdout)) if result.returncode == 0 else "?"
+except Exception:
+    open_prs = "?"
+
+# Build message
+lines = [f"🏭 *Maintenance cycle #{cycle} complete*"]
+
+if recent:
+    lines.append(f"\n*Merged {len(recent)} PR(s):*")
+    for pr in recent:
+        lines.append(f"  • #{pr['number']} {pr['title']}")
+
+if not recent:
+    lines.append("\nNo PRs merged this cycle.")
+
+lines.append(f"\n📊 Open: {open_prs} PRs, {open_issues} issues")
+print("\n".join(lines))
+REPORT_EOF
+    )
+
+    if [ -n "$CYCLE_REPORT" ]; then
+        export CYCLE_NUM=$CYCLE
+        tg_send "$CYCLE_REPORT"
+        echo "$CYCLE_REPORT"
+    fi
 
     # Update state to completed
     python3 -c "
