@@ -39,13 +39,13 @@ RUN case "${TARGETARCH}" in \
 RUN npm install -g @anthropic-ai/claude-code
 
 # OpenClaw
-RUN npm install -g openclaw || true
+RUN npm install -g openclaw
 
 # KimiGas (kimi-cli)
-RUN pip install --no-cache-dir kimi-cli || true
+RUN pip install --no-cache-dir kimi-cli
 
 # Gastown (gt)
-RUN pip install --no-cache-dir gastown || true
+RUN pip install --no-cache-dir gastown
 
 # Install gasclaw
 WORKDIR /opt/gasclaw
