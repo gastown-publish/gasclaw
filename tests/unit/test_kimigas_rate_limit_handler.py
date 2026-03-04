@@ -218,16 +218,16 @@ class TestRateLimitHandlerStatePersistence:
         handler = RateLimitHandler(state_dir=tmp_path)
         handler.state_dir.mkdir(parents=True, exist_ok=True)
 
-        def fail_dump(*args, **kwargs):
+        def fail_dumps(*args, **kwargs):
             raise TypeError("Cannot serialize")
 
-        monkeypatch.setattr(json, "dump", fail_dump)
+        monkeypatch.setattr(json, "dumps", fail_dumps)
 
         with pytest.raises(TypeError):
             handler._save_state(RateLimitState())
 
-        # No temp files should remain
-        temps = list(tmp_path.glob(".rate-limit-*.tmp"))
+        # No temp files should remain in state_dir or its parent
+        temps = list(tmp_path.glob("*.tmp")) + list(tmp_path.glob(".*.tmp"))
         assert len(temps) == 0
 
 
