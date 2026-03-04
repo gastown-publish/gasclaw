@@ -33,7 +33,7 @@ src/gasclaw/
     ├── applier.py      # Run update commands
     └── notifier.py     # POST to OpenClaw gateway
 skills/                 # OpenClaw skills (5: health, keys, update, agents, ais-orchestrator)
-tests/unit/             # 628 unit tests — all mocked, no API keys needed
+tests/unit/             # 954 unit tests — all mocked, no API keys needed
 tests/integration/      # Integration tests (optional, needs services)
 ```
 
@@ -71,7 +71,7 @@ make test-all      # Includes integration tests
 make lint          # Ruff linting
 ```
 
-All 628 unit tests must pass. Never modify a test to make it pass — fix the code.
+All 954 unit tests must pass. Never modify a test to make it pass — fix the code.
 
 ## Architecture Decisions
 
@@ -121,7 +121,7 @@ All 628 unit tests must pass. Never modify a test to make it pass — fix the co
 ## PR Checklist
 
 Before creating a PR, verify:
-- [ ] `make test` passes (all 628 tests)
+- [ ] `make test` passes (all 954 tests)
 - [ ] `make lint` passes
 - [ ] New code has corresponding tests
 - [ ] Commit message follows `<type>: <description>` format

@@ -82,20 +82,20 @@ Expected output:
 ```
 ============================= test session starts ==============================
 platform linux -- Python 3.13.x, pytest-9.x.x
-collected 628 items
+collected 954 items
 
 tests/unit/... ............................................... [100%]
 
-============================== 628 passed in 12s ===============================
+============================== 954 passed in 12s ===============================
 ```
 
-All 628 unit tests run with mocked dependencies — no API keys or running services needed.
+All 954 unit tests run with mocked dependencies — no API keys or running services needed.
 
 ## Development Commands
 
 ```bash
 make dev        # Install dev dependencies
-make test       # Unit tests only (628 tests)
+make test       # Unit tests only (954 tests)
 make test-all   # All tests including integration
 make lint       # Ruff linting
 ```

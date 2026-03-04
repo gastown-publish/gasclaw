@@ -253,7 +253,7 @@ Use `gt agents` (correct). The flag `--agents` on `gt status` does not exist and
 ### Q: How do I run the tests?
 
 ```bash
-make test          # 628 unit tests (no API keys or services needed)
+make test          # 954 unit tests (no API keys or services needed)
 make test-all      # Includes integration tests
 make lint          # Ruff linting
 ```
@@ -328,7 +328,7 @@ docs: update architecture and troubleshooting guides
 
 ### Q: What should every PR include?
 
-- All 628 tests passing (`make test`)
+- All 954 tests passing (`make test`)
 - Lint passing (`make lint`)
 - New code has corresponding tests
 - Commit message follows `<type>: <description>`
