@@ -56,7 +56,7 @@ RUN curl -sL https://raw.githubusercontent.com/gastown-publish/ais/main/bin/ais 
 
 # Install gasclaw
 WORKDIR /opt/gasclaw
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 COPY src/ src/
 COPY skills/ skills/
 RUN pip install --no-cache-dir .
