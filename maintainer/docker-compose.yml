@@ -9,6 +9,12 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     volumes:
       - ./data:/workspace
+      # Persistent state (survives rebuilds)
+      - ./data/openclaw:/root/.openclaw
+      - ./data/dolt-global:/root/.dolt
+      - ./data/gasclaw-state:/root/.gasclaw
+      - ./data/claude-config:/root/.claude-config
+      - ./data/kimi-accounts:/root/.kimi-accounts
       # Bind-mount code/config so changes never need docker build
       - ./entrypoint.sh:/entrypoint.sh:ro
       - ./scripts:/opt/scripts:ro

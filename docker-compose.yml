@@ -11,6 +11,21 @@ services:
       - "18789:18789"
     volumes:
       - ./project:/project
+      # Persistent state (survives rebuilds)
+      - gasclaw-openclaw:/root/.openclaw
+      - gasclaw-dolt:/root/.dolt
+      - gasclaw-state:/root/.gasclaw
+      - gasclaw-claude:/root/.claude-config
+      - gasclaw-kimi:/root/.kimi-accounts
+      - gasclaw-workspace:/workspace
     env_file:
       - .env
     restart: unless-stopped
+
+volumes:
+  gasclaw-openclaw:
+  gasclaw-dolt:
+  gasclaw-state:
+  gasclaw-claude:
+  gasclaw-kimi:
+  gasclaw-workspace:
