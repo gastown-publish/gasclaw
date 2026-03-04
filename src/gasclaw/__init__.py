@@ -17,5 +17,5 @@ from __future__ import annotations
 from gasclaw.bootstrap import bootstrap
 from gasclaw.config import load_config
 
-__version__ = "0.2.0"
+__version__ = "0.4.0"
 __all__ = ["__version__", "bootstrap", "load_config"]

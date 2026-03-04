@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -294,7 +295,7 @@ def with_rate_limit_handling(
     handler: RateLimitHandler,
     max_attempts: int = 5,
     notify: bool = True,
-):
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator/context manager helper for rate limit handling.
 
     Usage:
@@ -314,8 +315,8 @@ def with_rate_limit_handling(
         Decorator function.
     """
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             for attempt in range(max_attempts):
                 # Wait if rate limited
                 handler.wait_if_rate_limited()

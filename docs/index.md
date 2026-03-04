@@ -1,7 +1,7 @@
 # Gasclaw Documentation
 
-[![Tests](https://img.shields.io/badge/tests-1021%20passing-brightgreen)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+[![Tests](https://img.shields.io/badge/tests-1021%20passing-brightgreen)](https://github.com/gastown-publish/gasclaw/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/gastown-publish/gasclaw/blob/main/LICENSE)
 
 **Single-container deployment combining Gastown + OpenClaw + KimiGas.**
 

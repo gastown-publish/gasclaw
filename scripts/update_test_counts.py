@@ -29,7 +29,7 @@ def count_tests(test_path: str = "tests/unit") -> int:
         subprocess.CalledProcessError: If pytest fails.
     """
     result = subprocess.run(
-        ["python", "-m", "pytest", test_path, "--collect-only"],
+        [sys.executable, "-m", "pytest", test_path, "--collect-only"],
         capture_output=True,
         text=True,
         check=True,

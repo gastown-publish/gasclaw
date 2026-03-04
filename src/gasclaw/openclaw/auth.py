@@ -38,7 +38,7 @@ def get_gateway_auth_token(openclaw_dir: Path | None = None) -> str:
             logger.debug("Read auth token from %s", config_path)
         else:
             logger.warning("No auth token found in %s", config_path)
-        return token
+        return str(token)
     except json.JSONDecodeError as e:
         logger.error("Invalid JSON in %s: %s", config_path, e)
         return ""

@@ -228,7 +228,8 @@ class ForumTopicManager:
                     f"Telegram API error {error_code}: {description}"
                 )
 
-            return data.get("result", {})
+            result: dict[str, Any] = data.get("result", {})
+            return result
         except httpx.HTTPError as e:
             raise ForumTopicError(f"HTTP error: {e}") from e
 
@@ -243,7 +244,7 @@ class ForumTopicManager:
         """
         try:
             chat_info = self._make_request("getChat", {"chat_id": chat_id})
-            is_forum = chat_info.get("is_forum", False)
+            is_forum: bool = chat_info.get("is_forum", False)
 
             state = self.get_group_state(chat_id)
             state.is_forum = is_forum
@@ -307,7 +308,7 @@ class ForumTopicManager:
 
         try:
             result = self._make_request("createForumTopic", params)
-            thread_id = result.get("message_thread_id")
+            thread_id: int | None = result.get("message_thread_id")
 
             if thread_id:
                 logger.info(

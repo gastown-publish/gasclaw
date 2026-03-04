@@ -82,7 +82,7 @@ def build_group_topics(
     return topics
 
 
-def build_agent_list(agents: list[AgentSpec], openclaw_base: Path) -> list[dict]:
+def build_agent_list(agents: list[AgentSpec], openclaw_base: Path) -> list[dict[str, Any]]:
     """Build the agents.list config array."""
     result = []
     for agent in agents:
@@ -208,7 +208,7 @@ def generate_team_config(
     auth_token: str,
     openclaw_base: Path,
     model: str = "kimi-coding/k2p5",
-) -> dict:
+) -> dict[str, Any]:
     """Generate the full openclaw.json for a multi-agent team.
 
     All messages route to the coordinator via a single Telegram binding.

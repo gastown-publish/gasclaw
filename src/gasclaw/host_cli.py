@@ -54,7 +54,7 @@ def _get_docker_compose_cmd() -> list[str]:
     return ["docker-compose"]
 
 
-def _run_docker(args: list[str], check: bool = True) -> subprocess.CompletedProcess:
+def _run_docker(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     """Run a docker command and return the result."""
     cmd = ["docker"] + args
     return subprocess.run(cmd, capture_output=True, text=True, check=check)
@@ -64,7 +64,7 @@ def _run_docker_compose(
     args: list[str],
     project_dir: Path | None = None,
     check: bool = True,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """Run docker compose command in the specified project directory."""
     cmd = _get_docker_compose_cmd() + args
     cwd = project_dir if project_dir else Path.cwd()

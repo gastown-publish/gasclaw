@@ -34,6 +34,11 @@ nav:
     - Configuration: getting-started/configuration.md
     - Quick Start: getting-started/quickstart.md
   - Architecture: architecture.md
+  - Guides:
+    - Docker Deployment: guides/docker-deployment.md
+    - Gastown Integration: guides/gastown-integration.md
+    - Kimi Proxy & Key Rotation: guides/kimi-proxy.md
+    - OpenClaw & Telegram: guides/openclaw-telegram.md
   - API Reference:
     - Bootstrap: api/bootstrap.md
     - Config: api/config.md

@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -189,7 +190,7 @@ def _parse_port(value: str, default: int, name: str = "") -> int:
         return default
 
 
-def _get_yaml_value(yaml_cfg: dict, *keys: str, default: Any = None) -> Any:
+def _get_yaml_value(yaml_cfg: dict[str, Any], *keys: str, default: Any = None) -> Any:
     """Get a nested value from YAML config by key path."""
     current = yaml_cfg
     for key in keys:
@@ -200,7 +201,7 @@ def _get_yaml_value(yaml_cfg: dict, *keys: str, default: Any = None) -> Any:
     return current
 
 
-def load_yaml_config(path: str | None = None) -> dict:
+def load_yaml_config(path: str | None = None) -> dict[str, Any]:
     """Load YAML config file, returning empty dict if not found or invalid.
 
     Args:
@@ -231,9 +232,9 @@ def load_yaml_config(path: str | None = None) -> dict:
         return {}
 
 
-def _parse_simple_yaml(text: str) -> dict:
+def _parse_simple_yaml(text: str) -> dict[str, Any]:
     """Minimal YAML parser for simple key: value files (no PyYAML needed)."""
-    result: dict = {}
+    result: dict[str, Any] = {}
     current_section = None
 
     for line in text.splitlines():
@@ -251,35 +252,41 @@ def _parse_simple_yaml(text: str) -> dict:
         if current_section and ":" in stripped:
             key, _, val = stripped.partition(":")
             key = key.strip()
-            val = val.strip()
+            raw_val = val.strip()
 
             # Parse value
-            if val.startswith("[") and val.endswith("]"):
+            parsed_val: Any
+            if raw_val.startswith("[") and raw_val.endswith("]"):
                 # List: ["a", "b"] or [a, b]
-                val = [v.strip().strip('"').strip("'") for v in val[1:-1].split(",") if v.strip()]
-            elif val.startswith('"') and val.endswith('"') or \
-                    val.startswith("'") and val.endswith("'"):
-                val = val[1:-1]
-            elif val.lower() == "true":
-                val = True
-            elif val.lower() == "false":
-                val = False
-            elif val.isdigit() or (val.startswith("-") and val[1:].isdigit()):
-                val = int(val)
-            elif val == "":
-                val = None
+                parsed_val = [
+                    v.strip().strip('"').strip("'")
+                    for v in raw_val[1:-1].split(",") if v.strip()
+                ]
+            elif raw_val.startswith('"') and raw_val.endswith('"') or \
+                    raw_val.startswith("'") and raw_val.endswith("'"):
+                parsed_val = raw_val[1:-1]
+            elif raw_val.lower() == "true":
+                parsed_val = True
+            elif raw_val.lower() == "false":
+                parsed_val = False
+            elif raw_val.isdigit() or (raw_val.startswith("-") and raw_val[1:].isdigit()):
+                parsed_val = int(raw_val)
+            elif raw_val == "":
+                parsed_val = None
+            else:
+                parsed_val = raw_val
 
-            result[current_section][key] = val
+            result[current_section][key] = parsed_val
 
     return result
 
 
 def merge_config(
-    yaml_cfg: dict,
+    yaml_cfg: dict[str, Any],
     env_value: str | None,
     yaml_keys: tuple[str, ...],
     default: Any,
-    parser: callable = lambda x: x,  # type: ignore
+    parser: Callable[[Any], Any] = lambda x: x,
     name: str = "",
 ) -> Any:
     """Merge YAML and env var values, with env vars taking precedence.

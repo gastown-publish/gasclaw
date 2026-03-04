@@ -26,12 +26,13 @@ RUN pip install --no-cache-dir pyyaml
 # Go toolchain (for gt and bd)
 COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
 ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin:/usr/local/bin
-# Install dolt for gastown
-RUN curl -fsSL -o /tmp/dolt.tar.gz "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-amd64.tar.gz" && \
+# Install dolt for gastown (multi-arch)
+RUN DOLT_ARCH=$(dpkg --print-architecture) && \
+    curl -fsSL -o /tmp/dolt.tar.gz "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-${DOLT_ARCH}.tar.gz" && \
     tar -xzf /tmp/dolt.tar.gz -C /tmp && \
-    cp /tmp/dolt-linux-amd64/bin/dolt /usr/local/bin/dolt && \
+    cp /tmp/dolt-linux-${DOLT_ARCH}/bin/dolt /usr/local/bin/dolt && \
     chmod +x /usr/local/bin/dolt && \
-    rm -rf /tmp/dolt.tar.gz /tmp/dolt-linux-amd64
+    rm -rf /tmp/dolt.tar.gz /tmp/dolt-linux-${DOLT_ARCH}
 
 # Gastown (gt) and Beads (bd) — installed inside the image
 RUN go install github.com/steveyegge/gastown/cmd/gt@v0.10.0

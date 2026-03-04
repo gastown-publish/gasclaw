@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -210,7 +211,7 @@ def format_failure_message(failure: CIFailure) -> str:
 def check_ci_failures(
     repo: str,
     state_file: str | None = None,
-    send_notification: callable | None = None
+    send_notification: Callable[[str], None] | None = None
 ) -> dict[str, int]:
     """Check for CI failures and create issues for new ones.
 

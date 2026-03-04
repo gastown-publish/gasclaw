@@ -231,26 +231,26 @@ def migrate(
 
     if from_source == "openclaw-launcher":
         console.print("[bold]Checking for openclaw-launcher installation...[/bold]")
-        result = migrate_openclaw_launcher(
+        launcher_result = migrate_openclaw_launcher(
             openclaw_dir=openclaw_dir,
             env_file=env_file,
             interactive=True,
         )
 
-        if result["success"]:
+        if launcher_result["success"]:
             console.print("[green]✅ Migration successful[/green]")
-            if result.get("migrated_keys"):
-                console.print(f"   Migrated: {', '.join(result['migrated_keys'])}")
-            if result.get("warnings"):
+            if launcher_result.get("migrated_keys"):
+                console.print(f"   Migrated: {', '.join(launcher_result['migrated_keys'])}")
+            if launcher_result.get("warnings"):
                 console.print("\n[yellow]Warnings:[/yellow]")
-                for warning in result["warnings"]:
+                for warning in launcher_result["warnings"]:
                     console.print(f"   ⚠️  {warning}")
             if not dry_run and env_file:
                 console.print(f"\n   Config file: {env_file}")
         else:
             console.print("[red]❌ Migration failed[/red]")
-            if result.get("error"):
-                console.print(f"   Error: {result['error']}")
+            if launcher_result.get("error"):
+                console.print(f"   Error: {launcher_result['error']}")
             raise typer.Exit(code=1)
 
         if not dry_run:

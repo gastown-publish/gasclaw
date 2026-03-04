@@ -1,7 +1,18 @@
 [project]
 name = "gasclaw"
-version = "0.2.0"
+version = "0.4.0"
 description = "Gastown + OpenClaw + KimiGas in one container"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "Gastown Contributors"}]
+keywords = ["ai", "agents", "gastown", "openclaw", "telegram", "kimi", "claude-code"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
 requires-python = ">=3.12"
 dependencies = [
     "typer>=0.21.0,<0.25.0",
@@ -20,11 +31,18 @@ dev = [
     "ruff>=0.14.0",
     "mypy>=1.15.0",
     "pyyaml>=6.0.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [project.scripts]
 gasclaw = "gasclaw.host_cli:app"
 gasclaw-container = "gasclaw.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/gastown-publish/gasclaw"
+Repository = "https://github.com/gastown-publish/gasclaw"
+Documentation = "https://github.com/gastown-publish/gasclaw/wiki"
+Issues = "https://github.com/gastown-publish/gasclaw/issues"
 
 [build-system]
 requires = ["hatchling"]

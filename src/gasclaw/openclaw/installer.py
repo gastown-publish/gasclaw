@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 
 def _generate_auth_token() -> str:
@@ -65,7 +66,7 @@ def write_openclaw_config(
     owner_str = str(owner_id)
 
     # General topic (1) must stay enabled for inbound message routing
-    group_topics: dict = {"1": {"requireMention": False}}
+    group_topics: dict[str, Any] = {"1": {"requireMention": False}}
     topic_prompts = {
         "status": "STATUS topic. Post system health, dashboards, service status.",
         "maintenance": "MAINTENANCE topic. Post cycle reports, config changes, update logs.",
@@ -82,7 +83,7 @@ def write_openclaw_config(
             }
 
     # Build groups config
-    groups_cfg: dict = {}
+    groups_cfg: dict[str, Any] = {}
     if group_id:
         groups_cfg[group_id] = {
             "requireMention": False,

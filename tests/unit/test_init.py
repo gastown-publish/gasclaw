@@ -10,7 +10,7 @@ class TestPackageMetadata:
 
     def test_version_matches_expected(self):
         """Package version is correctly set."""
-        assert gasclaw.__version__ == "0.2.0"
+        assert gasclaw.__version__ == "0.4.0"
 
     def test_version_is_string(self):
         """Version is a string (not a tuple or other type)."""

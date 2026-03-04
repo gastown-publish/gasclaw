@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -32,7 +33,7 @@ class TestCountTests:
 
         assert result == 2
         mock_run.assert_called_once_with(
-            ["python", "-m", "pytest", "tests/unit", "--collect-only"],
+            [sys.executable, "-m", "pytest", "tests/unit", "--collect-only"],
             capture_output=True,
             text=True,
             check=True,
