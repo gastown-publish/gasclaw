@@ -9,8 +9,9 @@ Gasclaw is an autonomous code maintenance system that deploys AI agents to monit
 | Component | Purpose | Source |
 |-----------|---------|--------|
 | **Gastown** | Multi-agent workspace (Mayor, Crew, Daemon) | [steveyegge/gastown](https://github.com/steveyegge/gastown) — Go CLI (`gt`) |
-| **OpenClaw** | Overseer bot — monitors agents, Telegram interface | npm: `openclaw` — Node.js |
-| **KimiGas** | LRU key rotation with rate-limit cooldown | Built-in Python module |
+| **OpenClaw** | Overseer bot — monitors agents, Telegram interface | [openclaw/openclaw](https://github.com/openclaw/openclaw) — Node.js |
+| **KimiGas** | LRU key rotation with rate-limit cooldown | [gastown-publish/kimigas](https://github.com/gastown-publish/kimigas) |
+| **AIS** | tmux-based AI session manager | [gastown-publish/ais](https://github.com/gastown-publish/ais) |
 | **Dolt** | Version-controlled SQL database for agent state | [dolthub/dolt](https://github.com/dolthub/dolt) |
 | **Beads** | Git-backed issue tracking used by Gastown | [steveyegge/beads](https://github.com/steveyegge/beads) — Go CLI (`bd`) |
 

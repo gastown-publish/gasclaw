@@ -2,7 +2,7 @@
 
 **Gastown + OpenClaw + KimiGas in one container.**
 
-A single-container deployment that runs a [Gastown](https://github.com/steveyegge/gastown) multi-agent workspace, managed by an [OpenClaw](https://docs.openclaw.ai) overseer bot on Telegram. All agents use **Kimi K2.5** as their LLM backend through Claude Code's agentic interface.
+A single-container deployment that runs a [Gastown](https://github.com/steveyegge/gastown) multi-agent workspace, managed by an [OpenClaw](https://github.com/openclaw/openclaw) overseer bot on Telegram. All agents use **Kimi K2.5** as their LLM backend through Claude Code's agentic interface.
 
 ## Quick Start
 
@@ -17,8 +17,9 @@ docker compose up -d
 | Component | Role |
 |-----------|------|
 | [Gastown](https://github.com/steveyegge/gastown) (`gt`) | Multi-agent workspace — Mayor, Crew, Daemon |
-| [OpenClaw](https://docs.openclaw.ai) | Overseer — Telegram bot, monitoring, compliance |
-| KimiGas | LRU key rotation with rate-limit cooldown |
+| [OpenClaw](https://github.com/openclaw/openclaw) | Overseer — Telegram bot, monitoring, compliance |
+| [KimiGas](https://github.com/gastown-publish/kimigas) | LRU key rotation with rate-limit cooldown |
+| [AIS](https://github.com/gastown-publish/ais) | tmux-based AI session manager |
 | [Dolt](https://github.com/dolthub/dolt) | Version-controlled SQL for agent state |
 | [Beads](https://github.com/steveyegge/beads) (`bd`) | Git-backed issue tracking |
 

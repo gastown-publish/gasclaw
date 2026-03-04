@@ -9,7 +9,7 @@ Gasclaw runs a Gastown multi-agent workspace managed by an OpenClaw overseer bot
 - Repo: https://github.com/gastown-publish/gasclaw
 - Gastown: https://github.com/steveyegge/gastown
 - Gastown Docs: https://docs.gt.villamarket.ai
-- OpenClaw: https://github.com/gastown-publish/openclaw-launcher
+- OpenClaw: https://github.com/openclaw/openclaw
 - Kimi CLI: https://github.com/MoonshotAI/kimi-cli
 - Kimi Docs: https://moonshotai.github.io/kimi-cli/en/
 - AIS: https://github.com/gastown-publish/ais
