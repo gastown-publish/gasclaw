@@ -23,7 +23,7 @@ RUN npm install -g @anthropic-ai/claude-code openclaw
 # PyYAML for config loader
 RUN pip install --no-cache-dir pyyaml
 
-# Go toolchain (for installing gt/bd if not bind-mounted)
+# Go toolchain (for gt and bd)
 COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
 ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin:/usr/local/bin
 # Install dolt for gastown
@@ -33,9 +33,9 @@ RUN curl -fsSL -o /tmp/dolt.tar.gz "https://github.com/dolthub/dolt/releases/lat
     chmod +x /usr/local/bin/dolt && \
     rm -rf /tmp/dolt.tar.gz /tmp/dolt-linux-amd64
 
-# Install gt + bd as fallback (bind-mount from host overrides this)
-RUN go install github.com/steveyegge/gastown/cmd/gt@v0.10.0 || true
-RUN go install github.com/steveyegge/beads/cmd/bd@latest || true
+# Gastown (gt) and Beads (bd) — installed inside the image
+RUN go install github.com/steveyegge/gastown/cmd/gt@v0.10.0
+RUN go install github.com/steveyegge/beads/cmd/bd@latest
 
 # --- Light layers ---
 

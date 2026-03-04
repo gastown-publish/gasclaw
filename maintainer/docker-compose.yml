@@ -15,6 +15,4 @@ services:
       - ./skills:/opt/maintainer-skills:ro
       - ./agent-soul.md:/opt/agent-soul.md:ro
       - ./agent-bootstrap.md:/opt/agent-bootstrap.md:ro
-      # Mount gt CLI from host — set GT_HOST_BINARY to your local gt path
-      - ${GT_HOST_BINARY:-/usr/local/bin/gt}:/usr/local/bin/gt:ro
     restart: unless-stopped
