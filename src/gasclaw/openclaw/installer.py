@@ -64,8 +64,8 @@ def write_openclaw_config(
 
     owner_str = str(owner_id)
 
-    # Build per-topic config with General disabled
-    group_topics: dict = {"1": {"enabled": False}}
+    # General topic (1) must stay enabled for inbound message routing
+    group_topics: dict = {"1": {"requireMention": False}}
     topic_prompts = {
         "status": "STATUS topic. Post system health, dashboards, service status.",
         "maintenance": "MAINTENANCE topic. Post cycle reports, config changes, update logs.",
