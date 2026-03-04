@@ -237,15 +237,15 @@ class TestWriteOpenclawConfig:
         grp = cfg["channels"]["telegram"]["groups"]["-1001234567890"]
         assert grp["requireMention"] is False
         topics = grp["topics"]
-        assert topics["1"]["enabled"] is False
+        assert topics["1"]["requireMention"] is False
         assert topics["100"]["requireMention"] is False
         assert "STATUS" in topics["100"]["systemPrompt"]
         assert topics["101"]["requireMention"] is False
         assert topics["104"]["requireMention"] is False
         assert "CHAT" in topics["104"]["systemPrompt"]
 
-    def test_group_general_disabled(self, tmp_path):
-        """General topic (thread 1) is disabled when group is configured."""
+    def test_group_general_enabled(self, tmp_path):
+        """General topic (thread 1) stays enabled for inbound routing."""
         write_openclaw_config(
             openclaw_dir=tmp_path,
             kimi_key="sk-test",
@@ -256,7 +256,7 @@ class TestWriteOpenclawConfig:
         )
         cfg = json.loads((tmp_path / "openclaw.json").read_text())
         topics = cfg["channels"]["telegram"]["groups"]["-100999"]["topics"]
-        assert topics["1"]["enabled"] is False
+        assert topics["1"]["requireMention"] is False
 
     def test_no_group_id_means_empty_groups(self, tmp_path):
         """Without group_id, groups config is empty."""
