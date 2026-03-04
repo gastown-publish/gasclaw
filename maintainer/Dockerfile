@@ -23,9 +23,9 @@ RUN npm install -g @anthropic-ai/claude-code openclaw
 # PyYAML for config loader
 RUN pip install --no-cache-dir pyyaml
 
-# Gastown CLI (gt) - copy from host or install
-COPY --from=golang:1.23-bookworm /usr/local/go /usr/local/go
-ENV PATH=$PATH:/usr/local/go/bin:/usr/local/bin
+# Go toolchain (for installing gt/bd if not bind-mounted)
+COPY --from=golang:1.25-bookworm /usr/local/go /usr/local/go
+ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin:/usr/local/bin
 # Install dolt for gastown
 RUN curl -fsSL -o /tmp/dolt.tar.gz "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-amd64.tar.gz" && \
     tar -xzf /tmp/dolt.tar.gz -C /tmp && \
@@ -33,17 +33,16 @@ RUN curl -fsSL -o /tmp/dolt.tar.gz "https://github.com/dolthub/dolt/releases/lat
     chmod +x /usr/local/bin/dolt && \
     rm -rf /tmp/dolt.tar.gz /tmp/dolt-linux-amd64
 
-# Note: gt CLI is bind-mounted from host via docker-compose.yml
+# Install gt + bd as fallback (bind-mount from host overrides this)
+RUN go install github.com/steveyegge/gastown/cmd/gt@v0.10.0 || true
+RUN go install github.com/steveyegge/beads/cmd/bd@latest || true
 
 # --- Light layers ---
 
-# Non-root user setup
-RUN useradd -m -s /bin/bash maintainer \
-    && mkdir -p /workspace /opt/scripts /opt/maintainer-skills \
-    && chmod 777 /workspace /home/maintainer
+# Directories for bind-mounted code/config
+RUN mkdir -p /workspace /opt/scripts /opt/maintainer-skills
 
 WORKDIR /workspace
-USER maintainer
 
 EXPOSE 18789
 

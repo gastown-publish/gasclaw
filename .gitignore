@@ -18,3 +18,6 @@ venv/
 *~
 .DS_Store
 CONTRIBUTION_PROMPT.md
+
+# Container runtime data (bind-mounted workspace)
+maintainer/data/

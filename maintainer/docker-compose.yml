@@ -2,13 +2,11 @@ services:
   maintainer:
     build: .
     container_name: gasclaw-maintainer
-    user: "${UID:-1000}:${GID:-1000}"
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - KIMI_API_KEY=${KIMI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - HOME=/home/maintainer
     volumes:
       - ./data:/workspace
       # Bind-mount code/config so changes never need docker build
@@ -17,6 +15,6 @@ services:
       - ./skills:/opt/maintainer-skills:ro
       - ./agent-soul.md:/opt/agent-soul.md:ro
       - ./agent-bootstrap.md:/opt/agent-bootstrap.md:ro
-      # Mount gt CLI from host (built locally since GitHub release doesn't exist)
-      - /home/villa/go/bin/gt:/usr/local/bin/gt:ro
+      # Mount gt CLI from host — set GT_HOST_BINARY to your local gt path
+      - ${GT_HOST_BINARY:-/usr/local/bin/gt}:/usr/local/bin/gt:ro
     restart: unless-stopped

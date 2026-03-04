@@ -22,8 +22,8 @@ RUN case "${TARGETARCH}" in \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# Go 1.24 (multi-platform: amd64 or arm64)
-RUN curl -fsSL https://go.dev/dl/go1.24.2.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf -
+# Go 1.25 (multi-platform: amd64 or arm64) — required by Gastown v0.10.0+
+RUN curl -fsSL https://go.dev/dl/go1.25.7.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf -
 ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
 
 # Dolt (multi-platform - install appropriate binary)
@@ -45,7 +45,7 @@ RUN npm install -g openclaw
 RUN pip install --no-cache-dir kimi-cli
 
 # Gastown (gt) — real Go CLI from github.com/steveyegge/gastown
-RUN go install github.com/steveyegge/gastown/cmd/gt@latest
+RUN go install github.com/steveyegge/gastown/cmd/gt@v0.10.0
 
 # Beads (bd) — git-backed issue tracking required by Gastown
 RUN go install github.com/steveyegge/beads/cmd/bd@latest
