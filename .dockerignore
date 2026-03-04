@@ -6,8 +6,17 @@ build/
 .venv/
 venv/
 .env
+.env.*
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 .git/
+.github/
 .DS_Store
 tests/
+docs/
+maintainer/
+reference/
+*.md
+!README.md
+CONTRIBUTION_PROMPT.md

@@ -54,20 +54,22 @@ Agents run `claude` CLI with `ANTHROPIC_BASE_URL` pointed at Kimi's API. Permiss
 | `TELEGRAM_BOT_TOKEN` | Yes | Telegram bot token |
 | `TELEGRAM_OWNER_ID` | Yes | Telegram user ID |
 
-Optional: `GT_RIG_URL`, `GT_AGENT_COUNT`, `MONITOR_INTERVAL`, `ACTIVITY_DEADLINE`, `DOLT_PORT`, `LOG_LEVEL` — see [Configuration](https://github.com/gastown-publish/gasclaw/wiki/Configuration).
+Optional: `GT_RIG_URL`, `GT_AGENT_COUNT`, `MONITOR_INTERVAL`, `ACTIVITY_DEADLINE`, `DOLT_PORT`, `GATEWAY_PORT`, `LOG_LEVEL` — see [.env.example](.env.example) for the full list.
 
 ## Documentation
 
-Full docs are on the **[Wiki](https://github.com/gastown-publish/gasclaw/wiki)**:
+- **[Documentation Site](https://gastown-publish.github.io/gasclaw/)** — full guides and API reference
+- **[Wiki](https://github.com/gastown-publish/gasclaw/wiki)** — quick reference
 
-- [Architecture](https://github.com/gastown-publish/gasclaw/wiki/Architecture)
-- [Configuration](https://github.com/gastown-publish/gasclaw/wiki/Configuration)
-- [Gastown Integration](https://github.com/gastown-publish/gasclaw/wiki/Gastown-Integration)
-- [Kimi Proxy & Key Rotation](https://github.com/gastown-publish/gasclaw/wiki/Kimi-Proxy)
-- [OpenClaw & Telegram](https://github.com/gastown-publish/gasclaw/wiki/OpenClaw-Telegram)
-- [Docker Deployment](https://github.com/gastown-publish/gasclaw/wiki/Docker-Deployment)
-- [Troubleshooting](https://github.com/gastown-publish/gasclaw/wiki/Troubleshooting)
-- [Knowledge Base / FAQ](https://github.com/gastown-publish/gasclaw/wiki/Knowledge-Base)
+| Guide | Topic |
+|-------|-------|
+| [Architecture](https://gastown-publish.github.io/gasclaw/architecture/) | System design and component interaction |
+| [Gastown Integration](https://gastown-publish.github.io/gasclaw/guides/gastown-integration/) | Real Gastown CLI (`gt`) setup |
+| [Kimi Proxy](https://gastown-publish.github.io/gasclaw/guides/kimi-proxy/) | KimiGas key rotation and Claude env |
+| [OpenClaw & Telegram](https://gastown-publish.github.io/gasclaw/guides/openclaw-telegram/) | Bot config, policies, and channels |
+| [Docker Deployment](https://gastown-publish.github.io/gasclaw/guides/docker-deployment/) | Container setup, volumes, networking |
+| [Troubleshooting](https://gastown-publish.github.io/gasclaw/troubleshooting/) | Common issues and fixes |
+| [Knowledge Base](https://gastown-publish.github.io/gasclaw/knowledge-base/) | FAQ and lessons learned |
 
 For AI agents: [`llms.txt`](https://github.com/gastown-publish/gasclaw/blob/main/llms.txt) — machine-readable project reference.
 
