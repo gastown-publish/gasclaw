@@ -10,17 +10,15 @@ with support for:
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
-import os
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from gasclaw.updater.notifier import notify_telegram
+from gasclaw.utils import atomic_write_json
 
 logger = logging.getLogger(__name__)
 
@@ -143,23 +141,8 @@ class RateLimitHandler:
 
     def _save_state(self, state: RateLimitState) -> None:
         """Save rate limit state to disk atomically."""
-        self.state_dir.mkdir(parents=True, exist_ok=True)
-
-        # Write to temp file in same directory, then rename atomically
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.state_dir, prefix=".rate-limit-", suffix=".tmp"
-        )
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(state.to_dict(), f, indent=2)
-            os.replace(temp_path, self.state_file)
-            self._state = state
-        except (OSError, TypeError, ValueError) as e:
-            # Clean up temp file on failure
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
-            logger.error("Failed to save rate limit state: %s", e)
-            raise
+        atomic_write_json(self.state_file, state.to_dict())
+        self._state = state
 
     def get_state(self) -> RateLimitState:
         """Get current rate limit state (cached or loaded)."""

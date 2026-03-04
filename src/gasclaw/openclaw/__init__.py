@@ -19,15 +19,21 @@ from gasclaw.openclaw.lifecycle import start_openclaw, stop_openclaw
 from gasclaw.openclaw.skill_manager import install_skills
 
 __all__ = [
+    # Auth
+    "get_gateway_auth_token",
+    # Doctor
     "DoctorResult",
+    "run_doctor",
+    # Forum
     "ForumTopicError",
     "ForumTopicManager",
     "GroupForumState",
     "TopicConfig",
-    "get_gateway_auth_token",
-    "install_skills",
-    "run_doctor",
+    # Installer
+    "write_openclaw_config",
+    # Lifecycle
     "start_openclaw",
     "stop_openclaw",
-    "write_openclaw_config",
+    # Skills
+    "install_skills",
 ]
