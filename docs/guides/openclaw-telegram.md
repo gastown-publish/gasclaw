@@ -151,7 +151,7 @@ OpenClaw uses its **own Kimi key** (`OPENCLAW_KIMI_KEY`), separate from the Gast
 
 ## Skills
 
-Skills extend the bot's capabilities. Gasclaw ships with four built-in skills:
+Skills extend the bot's capabilities. Gasclaw ships with five built-in skills:
 
 | Skill | Directory | Purpose |
 |-------|-----------|---------|
@@ -159,6 +159,7 @@ Skills extend the bot's capabilities. Gasclaw ships with four built-in skills:
 | `gastown-keys` | `skills/gastown-keys/` | Key pool management |
 | `gastown-update` | `skills/gastown-update/` | Version update commands |
 | `gastown-agents` | `skills/gastown-agents/` | Agent control commands |
+| `ais-orchestrator` | `skills/ais-orchestrator/` | Multi-agent tmux orchestration |
 
 Skills are installed to `~/.openclaw/skills/` during bootstrap.
 

@@ -16,7 +16,7 @@ docker compose up -d
 |-----------|--------|
 | Python 3.13 | `python3` |
 | Node.js 22 | `node`, `npm` |
-| Go 1.24 | `go` |
+| Go 1.25 | `go` |
 | Dolt | `dolt` |
 | Claude Code | `claude` |
 | OpenClaw | `openclaw` |
@@ -30,6 +30,11 @@ docker compose up -d
 |-------|---------|
 | `/project` | Host project repo (what agents work on) |
 | `/workspace` | Agent workspace, logs, state |
+| `/root/.openclaw` | OpenClaw config and skills |
+| `/root/.dolt` | Dolt global config |
+| `/root/.gasclaw` | Gasclaw state |
+| `/root/.claude-config` | Claude Code config (permission bypass) |
+| `/root/.kimi-accounts` | Kimi account credentials |
 
 ## Ports
 

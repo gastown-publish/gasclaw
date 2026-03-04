@@ -94,7 +94,7 @@ src/gasclaw/
     └── notifier.py      # POST to OpenClaw gateway / Telegram
 reference/               # Distilled dependency docs for agents
 scripts/                 # Validation scripts
-skills/                  # OpenClaw skills (health, keys, update, agents)
+skills/                  # OpenClaw skills (health, keys, update, agents, ais-orchestrator)
 tests/unit/              # 1021 unit tests (all mocked)
 ```
 

@@ -4,6 +4,10 @@
 
 A single-container deployment that runs a [Gastown](https://github.com/steveyegge/gastown) multi-agent workspace, managed by an [OpenClaw](https://github.com/openclaw/openclaw) overseer bot on Telegram. All agents use **Kimi K2.5** as their LLM backend through Claude Code's agentic interface.
 
+## Prerequisites
+
+- **Docker Engine 24+** and **Docker Compose v2** — [Install Docker](https://docs.docker.com/engine/install/)
+
 ## Quick Start
 
 ```bash

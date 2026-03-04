@@ -12,8 +12,8 @@ Everything else is pre-installed in the container.
 
 ### For Local Development
 
-- Python 3.11+
-- Go 1.24+
+- Python 3.12+
+- Go 1.25+
 - Node.js 22+
 - Git
 - Dolt

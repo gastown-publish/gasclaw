@@ -118,6 +118,7 @@ Skills are installed to `~/.openclaw/skills/`:
 | `gastown-keys` | Key management commands |
 | `gastown-update` | Update commands |
 | `gastown-agents` | Agent control commands |
+| `ais-orchestrator` | Multi-agent tmux orchestration |
 
 ## KimiGas (Key Pool)
 

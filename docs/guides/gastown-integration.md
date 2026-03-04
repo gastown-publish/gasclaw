@@ -21,8 +21,8 @@ All agent processes invoke the `claude` CLI, which Gasclaw redirects to Kimi K2.
 The Dockerfile installs Gastown from source using Go:
 
 ```dockerfile
-# Go 1.24 (multi-platform)
-RUN curl -fsSL https://go.dev/dl/go1.24.2.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf -
+# Go 1.25 (multi-platform)
+RUN curl -fsSL https://go.dev/dl/go1.25.7.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf -
 ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
 
 # Gastown (gt) — real Go CLI
@@ -37,7 +37,7 @@ Do **not** use `pip install gastown` — that is a different, incorrect package.
 ### Local Development
 
 ```bash
-# Install Go 1.24+
+# Install Go 1.25+
 go install github.com/steveyegge/gastown/cmd/gt@latest
 go install github.com/steveyegge/beads/cmd/bd@latest
 

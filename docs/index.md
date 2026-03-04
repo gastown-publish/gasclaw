@@ -1,6 +1,6 @@
 # Gasclaw Documentation
 
-[![Tests](https://img.shields.io/badge/tests-954%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-1021%20passing-brightgreen)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
 **Single-container deployment combining Gastown + OpenClaw + KimiGas.**
@@ -12,8 +12,9 @@ Gasclaw is an autonomous code maintenance system that deploys AI agents to monit
 | Component | Purpose | Source |
 |-----------|---------|--------|
 | **Gastown** | Multi-agent workspace (Mayor, Crew, Daemon) | [steveyegge/gastown](https://github.com/steveyegge/gastown) — Go CLI (`gt`) |
-| **OpenClaw** | Overseer bot — monitors agents, Telegram interface | npm: `openclaw` — Node.js |
-| **KimiGas** | LRU key rotation with rate-limit cooldown | Built-in Python module |
+| **OpenClaw** | Overseer bot — monitors agents, Telegram interface | [openclaw/openclaw](https://github.com/openclaw/openclaw) — Node.js |
+| **KimiGas** | LRU key rotation with rate-limit cooldown | [gastown-publish/kimigas](https://github.com/gastown-publish/kimigas) |
+| **AIS** | tmux-based AI session manager | [gastown-publish/ais](https://github.com/gastown-publish/ais) |
 | **Dolt** | Version-controlled SQL database for agent state | [dolthub/dolt](https://github.com/dolthub/dolt) |
 | **Beads** | Git-backed issue tracking used by Gastown | [steveyegge/beads](https://github.com/steveyegge/beads) — Go CLI (`bd`) |
 
@@ -27,7 +28,7 @@ Agents run **Claude Code CLI** (`claude`) with `ANTHROPIC_BASE_URL` pointed at K
 │  OpenClaw Gateway (port 18789) — THE OVERSEER                  │
 │    ├── Telegram channel (open DM + group policy)               │
 │    ├── Kimi K2.5 (own key, separate from Gastown)              │
-│    └── Skills: health, keys, update, agents                    │
+│    └── Skills: health, keys, update, agents, ais-orchestrator  │
 │                                                                 │
 │  Gastown HQ (/workspace/gt)                                    │
 │    ├── Mayor (Claude Code via KimiGas)                         │

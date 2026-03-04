@@ -13,7 +13,7 @@ docker compose up -d
 
 ## Local Development
 
-Requirements: Python 3.11+, Go 1.24+, Node.js 22+, Git.
+Requirements: Python 3.12+, Go 1.25+, Node.js 22+, Git.
 
 ### 1. Clone and Setup Python
 
