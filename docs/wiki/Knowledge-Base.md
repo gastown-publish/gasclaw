@@ -48,7 +48,7 @@ Most common cause: file permission error with `set -euo pipefail`. Fix: `docker 
 
 ## Testing
 
-**Q: Test count?** 954 unit tests, all mocked, no API keys needed.
+**Q: Test count?** 1021 unit tests, all mocked, no API keys needed.
 
 **Q: Tests hang?** Bootstrap tests may leak env vars. Patch `build_claude_env` and `write_claude_config`.
 

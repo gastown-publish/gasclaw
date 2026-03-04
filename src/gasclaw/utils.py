@@ -49,7 +49,7 @@ def atomic_write(path: Path, content: str | bytes, *, mode: str = "w") -> None:
         with os.fdopen(fd, mode) as f:
             f.write(content)
         os.replace(temp_path, path)
-    except (OSError, TypeError) as e:
+    except (OSError, TypeError):
         # Clean up temp file on any failure
         with contextlib.suppress(OSError):
             os.unlink(temp_path)

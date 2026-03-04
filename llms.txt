@@ -66,7 +66,7 @@ docker compose up -d
 Development:
 ```bash
 python -m venv .venv && source .venv/bin/activate
-make dev && make test   # 628 unit tests, no API keys needed
+make dev && make test   # 1021 unit tests, no API keys needed
 ```
 
 ## Project Structure
@@ -95,7 +95,7 @@ src/gasclaw/
 reference/               # Distilled dependency docs for agents
 scripts/                 # Validation scripts
 skills/                  # OpenClaw skills (health, keys, update, agents)
-tests/unit/              # 628 unit tests (all mocked)
+tests/unit/              # 1021 unit tests (all mocked)
 ```
 
 ## Bootstrap Sequence (10 steps)
@@ -219,7 +219,7 @@ Rotation: Claude cc1→cc2→cc3→cc1, Kimi 1→2→3→1.
 ## Validation
 
 ```bash
-make test                              # 628 unit tests
+make test                              # 1021 unit tests
 make lint                              # Ruff linting
 bash scripts/validate-openclaw-config.sh  # OpenClaw config validation
 openclaw doctor --repair               # Health check + fix

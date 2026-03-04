@@ -43,7 +43,7 @@ npm install -g openclaw @anthropic-ai/claude-code
 ### 3. Verify
 
 ```bash
-make test    # 954 unit tests — no API keys needed
+make test    # 1021 unit tests — no API keys needed
 ```
 
 ## Next Steps

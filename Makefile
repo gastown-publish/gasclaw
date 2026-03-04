@@ -9,16 +9,16 @@ dev:
 test: test-unit
 
 test-unit:
-	python -m pytest tests/unit -v
+	python3 -m pytest tests/unit -v
 
 test-all:
-	python -m pytest tests/ -v
+	python3 -m pytest tests/ -v
 
 lint:
 	ruff check src/ tests/
 
 type-check:
-	python -m mypy src/gasclaw --ignore-missing-imports
+	python3 -m mypy src/gasclaw --ignore-missing-imports
 
 format:
 	ruff format src/ tests/
