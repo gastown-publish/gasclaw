@@ -46,6 +46,10 @@ jobs:
           pip install ruff
           ruff check src tests
 
+      - name: Run type checks
+        run: |
+          python -m mypy src/gasclaw --ignore-missing-imports
+
   build:
     needs: test
     runs-on: ubuntu-latest
