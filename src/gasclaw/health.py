@@ -14,6 +14,7 @@ from typing import Any
 
 import httpx
 
+from gasclaw.kimigas.key_pool import KeyPool
 from gasclaw.openclaw.doctor import run_doctor
 
 logger = logging.getLogger(__name__)
@@ -116,15 +117,22 @@ def _list_agents() -> list[str]:
     return []
 
 
-def check_health(*, gateway_port: int = 18789, dolt_port: int = 3307) -> HealthReport:
+def check_health(
+    *,
+    gateway_port: int = 18789,
+    dolt_port: int = 3307,
+    key_pool: KeyPool | None = None,
+) -> HealthReport:
     """Run all health checks and return a complete report.
 
     Args:
         gateway_port: OpenClaw gateway port for connectivity check.
         dolt_port: Dolt SQL server port for health check.
+        key_pool: Optional KeyPool to include key status in the report.
 
     """
     doctor = run_doctor()
+    key_pool_status = key_pool.status() if key_pool else {}
     return HealthReport(
         dolt=_check_service(["dolt", "sql", "--port", str(dolt_port), "-q", "SELECT 1"], "dolt"),
         daemon=_check_service(["gt", "daemon", "status"], "daemon"),
@@ -132,6 +140,7 @@ def check_health(*, gateway_port: int = 18789, dolt_port: int = 3307) -> HealthR
         openclaw=_check_openclaw_gateway(gateway_port),
         openclaw_doctor="healthy" if doctor.healthy else "unhealthy",
         agents=_list_agents(),
+        key_pool=key_pool_status,
     )
 
 
