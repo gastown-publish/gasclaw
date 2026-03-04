@@ -356,19 +356,20 @@ def main() -> int:
     log_level = logging.DEBUG if args.verbose else logging.INFO
     log_format = "%(asctime)s | %(levelname)-8s | %(message)s"
 
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+    file_handler: logging.FileHandler | None = None
+
     if args.log_file:
         log_path = Path(args.log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        logging.basicConfig(
-            level=log_level,
-            format=log_format,
-            handlers=[
-                logging.FileHandler(args.log_file),
-                logging.StreamHandler(sys.stdout),
-            ],
-        )
-    else:
-        logging.basicConfig(level=log_level, format=log_format)
+        file_handler = logging.FileHandler(args.log_file)
+        handlers.append(file_handler)
+
+    logging.basicConfig(
+        level=log_level,
+        format=log_format,
+        handlers=handlers,
+    )
 
     notify_callback = send_telegram_notification if args.notify else None
 
@@ -384,7 +385,9 @@ def main() -> int:
         # Fork to background
         pid = os.fork()
         if pid > 0:
-            # Parent exit
+            # Parent exit - close file handler before returning
+            if file_handler is not None:
+                file_handler.close()
             print(f"Watchdog started (PID {pid})")
             return 0
 
@@ -392,7 +395,10 @@ def main() -> int:
         watchdog.run()
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
-        return 0
+    finally:
+        # Close file handler to prevent ResourceWarning
+        if file_handler is not None:
+            file_handler.close()
 
     return 0
 
