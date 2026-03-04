@@ -21,3 +21,8 @@ CONTRIBUTION_PROMPT.md
 
 # Container runtime data (bind-mounted workspace)
 maintainer/data/
+
+# Gas Town (added by gt)
+.runtime/
+.claude/commands/
+.logs/
