@@ -16,9 +16,12 @@ logger = logging.getLogger(__name__)
 def start_openclaw(
     *,
     port: int = 18789,
-    timeout: int = 30,
+    timeout: int = 60,
 ) -> None:
     """Start OpenClaw gateway and wait for it to be ready.
+    
+    Uses `gateway run` (foreground) for container compatibility instead of
+    `gateway start` which requires systemd.
 
     Args:
         port: Gateway port.
@@ -29,8 +32,9 @@ def start_openclaw(
         TimeoutError: If openclaw is not ready within the timeout.
 
     """
+    # Use `gateway run` for container environments (no systemd required) (#316)
     proc = subprocess.Popen(
-        ["openclaw", "gateway", "start", "--port", str(port)],
+        ["openclaw", "gateway", "run", "--port", str(port)],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -74,6 +78,7 @@ def stop_openclaw(*, timeout: int = 30) -> None:
 
     """
     try:
+        # Try graceful shutdown first
         subprocess.run(
             ["openclaw", "gateway", "stop"],
             check=False,
@@ -86,3 +91,13 @@ def stop_openclaw(*, timeout: int = 30) -> None:
         logger.warning("Timeout stopping OpenClaw gateway")
     except Exception as e:  # noqa: BLE001
         logger.warning("Error stopping OpenClaw: %s", e)
+    
+    # Also kill any remaining openclaw gateway run processes
+    try:
+        subprocess.run(
+            ["pkill", "-f", "openclaw gateway run"],
+            check=False,
+            timeout=5,
+        )
+    except Exception:  # noqa: BLE001
+        pass

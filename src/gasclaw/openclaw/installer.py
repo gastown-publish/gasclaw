@@ -27,6 +27,7 @@ def write_openclaw_config(
     topic_ids: dict[str, str] | None = None,
     gateway_port: int = 18789,
     gt_root: str = "/workspace/gt",
+    agent_count: int = 1,  # Number of agents to create (#322)
 ) -> Path:
     """Write ~/.openclaw/openclaw.json with full configuration.
 
@@ -43,6 +44,7 @@ def write_openclaw_config(
         topic_ids: Mapping of topic names to thread IDs.
         gateway_port: Gateway port (default 18789).
         gt_root: Gastown root directory (for bead workspace).
+        agent_count: Number of agents to create in the config.
 
     Returns:
         Path to the written openclaw.json.
@@ -91,28 +93,37 @@ def write_openclaw_config(
             "topics": group_topics,
         }
 
+    # Correct model ID for kimi-coding provider (#320)
+    primary_model = "kimi-coding/k2p5"
+    fallback_models = ["openrouter/qwen/qwen3-coder:free"]
+
+    # Build agent list based on agent_count (#322)
+    agent_list = []
+    for i in range(agent_count):
+        agent_id = f"crew-{i}" if i > 0 else "main"
+        agent_name = f"Gasclaw Crew-{i}" if i > 0 else "Gasclaw Overseer"
+        agent_list.append({
+            "id": agent_id,
+            "identity": {
+                "name": agent_name,
+                "emoji": "🏭",
+            },
+        })
+
     config = {
         "agents": {
             "defaults": {
                 "model": {
-                    "primary": "openrouter/moonshotai/kimi-k2.5",
-                    "fallbacks": ["openrouter/qwen/qwen3-coder:free"],
+                    "primary": primary_model,
+                    "fallbacks": fallback_models,
                 },
                 "models": {
-                    "openrouter/moonshotai/kimi-k2.5": {},
+                    primary_model: {},
                     "openrouter/qwen/qwen3-coder:free": {},
                 },
                 "workspace": str(openclaw_dir / "workspace"),
             },
-            "list": [
-                {
-                    "id": "main",
-                    "identity": {
-                        "name": "Gasclaw Overseer",
-                        "emoji": "🏭",
-                    },
-                }
-            ],
+            "list": agent_list,
         },
         "channels": {
             "telegram": {
@@ -156,6 +167,8 @@ def write_openclaw_config(
             },
         },
         "env": {
+            # KIMI_API_KEY required for kimi-coding provider (#323)
+            "KIMI_API_KEY": kimi_key,
             "MOONSHOT_API_KEY": kimi_key,
             "BD_ROOT": gt_root,
         },
