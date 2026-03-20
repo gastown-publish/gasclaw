@@ -1,6 +1,6 @@
 {
-  "patrol_count": 1,
+  "patrol_count": 21,
   "extraordinary_action": false,
-  "last_patrol": "2026-03-20T11:52:12Z",
-  "observation": "Cycle 16: Handoff complete, dead session cleared."
+  "last_patrol": "2026-03-20T16:27:00Z",
+  "observation": "Cycle 21: Patrol complete, system idle, merge queue empty."
 }
