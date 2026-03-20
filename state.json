@@ -1,7 +1,7 @@
 {
-  "patrol_count": 21,
-  "last_patrol": "2026-03-20T16:27:00Z",
+  "patrol_count": 22,
+  "last_patrol": "2026-03-20T17:05:00Z",
   "status": "idle",
   "dead_sessions": 0,
-  "active_sessions": 6
+  "active_sessions": 0
 }
