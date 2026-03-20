@@ -1,5 +1,6 @@
 {
-  "patrol_count": 21,
+  "patrol_count": 1,
   "extraordinary_action": false,
-  "last_patrol": "2026-03-20T07:24:00Z"
+  "last_patrol": "2026-03-20T10:40:00Z",
+  "observation": "Cycle 16 (reset): Deacon alive, Refinery alive, no polecats. Inbox clean. Starting fresh cycle after handoff."
 }
