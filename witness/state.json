@@ -1,6 +1,6 @@
 {
-  "patrol_count": 12,
+  "patrol_count": 15,
   "extraordinary_action": false,
-  "last_patrol": "2026-03-20T18:31:00Z",
-  "observation": "Cycles 37-45: System stable, Deacon alive, Refinery alive, no polecats"
+  "last_patrol": "2026-03-20T18:32:00Z",
+  "observation": "Cycle 50: Threshold reached (15), handing off. Deacon alive, Refinery alive, no polecats, system idle."
 }
