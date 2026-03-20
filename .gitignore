@@ -26,3 +26,7 @@ maintainer/data/
 .runtime/
 .claude/commands/
 .logs/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
