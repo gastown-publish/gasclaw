@@ -1,6 +1,6 @@
 {
-  "patrol_count": 0,
+  "patrol_count": 15,
   "extraordinary_action": false,
-  "last_patrol": "2026-03-20T18:51:00Z",
-  "observation": "Handoff sent. Waiting for fresh session."
+  "last_patrol": "2026-03-20T20:45:00Z",
+  "observation": "Cycle 15: Deacon alive, Refinery dead, no polecats. At threshold - handing off."
 }
