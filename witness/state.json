@@ -1,6 +1,6 @@
 {
-  "patrol_count": 22,
+  "patrol_count": 0,
   "extraordinary_action": false,
-  "last_patrol": "2026-03-20T17:05:00Z",
-  "observation": "Cycle 22: Patrol complete, system idle, merge queue empty, no AIS sessions."
+  "last_patrol": "2026-03-20T18:25:00Z",
+  "observation": "Cycle 33: Handing off after 22+ cycles, system idle, threshold reached."
 }
