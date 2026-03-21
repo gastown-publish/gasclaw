@@ -82,6 +82,11 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
         logger.info("Starting Dolt")
         start_dolt()
         dolt_started = True
+
+        # Verify Dolt is accepting SQL queries before proceeding
+        # This ensures the database is ready for beads operations
+        logger.info("Verifying Dolt readiness...")
+        _verify_dolt_ready(port=config.dolt_port)
         logger.info("Dolt started successfully")
 
         # 5. Configure OpenClaw (beads for memory, not files)
@@ -236,3 +241,44 @@ def monitor_loop(
             time.sleep(interval)
     except KeyboardInterrupt:
         logger.info("Monitor loop stopped by user")
+
+
+def _verify_dolt_ready(*, port: int = 3307, timeout: int = 30) -> None:
+    """Verify Dolt is accepting SQL queries.
+
+    This ensures Dolt is fully ready before proceeding with operations
+    that require the database (like beads initialization).
+
+    Args:
+        port: Dolt SQL server port.
+        timeout: Max seconds to wait for readiness.
+
+    Raises:
+        TimeoutError: If Dolt is not ready within the timeout.
+        RuntimeError: If Dolt SQL query fails.
+    """
+    import subprocess
+
+    deadline = time.time() + timeout
+    last_error = None
+
+    while time.time() < deadline:
+        try:
+            result = subprocess.run(
+                ["dolt", "sql", "--port", str(port), "-q", "SELECT 1"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                # Success - Dolt is ready
+                return
+            last_error = result.stderr
+        except subprocess.TimeoutExpired:
+            last_error = "timeout"
+        except FileNotFoundError:
+            raise RuntimeError("dolt command not found in PATH")
+
+        time.sleep(1)
+
+    raise TimeoutError(f"Dolt not accepting queries after {timeout}s. Last error: {last_error}")
