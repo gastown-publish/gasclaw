@@ -1,6 +1,7 @@
 {
-  "patrol_count": 52,
+  "patrol_count": 14,
   "extraordinary_action": false,
-  "last_patrol": "2026-03-21T00:50:00Z",
-  "observation": "Cycle 52: Deacon alive. Refinery dead (expected). No polecats. All systems nominal. Inbox contains 6 handoff messages. Context clean."
+  "last_patrol": "2026-03-21T03:05:00Z",
+  "current_patrol": "gt-wisp-iwxd8a",
+  "observation": "Cycle 14: Deacon alive, Refinery stopped (expected), No polecats, Inbox clean. All nominal."
 }
