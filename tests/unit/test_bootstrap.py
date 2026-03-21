@@ -120,6 +120,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.gastown_install", side_effect=se("install")),
             patch("gasclaw.bootstrap.configure_agent", side_effect=se("agent_config")),
             patch("gasclaw.bootstrap.start_dolt", side_effect=se("dolt")),
+            patch("gasclaw.bootstrap._verify_dolt_ready"),
             patch("gasclaw.bootstrap.write_openclaw_config", side_effect=se("openclaw")),
             patch("gasclaw.bootstrap.install_skills", side_effect=se("skills")),
             patch("gasclaw.bootstrap.run_doctor", side_effect=doctor_side_effect),
@@ -130,13 +131,12 @@ class TestBootstrap:
         ):
             bootstrap(config, gt_root=tmp_path)
 
-        # Verify critical ordering
-        assert order.index("kimi") < order.index("install")
+        # Verify critical ordering (dolt must start before install/agent_config)
+        assert order.index("kimi") < order.index("dolt")
+        assert order.index("dolt") < order.index("install")
         assert order.index("install") < order.index("agent_config")
-        assert order.index("agent_config") < order.index("dolt")
         assert order.index("skills") < order.index("doctor")
         assert order.index("doctor") < order.index("daemon")
-        assert order.index("dolt") < order.index("daemon")
         assert order.index("daemon") < order.index("mayor")
         assert order.index("mayor") < order.index("notify")
 
@@ -180,6 +180,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap._verify_dolt_ready"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor") as m_doctor,
@@ -213,6 +214,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap._verify_dolt_ready"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor") as m_doctor,
@@ -246,6 +248,7 @@ class TestBootstrap:
             patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap._verify_dolt_ready"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor") as m_doctor,
@@ -421,6 +424,7 @@ class TestMonitorLoop:
             patch("gasclaw.bootstrap.configure_agent"),
             patch("gasclaw.bootstrap.gastown_install"),
             patch("gasclaw.bootstrap.start_dolt"),
+            patch("gasclaw.bootstrap._verify_dolt_ready"),
             patch("gasclaw.bootstrap.write_openclaw_config"),
             patch("gasclaw.bootstrap.install_skills"),
             patch("gasclaw.bootstrap.run_doctor", return_value=mock_doctor),

@@ -27,7 +27,7 @@ class TestStartOpenclaw:
             start_openclaw(port=18789)
 
             m_popen.assert_called_once_with(
-                ["openclaw", "gateway", "start", "--port", "18789"],
+                ["openclaw", "gateway", "run", "--port", "18789"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -124,7 +124,7 @@ class TestStartOpenclaw:
             m_get.return_value.status_code = 200
             start_openclaw(port=9999)
 
-            assert m_popen.call_args[0][0] == ["openclaw", "gateway", "start", "--port", "9999"]
+            assert m_popen.call_args[0][0] == ["openclaw", "gateway", "run", "--port", "9999"]
             m_get.assert_called_with("http://localhost:9999/health", timeout=2)
 
     def test_connect_error_triggers_retry(self):
@@ -170,11 +170,13 @@ class TestStopOpenclaw:
     """Tests for stop_openclaw function."""
 
     def test_runs_stop_command(self):
-        """Should run openclaw gateway stop command."""
+        """Should run openclaw gateway stop command and pkill cleanup."""
         with patch("subprocess.run") as m_run:
             stop_openclaw()
 
-            m_run.assert_called_once_with(
+            # First call: graceful stop, second call: pkill cleanup
+            assert m_run.call_count == 2
+            m_run.assert_any_call(
                 ["openclaw", "gateway", "stop"],
                 check=False,
                 timeout=30,
@@ -203,4 +205,5 @@ class TestStopOpenclaw:
         with patch("subprocess.run") as m_run:
             stop_openclaw(timeout=60)
 
-            assert m_run.call_args[1]["timeout"] == 60
+            # First call (stop) should use the custom timeout
+            assert m_run.call_args_list[0][1]["timeout"] == 60

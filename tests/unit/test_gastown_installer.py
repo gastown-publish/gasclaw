@@ -162,6 +162,6 @@ class TestGastownInstall:
         monkeypatch.setattr(subprocess, "run", mock_run)
         gastown_install(gt_root=tmp_path, rig_url="/project")
 
-        # Both calls should have check=True
+        # All calls should have check=True (gt install, gt dolt init-rig, gt rig add)
         assert all(calls), f"Expected all calls to have check=True, got {calls}"
-        assert len(calls) == 2
+        assert len(calls) == 3
