@@ -33,7 +33,7 @@ RUN case "${TARGETARCH}" in \
         *) DOLT_ARCH=amd64 ;; \
     esac && \
     curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-${DOLT_ARCH}.tar.gz | \
-    tar -C /usr/local/bin -xzf - --strip-components=1 dolt-linux-${DOLT_ARCH}/bin/dolt
+    tar -C /usr/local/bin -xzf - --strip-components=2 dolt-linux-${DOLT_ARCH}/bin/dolt
 
 # Claude Code
 RUN npm install -g @anthropic-ai/claude-code

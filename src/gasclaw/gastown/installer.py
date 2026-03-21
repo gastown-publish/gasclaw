@@ -1,13 +1,16 @@
-"""Gastown installation: kimi accounts and gt setup."""
+"""Gastown installation: kimi accounts, git identity, and gt setup."""
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from pathlib import Path
 
 import tomlkit
 
-__all__ = ["gastown_install", "setup_kimi_accounts"]
+logger = logging.getLogger(__name__)
+
+__all__ = ["gastown_install", "setup_kimi_accounts", "setup_git_identity"]
 
 
 def _write_kimi_config(account_dir: Path, api_key: str) -> None:
@@ -60,20 +63,89 @@ def setup_kimi_accounts(
         _write_kimi_config(accounts_dir / str(i), key)
 
 
+def setup_git_identity() -> None:
+    """Configure git and dolt identity (required for gt install).
+    
+    Sets user.name and user.email for both git and dolt if not already configured.
+    Uses default values suitable for containerized deployments.
+    
+    Raises:
+        subprocess.CalledProcessError: If git/dolt commands fail.
+    """
+    # Default identity for containerized deployments
+    default_name = "Gasclaw Agent"
+    default_email = "agent@gasclaw.local"
+    
+    # Configure git identity
+    try:
+        result = subprocess.run(
+            ["git", "config", "--global", "user.name"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            subprocess.run(
+                ["git", "config", "--global", "user.name", default_name],
+                check=True,
+            )
+            logger.info("Set git user.name to '%s'", default_name)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to configure git user.name: {e}") from e
+    
+    try:
+        result = subprocess.run(
+            ["git", "config", "--global", "user.email"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            subprocess.run(
+                ["git", "config", "--global", "user.email", default_email],
+                check=True,
+            )
+            logger.info("Set git user.email to '%s'", default_email)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to configure git user.email: {e}") from e
+    
+    # Configure dolt identity (uses git config, but ensure it's set)
+    try:
+        subprocess.run(
+            ["dolt", "config", "--global", "--add", "user.name", default_name],
+            check=False,  # May already be set, don't fail
+        )
+        subprocess.run(
+            ["dolt", "config", "--global", "--add", "user.email", default_email],
+            check=False,  # May already be set, don't fail
+        )
+    except FileNotFoundError:
+        # dolt not installed yet, will be checked later
+        pass
+
+
 def gastown_install(*, gt_root: Path, rig_url: str) -> None:
-    """Run gt install and gt rig add.
+    """Run gt install, gt dolt init-rig, and gt rig add.
 
     Args:
         gt_root: Where to install Gastown (e.g. /workspace/gt).
         rig_url: Git URL or path for the rig.
 
     """
+    # Run gt install
     subprocess.run(
         ["gt", "install", str(gt_root), "--git"],
         check=True,
     )
+    
+    # Initialize Dolt rig (creates the database) (#312)
     subprocess.run(
-        ["gt", "rig", "add", "project", rig_url],
+        ["gt", "dolt", "init-rig"],
+        check=True,
+        cwd=str(gt_root),
+    )
+    
+    # Add rig with --adopt --url flags (#313)
+    subprocess.run(
+        ["gt", "rig", "add", "project", "--adopt", "--url", rig_url],
         check=True,
         cwd=str(gt_root),
     )
