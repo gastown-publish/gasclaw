@@ -47,7 +47,7 @@ logger = get_logger(__name__)
 
 def _get_skills_dir() -> Path:
     """Get skills directory, handling both installed and volume-mounted cases.
-    
+
     Returns:
         Path to the skills directory.
     """
@@ -55,13 +55,13 @@ def _get_skills_dir() -> Path:
     installed_path = Path(__file__).parent.parent.parent / "skills"
     if installed_path.exists():
         return installed_path
-    
+
     # Fallback to common volume mount locations
     for fallback in ["/opt/gasclaw/skills", "/workspace/gasclaw/skills", "/app/skills"]:
         path = Path(fallback)
         if path.exists():
             return path
-    
+
     # Default to installed path even if it doesn't exist (will fail later with clear error)
     return installed_path
 
@@ -120,14 +120,14 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
         # 6. Configure OpenClaw (beads for memory, not files)
         openclaw_dir = Path.home() / ".openclaw"
         logger.info("Configuring OpenClaw in %s", openclaw_dir)
-        
+
         # Create .openclaw with restricted permissions (700) (#324)
         openclaw_dir.mkdir(parents=True, exist_ok=True)
         os.chmod(openclaw_dir, 0o700)
-        
+
         # Get first group ID if available for Telegram group support (#321)
         group_id = config.telegram_group_ids[0] if config.telegram_group_ids else ""
-        
+
         write_openclaw_config(
             openclaw_dir=openclaw_dir,
             kimi_key=config.openclaw_kimi_key,
@@ -294,7 +294,6 @@ def _verify_dolt_ready(*, port: int = 3307, timeout: int = 30) -> None:
         TimeoutError: If Dolt is not ready within the timeout.
         RuntimeError: If Dolt SQL query fails.
     """
-    import subprocess
 
     deadline = time.time() + timeout
     last_error = None
@@ -313,8 +312,8 @@ def _verify_dolt_ready(*, port: int = 3307, timeout: int = 30) -> None:
             last_error = result.stderr
         except subprocess.TimeoutExpired:
             last_error = "timeout"
-        except FileNotFoundError:
-            raise RuntimeError("dolt command not found in PATH")
+        except FileNotFoundError as exc:
+            raise RuntimeError("dolt command not found in PATH") from exc
 
         time.sleep(1)
 

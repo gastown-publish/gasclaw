@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import subprocess
 import time
@@ -19,7 +20,7 @@ def start_openclaw(
     timeout: int = 60,
 ) -> None:
     """Start OpenClaw gateway and wait for it to be ready.
-    
+
     Uses `gateway run` (foreground) for container compatibility instead of
     `gateway start` which requires systemd.
 
@@ -91,13 +92,11 @@ def stop_openclaw(*, timeout: int = 30) -> None:
         logger.warning("Timeout stopping OpenClaw gateway")
     except Exception as e:  # noqa: BLE001
         logger.warning("Error stopping OpenClaw: %s", e)
-    
+
     # Also kill any remaining openclaw gateway run processes
-    try:
+    with contextlib.suppress(Exception):
         subprocess.run(
             ["pkill", "-f", "openclaw gateway run"],
             check=False,
             timeout=5,
         )
-    except Exception:  # noqa: BLE001
-        pass

@@ -65,17 +65,17 @@ def setup_kimi_accounts(
 
 def setup_git_identity() -> None:
     """Configure git and dolt identity (required for gt install).
-    
+
     Sets user.name and user.email for both git and dolt if not already configured.
     Uses default values suitable for containerized deployments.
-    
+
     Raises:
         subprocess.CalledProcessError: If git/dolt commands fail.
     """
     # Default identity for containerized deployments
     default_name = "Gasclaw Agent"
     default_email = "agent@gasclaw.local"
-    
+
     # Configure git identity
     try:
         result = subprocess.run(
@@ -91,7 +91,7 @@ def setup_git_identity() -> None:
             logger.info("Set git user.name to '%s'", default_name)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to configure git user.name: {e}") from e
-    
+
     try:
         result = subprocess.run(
             ["git", "config", "--global", "user.email"],
@@ -106,7 +106,7 @@ def setup_git_identity() -> None:
             logger.info("Set git user.email to '%s'", default_email)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Failed to configure git user.email: {e}") from e
-    
+
     # Configure dolt identity (uses git config, but ensure it's set)
     try:
         subprocess.run(
@@ -135,14 +135,14 @@ def gastown_install(*, gt_root: Path, rig_url: str) -> None:
         ["gt", "install", str(gt_root), "--git"],
         check=True,
     )
-    
+
     # Initialize Dolt rig (creates the database) (#312)
     subprocess.run(
         ["gt", "dolt", "init-rig"],
         check=True,
         cwd=str(gt_root),
     )
-    
+
     # Add rig with --adopt --url flags (#313)
     subprocess.run(
         ["gt", "rig", "add", "project", "--adopt", "--url", rig_url],
