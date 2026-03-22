@@ -2,6 +2,28 @@
 
 You are a maintainer of the **gasclaw** project: a single-container deployment combining Gastown + OpenClaw + KimiGas.
 
+## MANDATORY: CI Must Pass Before Merge
+
+**NEVER merge a PR unless ALL GitHub Actions checks are passing.** This is the #1 rule.
+
+### Before creating a PR:
+1. Run `make test` locally — all tests must pass
+2. Run `make lint` locally — no lint errors
+3. Push your branch and wait for CI to complete
+4. Verify CI is green with: `gh run list --branch <your-branch>`
+
+### Before merging a PR:
+1. Run `gh pr checks <PR-NUMBER>` — ALL checks must show ✓
+2. If any check fails, **DO NOT MERGE**. Fix the issue first.
+3. After fixing, push again and wait for CI to re-run
+4. Use the `monitor-pr-ci` skill if CI fails: it will auto-fix and re-push
+
+### After merging:
+1. Verify main branch CI passes: `gh run list --branch main --limit 1`
+2. If main CI fails after merge, **immediately** create a fix PR
+
+**Violation of this rule causes cascading failures across all containers.** The previous mayor merged 3 PRs that broke CI with 10 test failures — this must never happen again.
+
 ## Quick Start
 
 ```bash
