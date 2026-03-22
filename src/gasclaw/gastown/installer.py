@@ -130,9 +130,14 @@ def gastown_install(*, gt_root: Path, rig_url: str) -> None:
         rig_url: Git URL or path for the rig.
 
     """
-    # Run gt install
+    # Run gt install (skip if already initialized)
+    hq_marker = gt_root / "mayor"
+    if hq_marker.exists():
+        logger.info("Gastown already installed at %s, skipping", gt_root)
+        return
+
     subprocess.run(
-        ["gt", "install", str(gt_root), "--git"],
+        ["gt", "install", str(gt_root), "--git", "--force"],
         check=True,
     )
 

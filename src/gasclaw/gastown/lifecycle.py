@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+import socket
 import subprocess
 import time
+from pathlib import Path
 
 __all__ = ["start_dolt", "start_daemon", "start_mayor", "stop_all"]
 
@@ -29,6 +31,13 @@ def start_dolt(
         TimeoutError: If dolt is not ready within the timeout.
 
     """
+    # Ensure data dir exists and is initialized (first boot)
+    data_path = Path(data_dir)
+    if not data_path.exists():
+        data_path.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["dolt", "init"], cwd=str(data_path), check=True)
+        logger.info("Initialized fresh Dolt database at %s", data_dir)
+
     proc = subprocess.Popen(
         ["dolt", "sql-server", "--port", str(port), "--data-dir", data_dir],
         stdout=subprocess.DEVNULL,
@@ -43,12 +52,16 @@ def start_dolt(
             if proc.poll() is not None:
                 raise RuntimeError(f"Dolt process exited early with code {proc.returncode}")
 
-            result = subprocess.run(
-                ["dolt", "sql", "--port", str(port), "-q", "SELECT 1"],
-                capture_output=True,
-            )
-            if result.returncode == 0:
+            # TCP check — dolt sql --port is not a valid flag
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            try:
+                sock.connect(("127.0.0.1", port))
+                sock.close()
+                logger.info("Dolt SQL server ready on port %d", port)
                 return
+            except (ConnectionRefusedError, OSError):
+                sock.close()
             time.sleep(1)
         raise TimeoutError(f"Dolt not ready after {timeout}s on port {port}")
     except Exception:  # noqa: BLE001
@@ -62,25 +75,27 @@ def start_dolt(
         raise
 
 
-def start_daemon() -> None:
+def start_daemon(*, gt_root: str = "/workspace/gt") -> None:
     """Start the Gastown daemon."""
-    subprocess.run(["gt", "daemon", "start"], check=True)
+    subprocess.run(["gt", "daemon", "start"], check=True, cwd=gt_root)
 
 
-def start_mayor(*, agent: str = "kimi-claude") -> None:
+def start_mayor(*, agent: str = "kimi-claude", gt_root: str = "/workspace/gt") -> None:
     """Start the Gastown mayor.
 
     Args:
         agent: Agent name to use (default: kimi-claude).
+        gt_root: Gastown workspace directory.
 
     """
     subprocess.run(
         ["gt", "mayor", "start", "--agent", agent],
         check=True,
+        cwd=gt_root,
     )
 
 
-def stop_all() -> None:
+def stop_all(*, gt_root: str = "/workspace/gt") -> None:
     """Stop all Gastown services (mayor, daemon, dolt).
 
     All stop commands are attempted even if one fails. Exceptions are logged
@@ -94,7 +109,7 @@ def stop_all() -> None:
 
     for cmd in commands:
         try:
-            subprocess.run(cmd, check=False, timeout=30)
+            subprocess.run(cmd, check=False, timeout=30, cwd=gt_root)
         except FileNotFoundError:
             logger.debug("Command not found: %s", cmd[0])
         except subprocess.TimeoutExpired:

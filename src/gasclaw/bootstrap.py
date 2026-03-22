@@ -23,7 +23,6 @@ and a failure notification is sent.
 from __future__ import annotations
 
 import os
-import subprocess
 import time
 from pathlib import Path
 
@@ -100,7 +99,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
 
         # 3. Start Dolt (must be running before gt rig add)
         logger.info("Starting Dolt")
-        start_dolt()
+        start_dolt(port=config.dolt_port)
         dolt_started = True
 
         # Verify Dolt is accepting SQL queries before proceeding
@@ -169,11 +168,11 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
 
         # 11. Start daemon
         logger.info("Starting gt daemon")
-        start_daemon()
+        start_daemon(gt_root=str(gt_root))
 
         # 12. Start mayor
         logger.info("Starting mayor agent")
-        start_mayor(agent="kimi-claude")
+        start_mayor(agent="claude", gt_root=str(gt_root))
         logger.info("All services started successfully")
 
         # 13. Notify
@@ -190,7 +189,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
                 auth_token=auth_token,
             )
             try:
-                stop_all()
+                stop_all(gt_root=str(gt_root))
                 if services_started:
                     stop_openclaw()
                 logger.info("Rollback completed")
@@ -281,10 +280,7 @@ def monitor_loop(
 
 
 def _verify_dolt_ready(*, port: int = 3307, timeout: int = 30) -> None:
-    """Verify Dolt is accepting SQL queries.
-
-    This ensures Dolt is fully ready before proceeding with operations
-    that require the database (like beads initialization).
+    """Verify Dolt is accepting TCP connections on the SQL server port.
 
     Args:
         port: Dolt SQL server port.
@@ -292,29 +288,20 @@ def _verify_dolt_ready(*, port: int = 3307, timeout: int = 30) -> None:
 
     Raises:
         TimeoutError: If Dolt is not ready within the timeout.
-        RuntimeError: If Dolt SQL query fails.
     """
+    import socket
 
     deadline = time.time() + timeout
-    last_error = None
 
     while time.time() < deadline:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
         try:
-            result = subprocess.run(
-                ["dolt", "sql", "--port", str(port), "-q", "SELECT 1"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                # Success - Dolt is ready
-                return
-            last_error = result.stderr
-        except subprocess.TimeoutExpired:
-            last_error = "timeout"
-        except FileNotFoundError as exc:
-            raise RuntimeError("dolt command not found in PATH") from exc
-
+            sock.connect(("127.0.0.1", port))
+            sock.close()
+            return
+        except (ConnectionRefusedError, OSError):
+            sock.close()
         time.sleep(1)
 
-    raise TimeoutError(f"Dolt not accepting queries after {timeout}s. Last error: {last_error}")
+    raise TimeoutError(f"Dolt not accepting connections after {timeout}s on port {port}")

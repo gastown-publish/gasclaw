@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -52,8 +53,10 @@ class TestStartDolt:
         with pytest.raises(RuntimeError, match="exited early"):
             start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
 
-    def test_raises_timeout_if_never_ready(self, monkeypatch):
+    def test_raises_timeout_if_never_ready(self, monkeypatch, tmp_path):
         """If dolt never becomes ready, raise TimeoutError."""
+        data_dir = tmp_path / "dolt-data"
+        data_dir.mkdir()
 
         class MockProc:
             pid = 1
@@ -68,21 +71,22 @@ class TestStartDolt:
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
-        # Always return non-zero (not ready)
-        monkeypatch.setattr(
-            subprocess,
-            "run",
-            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
-        )
-        with pytest.raises(TimeoutError) as exc_info:
-            start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
+
+        # Mock socket to always refuse connection
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = ConnectionRefusedError
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            with pytest.raises(TimeoutError) as exc_info:
+                start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
         msg = str(exc_info.value).lower()
         assert "not ready" in msg or "timeout" in msg
 
-    def test_uses_custom_data_dir(self, monkeypatch):
+    def test_uses_custom_data_dir(self, monkeypatch, tmp_path):
         """start_dolt passes custom data_dir to dolt command."""
+        data_dir = tmp_path / "custom-dolt"
+        data_dir.mkdir()
         popen_calls = []
-        run_calls = []
 
         class MockProc:
             pid = 1
@@ -94,24 +98,26 @@ class TestStartDolt:
             popen_calls.append(a[0])
             return MockProc()
 
-        def mock_run(*a, **kw):
-            run_calls.append(a[0])
-            return subprocess.CompletedProcess(a[0], 0)
-
         monkeypatch.setattr(subprocess, "Popen", mock_popen)
-        monkeypatch.setattr(subprocess, "run", mock_run)
 
-        start_dolt(data_dir="/custom/dolt/path", port=3307, timeout=1)
+        # Mock socket to succeed immediately
+        mock_sock = MagicMock()
+        mock_sock.connect.return_value = None
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
         # Check data-dir is in the command
         cmd_str = " ".join(str(x) for x in popen_calls[0])
         assert "--data-dir" in cmd_str
-        assert "/custom/dolt/path" in cmd_str
+        assert str(data_dir) in cmd_str
 
-    def test_uses_custom_port(self, monkeypatch):
-        """start_dolt uses custom port for both server and health check."""
+    def test_uses_custom_port(self, monkeypatch, tmp_path):
+        """start_dolt uses custom port for server and TCP check."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
         popen_calls = []
-        run_calls = []
+        connect_calls = []
 
         class MockProc:
             pid = 1
@@ -123,20 +129,24 @@ class TestStartDolt:
             popen_calls.append(a[0])
             return MockProc()
 
-        def mock_run(*a, **kw):
-            run_calls.append(a[0])
-            return subprocess.CompletedProcess(a[0], 0)
-
         monkeypatch.setattr(subprocess, "Popen", mock_popen)
-        monkeypatch.setattr(subprocess, "run", mock_run)
 
-        start_dolt(data_dir="/tmp/dolt", port=9999, timeout=1)
+        # Mock socket to capture connect args
+        mock_sock = MagicMock()
 
-        # Check port appears in both commands
+        def mock_connect(addr):
+            connect_calls.append(addr)
+
+        mock_sock.connect.side_effect = mock_connect
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            start_dolt(data_dir=str(data_dir), port=9999, timeout=1)
+
+        # Check port in Popen command
         popen_str = " ".join(str(x) for x in popen_calls[0])
-        run_str = " ".join(str(x) for x in run_calls[0])
         assert "9999" in popen_str
-        assert "9999" in run_str
+        # Check port in TCP connect
+        assert ("127.0.0.1", 9999) in connect_calls
 
     def test_terminates_on_early_exit(self, monkeypatch):
         """Subprocess is terminated when dolt exits early."""
@@ -164,8 +174,10 @@ class TestStartDolt:
         assert len(terminate_called) == 1
         assert len(wait_called) == 1
 
-    def test_terminates_on_timeout(self, monkeypatch):
+    def test_terminates_on_timeout(self, monkeypatch, tmp_path):
         """Subprocess is terminated when timeout occurs."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
         terminate_called = []
 
         class SlowProc:
@@ -181,19 +193,20 @@ class TestStartDolt:
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: SlowProc())
-        monkeypatch.setattr(
-            subprocess,
-            "run",
-            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
-        )
 
-        with pytest.raises(TimeoutError):
-            start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = ConnectionRefusedError
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            with pytest.raises(TimeoutError):
+                start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
         assert len(terminate_called) == 1
 
-    def test_force_kill_on_terminate_timeout(self, monkeypatch):
+    def test_force_kill_on_terminate_timeout(self, monkeypatch, tmp_path):
         """Process is killed if graceful terminate doesn't work."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
         terminate_called = []
         kill_called = []
 
@@ -215,14 +228,13 @@ class TestStartDolt:
                 return 0
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: StubbornProc())
-        monkeypatch.setattr(
-            subprocess,
-            "run",
-            lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stderr=b"not ready"),
-        )
 
-        with pytest.raises(TimeoutError):
-            start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = ConnectionRefusedError
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            with pytest.raises(TimeoutError):
+                start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
         assert len(terminate_called) == 1
         assert len(kill_called) == 1
