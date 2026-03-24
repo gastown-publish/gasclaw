@@ -11,8 +11,10 @@ from gasclaw.gastown.lifecycle import start_daemon, start_dolt, start_mayor, sto
 
 
 class TestStartDolt:
-    def test_runs_dolt_sql_server(self, monkeypatch):
+    def test_runs_dolt_sql_server(self, monkeypatch, tmp_path):
         calls = []
+        data_dir = tmp_path / "dolt-data"
+        data_dir.mkdir()
 
         class MockProc:
             pid = 1
@@ -25,16 +27,18 @@ class TestStartDolt:
             "Popen",
             lambda *a, **kw: (calls.append((a, kw)), MockProc())[-1],
         )
-        monkeypatch.setattr(
-            subprocess,
-            "run",
-            lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout=b""),
-        )
-        start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
+
+        mock_sock = MagicMock()
+        mock_sock.connect.return_value = None
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
         assert any("dolt" in str(c) for c in calls)
 
-    def test_raises_if_process_exits_early(self, monkeypatch):
+    def test_raises_if_process_exits_early(self, monkeypatch, tmp_path):
         """If dolt process dies immediately, we should get RuntimeError not TimeoutError."""
+        data_dir = tmp_path / "dolt-data"
+        data_dir.mkdir()
 
         class DeadProcess:
             pid = 1
@@ -51,7 +55,7 @@ class TestStartDolt:
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: DeadProcess())
         with pytest.raises(RuntimeError, match="exited early"):
-            start_dolt(data_dir="/tmp/dolt-data", port=3307, timeout=1)
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
     def test_raises_timeout_if_never_ready(self, monkeypatch, tmp_path):
         """If dolt never becomes ready, raise TimeoutError."""
@@ -148,8 +152,10 @@ class TestStartDolt:
         # Check port in TCP connect
         assert ("127.0.0.1", 9999) in connect_calls
 
-    def test_terminates_on_early_exit(self, monkeypatch):
+    def test_terminates_on_early_exit(self, monkeypatch, tmp_path):
         """Subprocess is terminated when dolt exits early."""
+        data_dir = tmp_path / "dolt-data"
+        data_dir.mkdir()
         terminate_called = []
         wait_called = []
 
@@ -169,7 +175,7 @@ class TestStartDolt:
 
         monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: DeadProcess())
         with pytest.raises(RuntimeError):
-            start_dolt(data_dir="/tmp/dolt", port=3307, timeout=1)
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
         assert len(terminate_called) == 1
         assert len(wait_called) == 1
