@@ -80,8 +80,8 @@ class TestStartDolt:
         mock_sock = MagicMock()
         mock_sock.connect.side_effect = ConnectionRefusedError
 
-        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
-            with pytest.raises(TimeoutError) as exc_info:
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock), \
+             pytest.raises(TimeoutError) as exc_info:
                 start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
         msg = str(exc_info.value).lower()
         assert "not ready" in msg or "timeout" in msg
@@ -203,8 +203,8 @@ class TestStartDolt:
         mock_sock = MagicMock()
         mock_sock.connect.side_effect = ConnectionRefusedError
 
-        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
-            with pytest.raises(TimeoutError):
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock), \
+             pytest.raises(TimeoutError):
                 start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
         assert len(terminate_called) == 1
@@ -238,8 +238,8 @@ class TestStartDolt:
         mock_sock = MagicMock()
         mock_sock.connect.side_effect = ConnectionRefusedError
 
-        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
-            with pytest.raises(TimeoutError):
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock), \
+             pytest.raises(TimeoutError):
                 start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
 
         assert len(terminate_called) == 1
