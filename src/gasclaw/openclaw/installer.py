@@ -93,8 +93,8 @@ def write_openclaw_config(
             "topics": group_topics,
         }
 
-    # Correct model ID for kimi-coding provider (#320)
-    primary_model = "kimi-coding/k2p5"
+    # MiniMax via LiteLLM (moonshot provider id in OpenClaw); never kimi-coding/k2p5
+    primary_model = "moonshot/minimax-m2.5"
     fallback_models = ["openrouter/qwen/qwen3-coder:free"]
 
     # Build agent list based on agent_count (#322)
@@ -167,8 +167,7 @@ def write_openclaw_config(
             },
         },
         "env": {
-            # KIMI_API_KEY required for kimi-coding provider (#323)
-            "KIMI_API_KEY": kimi_key,
+            # LiteLLM proxy key (MOONSHOT_API_KEY name is OpenClaw convention for moonshot provider)
             "MOONSHOT_API_KEY": kimi_key,
             "BD_ROOT": gt_root,
         },

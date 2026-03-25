@@ -113,7 +113,7 @@ for aid, tid in topic_map.items():
 
 config = {
     "agents": {
-        "defaults": {"model": {"primary": "kimi-coding/k2p5"}, "models": {"kimi-coding/k2p5": {}}},
+        "defaults": {"model": {"primary": "moonshot/minimax-m2.5"}, "models": {"moonshot/minimax-m2.5": {}}},
         "list": agent_list,
     },
     "bindings": agent_bindings,
@@ -136,7 +136,7 @@ config = {
         "exec": {"security": "full"},
         "agentToAgent": {"enabled": True, "allow": [a["id"] for a in TEAM]},
     },
-    "env": {"KIMI_API_KEY": KIMI_KEY},
+    "env": {"MOONSHOT_API_KEY": KIMI_KEY},
 }
 
 with open(f"{OPENCLAW_DIR}/openclaw.json", "w") as f:
@@ -156,10 +156,26 @@ for agent in TEAM:
     with open(f"{ws}/SOUL.md", "w") as f:
         f.write(f"# {agent['name']}\n\nRole: {role} | Topic: {topic_map.get(aid,'General')}\nProject: gasclaw (github.com/gastown-publish/gasclaw)\n\n{agent['soul']}\n\n## Team\n{members_str}\n")
 
-    models = {"providers":{"kimi-coding":{"baseUrl":"https://api.kimi.com/coding/","api":"anthropic-messages",
-        "models":[{"id":"k2p5","name":"Kimi","reasoning":True,"input":["text","image"],
-                   "cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0},"contextWindow":262144,"maxTokens":32768}],
-        "apiKey":KIMI_KEY}}}
+    models = {
+        "providers": {
+            "moonshot": {
+                "baseUrl": "https://api.minimax.villamarket.ai/v1",
+                "api": "openai-completions",
+                "models": [
+                    {
+                        "id": "minimax-m2.5",
+                        "name": "MiniMax M2.5",
+                        "reasoning": True,
+                        "input": ["text", "image"],
+                        "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
+                        "contextWindow": 256000,
+                        "maxTokens": 8192,
+                    }
+                ],
+                "apiKey": "MOONSHOT_API_KEY",
+            }
+        }
+    }
     with open(f"{adir}/models.json", "w") as f:
         json.dump(models, f, indent=2)
 

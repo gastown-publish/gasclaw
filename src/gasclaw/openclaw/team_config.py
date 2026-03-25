@@ -207,7 +207,7 @@ def generate_team_config(
     kimi_key: str,
     auth_token: str,
     openclaw_base: Path,
-    model: str = "kimi-coding/k2p5",
+    model: str = "moonshot/minimax-m2.5",
 ) -> dict[str, Any]:
     """Generate the full openclaw.json for a multi-agent team.
 

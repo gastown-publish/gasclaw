@@ -136,8 +136,8 @@ def generate_config(preset: dict, env: dict) -> dict:
     config = {
         "agents": {
             "defaults": {
-                "model": {"primary": "kimi-coding/k2p5"},
-                "models": {"kimi-coding/k2p5": {}},
+                "model": {"primary": "moonshot/minimax-m2.5"},
+                "models": {"moonshot/minimax-m2.5": {}},
             },
             "list": agent_list,
         },
