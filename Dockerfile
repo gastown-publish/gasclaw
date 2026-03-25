@@ -22,8 +22,8 @@ RUN case "${TARGETARCH}" in \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# Go 1.25 (multi-platform: amd64 or arm64) — required by Gastown v0.10.0+
-RUN curl -fsSL https://go.dev/dl/go1.25.7.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf -
+# Go 1.26 (multi-platform: amd64 or arm64) — toolchain for Gastown gt
+RUN curl -fsSL https://go.dev/dl/go1.26.1.linux-${TARGETARCH}.tar.gz | tar -C /usr/local -xzf -
 ENV PATH="/usr/local/go/bin:/root/go/bin:${PATH}"
 
 # Dolt (multi-platform - install appropriate binary)
@@ -36,16 +36,16 @@ RUN case "${TARGETARCH}" in \
     tar -C /usr/local/bin -xzf - --strip-components=2 dolt-linux-${DOLT_ARCH}/bin/dolt
 
 # Claude Code
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code@latest
 
 # OpenClaw
-RUN npm install -g openclaw
+RUN npm install -g openclaw@latest
 
 # KimiGas (kimi-cli)
-RUN pip install --no-cache-dir kimi-cli
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir kimi-cli
 
 # Gastown (gt) — real Go CLI from github.com/steveyegge/gastown
-RUN go install github.com/steveyegge/gastown/cmd/gt@v0.10.0
+RUN go install github.com/steveyegge/gastown/cmd/gt@v0.12.1
 
 # Beads (bd) — git-backed issue tracking required by Gastown
 RUN go install github.com/steveyegge/beads/cmd/bd@latest
