@@ -30,3 +30,6 @@ maintainer/data/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+# Beads runtime (local Dolt server state; not source of truth for this repo)
+.beads/
