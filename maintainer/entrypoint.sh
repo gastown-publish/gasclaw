@@ -172,22 +172,23 @@ import json, os
 
 openclaw_dir = os.path.expanduser("~/.openclaw")
 
-# models.json — custom Kimi provider
+# models.json — MiniMax via LiteLLM on this host (OpenClaw provider id "moonshot"; not Kimi cloud)
+_litellm_base = os.environ.get("LITELLM_BASE_URL", "https://api.minimax.villamarket.ai/v1")
 models = {
     "providers": {
-        "kimi-coding": {
-            "baseUrl": os.environ.get("ANTHROPIC_BASE_URL", "https://api.kimi.com/coding/"),
-            "api": "anthropic-messages",
+        "moonshot": {
+            "baseUrl": _litellm_base,
+            "api": "openai-completions",
             "models": [{
-                "id": "k2p5",
-                "name": "Kimi for Coding",
+                "id": "minimax-m2.5",
+                "name": "MiniMax M2.5",
                 "reasoning": True,
                 "input": ["text", "image"],
                 "cost": {"input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0},
-                "contextWindow": 262144,
-                "maxTokens": 32768,
+                "contextWindow": 256000,
+                "maxTokens": 8192,
             }],
-            "apiKey": os.environ["KIMI_API_KEY"],
+            "apiKey": "MOONSHOT_API_KEY",
         }
     }
 }
@@ -207,8 +208,8 @@ if os.path.exists(cfg_path):
 config = existing.copy()
 config["agents"] = {
     "defaults": {
-        "model": {"primary": "kimi-coding/k2p5"},
-        "models": {"kimi-coding/k2p5": {}},
+        "model": {"primary": "moonshot/minimax-m2.5"},
+        "models": {"moonshot/minimax-m2.5": {}},
         "workspace": "/workspace/agent-workspace",
     },
     "list": [{
@@ -259,7 +260,8 @@ config["gateway"]["port"] = int(os.environ.get("GATEWAY_PORT", "18789"))
 config["gateway"]["mode"] = "local"
 config["plugins"] = {"slots": {"memory": "none"}}
 config["tools"] = {"exec": {"security": "full"}}
-config["env"] = {"KIMI_API_KEY": os.environ["KIMI_API_KEY"]}
+# KIMI_API_KEY env name is legacy — value is the LiteLLM proxy key for MiniMax on this machine
+config["env"] = {"MOONSHOT_API_KEY": os.environ["KIMI_API_KEY"]}
 
 with open(cfg_path, "w") as f:
     json.dump(config, f, indent=2)
