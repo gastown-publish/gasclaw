@@ -15,7 +15,7 @@ __all__ = ["notify_telegram"]
 def notify_telegram(
     message: str,
     *,
-    gateway_port: int = 18789,
+    gateway_port: int | None = None,
     auth_token: str = "",
 ) -> bool:
     """Send a notification message via OpenClaw gateway.
@@ -29,6 +29,9 @@ def notify_telegram(
         True if notification was sent successfully, False otherwise.
 
     """
+    if gateway_port is None:
+        import os as _os
+        gateway_port = int(_os.environ.get("GATEWAY_PORT", 18789))
     url = f"http://localhost:{gateway_port}/api/message"
     headers = {"Content-Type": "application/json"}
     if auth_token:

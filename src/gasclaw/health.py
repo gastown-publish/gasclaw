@@ -56,7 +56,7 @@ class HealthReport:
         return "\n".join(lines)
 
 
-def _check_service(cmd: list[str], service_name: str) -> str:
+def _check_service(cmd: list[str], service_name: str, cwd: str | None = None) -> str:
     """Run a health check command and return status.
 
     Args:
@@ -68,7 +68,7 @@ def _check_service(cmd: list[str], service_name: str) -> str:
 
     """
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, timeout=10, cwd=cwd)
         if result.returncode == 0:
             return "healthy"
         logger.debug("Health check failed for %s: exit code %d", service_name, result.returncode)
@@ -134,9 +134,9 @@ def check_health(
     doctor = run_doctor()
     key_pool_status = key_pool.status() if key_pool else {}
     return HealthReport(
-        dolt=_check_service(["dolt", "sql", "--port", str(dolt_port), "-q", "SELECT 1"], "dolt"),
-        daemon=_check_service(["gt", "daemon", "status"], "daemon"),
-        mayor=_check_service(["gt", "mayor", "status"], "mayor"),
+        dolt=_check_service(["bash", "-c", f"exec 3<>/dev/tcp/127.0.0.1/{dolt_port}"], "dolt"),
+        daemon=_check_service(["gt", "daemon", "status"], "daemon", cwd="/workspace/gt"),
+        mayor=_check_service(["gt", "mayor", "status"], "mayor", cwd="/workspace/gt"),
         openclaw=_check_openclaw_gateway(gateway_port),
         openclaw_doctor="healthy" if doctor.healthy else "unhealthy",
         agents=_list_agents(),
