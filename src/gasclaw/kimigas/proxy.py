@@ -19,8 +19,8 @@ __all__ = [
 def build_claude_env(api_key: str, *, config_dir: str | None = None) -> dict[str, str]:
     """Build env dict that makes Claude Code use the configured backend.
 
-    Respects existing ANTHROPIC_BASE_URL and ANTHROPIC_API_KEY env vars.
-    Falls back to Kimi URL only if no override is set.
+    Respects existing ANTHROPIC_BASE_URL env var (operators can override the
+    URL). ANTHROPIC_API_KEY is always set from the passed argument.
 
     Args:
         api_key: API key (used as fallback if ANTHROPIC_API_KEY not set).
@@ -32,7 +32,7 @@ def build_claude_env(api_key: str, *, config_dir: str | None = None) -> dict[str
     """
     return {
         "ANTHROPIC_BASE_URL": os.environ.get("ANTHROPIC_BASE_URL", KIMI_ANTHROPIC_BASE_URL),
-        "ANTHROPIC_API_KEY": os.environ.get("ANTHROPIC_API_KEY", api_key),
+        "ANTHROPIC_API_KEY": api_key,
         "CLAUDE_CONFIG_DIR": config_dir or _DEFAULT_CONFIG_DIR,
         "DISABLE_COST_WARNINGS": "true",
     }
