@@ -23,7 +23,7 @@ DEFAULTS = {
         "branch_prefixes": ["fix/", "feat/", "test/", "docs/", "refactor/"],
     },
     "claude": {
-        "kimi_base_url": "https://api.kimi.com/coding/",
+        "kimi_base_url": "https://api.minimax.villamarket.ai/v1",
         "dangerously_skip_permissions": True,
     },
     "openclaw": {

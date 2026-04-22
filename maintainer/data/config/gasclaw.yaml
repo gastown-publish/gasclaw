@@ -16,7 +16,7 @@ maintenance:
     - "refactor/"
 
 claude:
-  kimi_base_url: "https://api.kimi.com/coding/"
+  kimi_base_url: "https://api.minimax.villamarket.ai/v1"
   dangerously_skip_permissions: true
 
 openclaw:

@@ -21,7 +21,7 @@ maintenance:
   working_dir: "/workspace/gasclaw"
   branch_prefixes: ["fix/", "feat/", "test/", "docs/", "refactor/"]
 claude:
-  kimi_base_url: "https://api.kimi.com/coding/"
+  kimi_base_url: "https://api.minimax.villamarket.ai/v1"
   bypass_permissions_via_config: true
 openclaw:
   gateway_port: 18789
@@ -37,7 +37,7 @@ fi
 echo "Loading config..."
 MAINTENANCE_INTERVAL=$(python3 /opt/scripts/config-loader.py --get maintenance.loop_interval 2>/dev/null || echo "300")
 MAINTENANCE_REPO=$(python3 /opt/scripts/config-loader.py --get maintenance.repo 2>/dev/null || echo "gastown-publish/gasclaw")
-KIMI_BASE_URL=$(python3 /opt/scripts/config-loader.py --get claude.kimi_base_url 2>/dev/null || echo "https://api.kimi.com/coding/")
+KIMI_BASE_URL=$(python3 /opt/scripts/config-loader.py --get claude.kimi_base_url 2>/dev/null || echo "https://api.minimax.villamarket.ai/v1")
 GATEWAY_PORT=$(python3 /opt/scripts/config-loader.py --get openclaw.gateway_port 2>/dev/null || echo "18789")
 echo "  maintenance_interval=${MAINTENANCE_INTERVAL}s repo=${MAINTENANCE_REPO}"
 
