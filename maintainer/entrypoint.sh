@@ -42,14 +42,32 @@ GATEWAY_PORT=$(python3 /opt/scripts/config-loader.py --get openclaw.gateway_port
 echo "  maintenance_interval=${MAINTENANCE_INTERVAL}s repo=${MAINTENANCE_REPO}"
 
 # --- 3. Auth ---
-: "${GITHUB_TOKEN:?GITHUB_TOKEN is required}"
 : "${KIMI_API_KEY:?KIMI_API_KEY is required}"
 : "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}"
 : "${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is required}"
 
-echo "$GITHUB_TOKEN" | gh auth login --with-token --hostname github.com 2>&1 || true
-gh auth status 2>&1 || true
-git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+# Authenticate gh CLI:
+# 1. Use GITHUB_TOKEN env var if set and non-empty
+# 2. Otherwise extract token from git remote URL (embedded at clone time)
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    echo "$GITHUB_TOKEN" | gh auth login --with-token --hostname github.com 2>&1 || true
+elif [ -d /workspace/gasclaw/.git ]; then
+    # Extract token from git remote URL
+    REMOTE_URL=$(git -C /workspace/gasclaw remote get-url origin 2>/dev/null || echo "")
+    GITHUB_TOKEN=$(echo "$REMOTE_URL" | grep -oP 'ghp_[A-Za-z0-9]+' || echo "")
+    if [ -n "$GITHUB_TOKEN" ]; then
+        echo "Found token in git remote, authenticating gh..."
+        echo "$GITHUB_TOKEN" | gh auth login --with-token --hostname github.com 2>&1 || true
+    fi
+fi
+
+# Verify gh is authenticated
+gh auth status 2>&1 || echo "WARNING: gh not authenticated - GitHub API calls will fail"
+
+# Configure git to use the token for future push/fetch operations
+git config --global url."https://${GITHUB_TOKEN:-x-access-token}@github.com/".insteadOf "https://github.com/"
+git config --global user.email "gasclaw-bot@gastown.dev"
+git config --global user.name "Gasclaw Maintainer"
 git config --global user.email "gasclaw-bot@gastown.dev"
 git config --global user.name "Gasclaw Maintainer"
 
