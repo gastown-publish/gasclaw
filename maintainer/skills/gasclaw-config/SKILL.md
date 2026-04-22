@@ -46,6 +46,6 @@ Located at `/workspace/config/gasclaw.yaml` — also editable from the host.
 | maintenance.max_pr_size | 200 | Max lines per PR |
 | maintenance.auto_merge | true | Auto-merge passing PRs |
 | maintenance.repo | gastown-publish/gasclaw | GitHub repo |
-| claude.kimi_base_url | https://api.kimi.com/coding/ | Kimi API endpoint |
+| claude.kimi_base_url | https://api.minimax.villamarket.ai/v1 | Kimi API endpoint |
 | openclaw.gateway_port | 18789 | OpenClaw gateway port |
 | logging.level | INFO | Log verbosity |
