@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def start_openclaw(
     *,
     port: int = 18789,
-    timeout: int = 60,
+    timeout: int = 180,
 ) -> None:
     """Start OpenClaw gateway and wait for it to be ready.
 
@@ -54,8 +54,7 @@ def start_openclaw(
                 if response.status_code == 200:
                     logger.info("OpenClaw gateway ready on port %d", port)
                     return
-            except httpx.ConnectError:
-                # Not ready yet, wait
+            except (httpx.ConnectError, httpx.ReadTimeout, httpx.TimeoutException):
                 pass
             time.sleep(1)
 
