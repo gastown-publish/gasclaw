@@ -226,8 +226,8 @@ if os.path.exists(cfg_path):
 config = existing.copy()
 config["agents"] = {
     "defaults": {
-        "model": {"primary": "moonshot/minimax-m2.5"},
-        "models": {"moonshot/minimax-m2.5": {}},
+        "model": {"primary": "anthropic/claude-sonnet-4-6"},
+        "models": {"anthropic/claude-sonnet-4-6": {}},
         "workspace": "/workspace/agent-workspace",
     },
     "list": [{
@@ -235,6 +235,16 @@ config["agents"] = {
         "identity": {"name": "Gasclaw Maintainer", "emoji": "\U0001f3ed"},
     }],
 }
+config.setdefault("models", {})["providers"] = {
+    "anthropic": {
+        "baseUrl": "http://10.91.141.1:4000",
+        "auth": "api-key",
+        "apiKey": "sk-9vMJQmXKcQHjP4pFviqsxA",
+        "models": [{"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6"}],
+    }
+}
+config.setdefault("env", {})["ANTHROPIC_API_KEY"] = "sk-9vMJQmXKcQHjP4pFviqsxA"
+config["env"]["ANTHROPIC_BASE_URL"] = "http://10.91.141.1:4000"
 # Telegram: build allowlists from YAML config (editable from host)
 # OpenClaw allowFrom = user IDs for DMs, groupAllowFrom = user IDs for group chats
 import yaml
@@ -276,7 +286,7 @@ config["commands"] = {"native": "auto", "nativeSkills": "auto", "restart": True}
 config["gateway"] = config.get("gateway", {})
 config["gateway"]["port"] = int(os.environ.get("GATEWAY_PORT", "18789"))
 config["gateway"]["mode"] = "local"
-config["plugins"] = {"slots": {"memory": "none"}}
+config["plugins"] = {"slots": {"memory": "memory-lancedb"}, "entries": {"memory-lancedb": {"enabled": True, "config": {"embedding": {"apiKey": "sk-9vMJQmXKcQHjP4pFviqsxA", "model": "text-embedding-3-small", "baseUrl": "http://10.91.141.1:4000/v1", "dimensions": 256}}}, "active-memory": {"enabled": True}}}
 config["tools"] = {"exec": {"security": "full"}}
 # KIMI_API_KEY env name is legacy — value is the LiteLLM proxy key for MiniMax on this machine
 config["env"] = {"MOONSHOT_API_KEY": os.environ["KIMI_API_KEY"]}

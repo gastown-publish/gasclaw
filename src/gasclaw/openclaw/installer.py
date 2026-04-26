@@ -67,35 +67,28 @@ def write_openclaw_config(
 
     owner_str = str(owner_id)
 
-    # General topic (1) must stay enabled for inbound message routing
-    group_topics: dict[str, Any] = {"1": {"requireMention": False}}
-    topic_prompts = {
-        "status": "STATUS topic. Post system health, dashboards, service status.",
-        "maintenance": "MAINTENANCE topic. Post cycle reports, config changes, update logs.",
-        "alerts": "ALERTS topic. Only urgent: service down, test failures, security.",
-        "prs": "PRs & ISSUES topic. PR reviews, merges, issue updates, releases.",
-        "chat": "CHAT topic. Conversations with the owner. Answer questions here.",
-    }
-    for name, prompt in topic_prompts.items():
-        tid = topics.get(name, "")
-        if tid:
-            group_topics[tid] = {
-                "requireMention": False,
-                "systemPrompt": prompt,
-            }
-
-    # Build groups config
+    # Topic routing: each bot responds only in its own topic.
+    own_topic = os.environ.get("GASCLAW_OWN_TOPIC")
+    all_topic_ids = os.environ.get("GASCLAW_ALL_TOPICS", "1,918,919,920,921,1425").split(",")
+    group_topics: dict[str, Any] = {}
+    for tid in all_topic_ids:
+        tid = tid.strip()
+        if not tid: continue
+        is_own = own_topic and tid == own_topic.strip()
+        group_topics[tid] = {"requireMention": not is_own}
     groups_cfg: dict[str, Any] = {}
     if group_id:
         groups_cfg[group_id] = {
-            "requireMention": False,
+            "requireMention": True,
             "groupPolicy": "open",
             "topics": group_topics,
         }
 
-    # MiniMax via LiteLLM (moonshot provider id in OpenClaw); never kimi-coding/k2p5
-    primary_model = "moonshot/minimax-m2.5"
-    fallback_models = ["openrouter/qwen/qwen3-coder:free"]
+    # Use anthropic provider pointed at local LiteLLM (MiniMax M2.7 backend)
+    primary_model = "anthropic/claude-sonnet-4-6"
+    fallback_models: list = []
+    litellm_base_url = os.environ.get("LITELLM_BASE_URL", "http://10.91.141.1:4000")
+    litellm_api_key = os.environ.get("ANTHROPIC_API_KEY", kimi_key)
 
     # Build agent list based on agent_count (#322)
     agent_list = []
@@ -124,6 +117,18 @@ def write_openclaw_config(
                 "workspace": str(openclaw_dir / "workspace"),
             },
             "list": agent_list,
+        },
+        "models": {
+            "providers": {
+                "anthropic": {
+                    "baseUrl": litellm_base_url,
+                    "auth": "api-key",
+                    "apiKey": litellm_api_key,
+                    "models": [
+                        {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6"}
+                    ],
+                },
+            },
         },
         "channels": {
             "telegram": {
@@ -158,7 +163,23 @@ def write_openclaw_config(
         },
         "plugins": {
             "slots": {
-                "memory": "none",
+                "memory": "memory-lancedb",
+            },
+            "entries": {
+                "memory-lancedb": {
+                    "enabled": True,
+                    "config": {
+                        "embedding": {
+                            "apiKey": litellm_api_key,
+                            "model": "text-embedding-3-small",
+                            "baseUrl": (litellm_base_url + "/v1") if not litellm_base_url.endswith("/v1") else litellm_base_url,
+                            "dimensions": 256,
+                        },
+                        "autoCapture": True,
+                        "autoRecall": True,
+                    },
+                },
+                "active-memory": {"enabled": True},
             },
         },
         "tools": {
@@ -167,7 +188,8 @@ def write_openclaw_config(
             },
         },
         "env": {
-            # LiteLLM proxy key (MOONSHOT_API_KEY name is OpenClaw convention for moonshot provider)
+            "ANTHROPIC_API_KEY": litellm_api_key,
+            "ANTHROPIC_BASE_URL": litellm_base_url,
             "MOONSHOT_API_KEY": kimi_key,
             "BD_ROOT": gt_root,
         },

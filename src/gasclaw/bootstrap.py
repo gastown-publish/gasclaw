@@ -145,7 +145,7 @@ def bootstrap(config: GasclawConfig, *, gt_root: Path = Path("/workspace/gt")) -
 
         # 8. Start OpenClaw gateway
         logger.info("Starting OpenClaw gateway on port %d", config.gateway_port)
-        start_openclaw(port=config.gateway_port, timeout=60)  # Increased timeout (#317)
+        start_openclaw(port=config.gateway_port, timeout=180)  # Increased timeout (#317)
         services_started = True
         logger.info("OpenClaw gateway started successfully")
 
@@ -233,8 +233,16 @@ def monitor_loop(
     # Initialize key pool for health checks
     key_pool = KeyPool(config.gastown_kimi_keys)
 
+    # Notification state: only alert on transitions (healthy <-> unhealthy)
+    # and skip the first ~10 min after start (warmup grace period).
+    prev_service_state = {"dolt": None, "daemon": None, "mayor": None}
+    prev_activity_compliant = None
+    cycle = 0
+    grace_cycles = max(1, int(600 / max(interval, 1)))
+
     try:
         while True:
+            cycle += 1
             report = check_health(
                 gateway_port=config.gateway_port,
                 dolt_port=config.dolt_port,
@@ -246,7 +254,6 @@ def monitor_loop(
             )
             report.activity = activity
 
-            # Log health status
             logger.debug(
                 "Health check: dolt=%s, daemon=%s, mayor=%s, agents=%d",
                 report.dolt,
@@ -255,24 +262,35 @@ def monitor_loop(
                 len(report.agents),
             )
 
-            # If not compliant, notify the overseer
-            if not activity.get("compliant", True):
+            in_grace = cycle <= grace_cycles
+
+            compliant = activity.get("compliant", True)
+            if not compliant:
                 logger.warning(
                     "Activity violation: last_commit_age=%s, deadline=%d",
                     activity.get("last_commit_age"),
                     config.activity_deadline,
                 )
-                notify_telegram(
-                    f"ACTIVITY ALERT: No commits in {config.activity_deadline}s. "
-                    f"Last commit age: {activity.get('last_commit_age', 'unknown')}s.\n"
-                    f"System status:\n{report.summary()}"
-                )
+            if not in_grace and compliant != prev_activity_compliant:
+                if not compliant and prev_activity_compliant is not False:
+                    notify_telegram(
+                        f"ACTIVITY ALERT: No commits in {config.activity_deadline}s. "
+                        f"Last commit age: {activity.get('last_commit_age', 'unknown')}s."
+                    )
+                elif compliant and prev_activity_compliant is False:
+                    notify_telegram("ACTIVITY OK: commit activity resumed.")
+            prev_activity_compliant = compliant
 
-            # If any critical service is down, notify
-            for svc in ["dolt", "daemon", "mayor"]:
-                if getattr(report, svc) == "unhealthy":
+            for svc in ("dolt", "daemon", "mayor"):
+                cur = getattr(report, svc)
+                if cur == "unhealthy":
                     logger.error("Service down: %s", svc)
-                    notify_telegram(f"SERVICE DOWN: {svc} is unhealthy")
+                if not in_grace and cur != prev_service_state[svc]:
+                    if cur == "unhealthy" and prev_service_state[svc] != "unhealthy":
+                        notify_telegram(f"SERVICE DOWN: {svc} is unhealthy")
+                    elif cur == "healthy" and prev_service_state[svc] == "unhealthy":
+                        notify_telegram(f"SERVICE RECOVERED: {svc} is healthy")
+                prev_service_state[svc] = cur
 
             time.sleep(interval)
     except KeyboardInterrupt:
