@@ -10,6 +10,153 @@ import pytest
 from gasclaw.gastown.lifecycle import start_daemon, start_dolt, start_mayor, stop_all
 
 
+class TestDoltTcpCheck:
+    """Tests for the TCP-based Dolt health check - Issue #338."""
+
+    def test_tcp_connect_succeeds(self, monkeypatch, tmp_path):
+        """TCP connection success triggers immediate return."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
+
+        class MockProc:
+            pid = 1
+
+            def poll(self):
+                return None
+
+            def terminate(self):
+                pass
+
+            def wait(self, timeout=None):
+                return 0
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
+
+        # Mock socket to simulate successful connection
+        mock_sock = MagicMock()
+        mock_sock.connect.return_value = None
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=30)
+
+        # Verify connect was called with correct address
+        mock_sock.connect.assert_called_once_with(("127.0.0.1", 3307))
+        mock_sock.close.assert_called_once()
+
+    def test_tcp_connect_refused_raises_timeout(self, monkeypatch, tmp_path):
+        """ConnectionRefusedError triggers retry until timeout."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
+
+        class MockProc:
+            pid = 1
+
+            def poll(self):
+                return None
+
+            def terminate(self):
+                pass
+
+            def wait(self, timeout=None):
+                return 0
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
+
+        # Mock socket to always refuse connection
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = ConnectionRefusedError("Connection refused")
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock), \
+             pytest.raises(TimeoutError):
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
+
+        # Verify socket was closed after each attempt
+        assert mock_sock.close.call_count >= 1
+
+    def test_tcp_connect_oserror_raises_timeout(self, monkeypatch, tmp_path):
+        """OSError (e.g., timeout) triggers retry until timeout."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
+
+        class MockProc:
+            pid = 1
+
+            def poll(self):
+                return None
+
+            def terminate(self):
+                pass
+
+            def wait(self, timeout=None):
+                return 0
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
+
+        # Mock socket to raise OSError (simulates timeout)
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = OSError("Connection timed out")
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock), \
+             pytest.raises(TimeoutError):
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
+
+    def test_tcp_check_uses_correct_port(self, monkeypatch, tmp_path):
+        """TCP check uses the port from start_dolt parameters."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
+        connect_calls = []
+
+        class MockProc:
+            pid = 1
+
+            def poll(self):
+                return None
+
+        def mock_popen(*a, **kw):
+            return MockProc()
+
+        def mock_connect(addr):
+            connect_calls.append(addr)
+
+        monkeypatch.setattr(subprocess, "Popen", mock_popen)
+
+        # Mock socket to capture connect args
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = mock_connect
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            start_dolt(data_dir=str(data_dir), port=5432, timeout=1)
+
+        # Verify TCP connect was called with the custom port
+        assert ("127.0.0.1", 5432) in connect_calls
+
+    def test_tcp_check_uses_localhost(self, monkeypatch, tmp_path):
+        """TCP check connects to localhost (127.0.0.1)."""
+        data_dir = tmp_path / "dolt"
+        data_dir.mkdir()
+        connect_calls = []
+
+        class MockProc:
+            pid = 1
+
+            def poll(self):
+                return None
+
+        monkeypatch.setattr(subprocess, "Popen", lambda *a, **kw: MockProc())
+
+        def mock_connect(addr):
+            connect_calls.append(addr)
+
+        mock_sock = MagicMock()
+        mock_sock.connect.side_effect = mock_connect
+
+        with patch("gasclaw.gastown.lifecycle.socket.socket", return_value=mock_sock):
+            start_dolt(data_dir=str(data_dir), port=3307, timeout=1)
+
+        # Verify connect was to localhost
+        assert any(addr[0] == "127.0.0.1" for addr in connect_calls)
+
+
 class TestStartDolt:
     def test_runs_dolt_sql_server(self, monkeypatch, tmp_path):
         calls = []
