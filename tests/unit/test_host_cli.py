@@ -308,8 +308,8 @@ class TestInitCommand:
         )
 
         # Change to temp directory
-        with runner.isolated_filesystem(temp_dir=tmp_path):
-            result = runner.invoke(app, ["init", "--project-dir", str(tmp_path), "--skip-wizard"])
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(app, ["init", "--project-dir", str(tmp_path), "--skip-wizard"])
 
         # Check files were created (or command completed)
         assert result.exit_code == 0
